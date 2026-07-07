@@ -8,3 +8,5 @@ tsconfig.json
 **/.eslintrc*
 **/*.map
 node_modules/**
+resources/marketplace-icon.svg
+*.vsix

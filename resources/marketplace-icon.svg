@@ -1,0 +1,40 @@
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF9A3C" />
+      <stop offset="50%" stop-color="#FF5B3C" />
+      <stop offset="100%" stop-color="#C21F5B" />
+    </linearGradient>
+    <linearGradient id="metal" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#E4E8F0" />
+    </linearGradient>
+  </defs>
+
+  <rect width="256" height="256" rx="48" fill="url(#bg)" />
+
+  <!-- sparks -->
+  <circle cx="196" cy="66" r="6" fill="#FFE07D" />
+  <circle cx="214" cy="90" r="4" fill="#FFE07D" />
+  <circle cx="184" cy="44" r="3.5" fill="#FFF3C4" />
+  <circle cx="60" cy="196" r="4" fill="#FFE07D" opacity="0.85" />
+
+  <!-- anvil -->
+  <g>
+    <rect x="96" y="176" width="64" height="14" rx="4" fill="url(#metal)" />
+    <rect x="112" y="150" width="32" height="28" rx="3" fill="url(#metal)" />
+    <path
+      d="M64 132 C64 118 78 108 96 108 L168 108 C182 108 190 116 198 126 C202 131 200 138 194 139 L188 140
+         C186 140.6 184.6 142 184 144 L180 150 C178.6 153.6 175 156 171 156 L86 156
+         C74 156 64 146 64 134 Z"
+      fill="url(#metal)"
+    />
+    <circle cx="150" cy="130" r="5" fill="#C21F5B" opacity="0.55" />
+  </g>
+
+  <!-- hammer, angled above the anvil -->
+  <g transform="translate(150,40) rotate(35)">
+    <rect x="-8" y="0" width="16" height="70" rx="7" fill="#3B2B2B" />
+    <rect x="-26" y="-26" width="52" height="34" rx="8" fill="url(#metal)" />
+  </g>
+</svg>

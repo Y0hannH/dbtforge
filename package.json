@@ -4,7 +4,12 @@
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
   "version": "0.1.0",
   "publisher": "evolve-data",
-  "private": true,
+  "icon": "resources/icon.png",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Y0hannH/dbtforge"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -140,6 +145,7 @@
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.20.0",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
