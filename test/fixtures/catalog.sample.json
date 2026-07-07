@@ -1,0 +1,24 @@
+{
+  "nodes": {
+    "model.example_project.stg_customers": {
+      "unique_id": "model.example_project.stg_customers",
+      "metadata": { "schema": "dbt_staging", "name": "stg_customers", "type": "VIEW" },
+      "columns": {
+        "customer_id": { "name": "customer_id", "type": "bigint", "index": 1 },
+        "first_name": { "name": "first_name", "type": "varchar", "index": 2 },
+        "last_name": { "name": "last_name", "type": "varchar", "index": 3 }
+      }
+    }
+  },
+  "sources": {
+    "source.example_project.raw.customers": {
+      "unique_id": "source.example_project.raw.customers",
+      "metadata": { "schema": "raw", "name": "customers", "type": "BASE TABLE" },
+      "columns": {
+        "id": { "name": "id", "type": "bigint", "index": 1 },
+        "first_name": { "name": "first_name", "type": "varchar", "index": 2 },
+        "last_name": { "name": "last_name", "type": "varchar", "index": 3 }
+      }
+    }
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "name": "dbtforge",
+  "displayName": "dbt Forge",
+  "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
+  "version": "0.1.0",
+  "publisher": "evolve-data",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/dbt_project.yml"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "configuration": {
+      "title": "dbt Forge",
+      "properties": {
+        "dbtForge.pythonPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the Python executable inside the dbt project's venv (e.g. C:/path/.venv/Scripts/python.exe). Leave empty to use 'dbt' from PATH."
+        },
+        "dbtForge.projectDir": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the dbt project root (containing dbt_project.yml). Defaults to workspace root if empty."
+        },
+        "dbtForge.manifestPath": {
+          "type": "string",
+          "default": "target/manifest.json",
+          "description": "Path to manifest.json, relative to the dbt project root."
+        },
+        "dbtForge.catalogPath": {
+          "type": "string",
+          "default": "target/catalog.json",
+          "description": "Path to catalog.json, relative to the dbt project root."
+        },
+        "dbtForge.compiledDir": {
+          "type": "string",
+          "default": "target/compiled",
+          "description": "Path to the compiled models directory, relative to the dbt project root."
+        }
+      }
+    },
+    "commands": [
+      {
+        "command": "dbtForge.refreshIndex",
+        "title": "dbt Forge: Refresh Manifest/Catalog Index",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "dbtForge.buildUpstream",
+        "title": "dbt Forge: Build Upstream (+model)",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "dbtForge.buildDownstream",
+        "title": "dbt Forge: Build Downstream (model+)",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "dbtForge.testModel",
+        "title": "dbt Forge: Test Model",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "dbtForge.previewCompiledSql",
+        "title": "dbt Forge: Preview Compiled SQL"
+      },
+      {
+        "command": "dbtForge.showLineage",
+        "title": "dbt Forge: Show Lineage"
+      },
+      {
+        "command": "dbtForge.buildProject",
+        "title": "dbt Forge: Build Project",
+        "icon": "$(rocket)"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "dbtForge.previewCompiledSql",
+          "when": "resourceExtname == .sql",
+          "group": "dbtForge"
+        },
+        {
+          "command": "dbtForge.showLineage",
+          "when": "resourceExtname == .sql",
+          "group": "dbtForge"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "dbtForge.buildProject",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation"
+        },
+        {
+          "command": "dbtForge.refreshIndex",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation"
+        }
+      ]
+    },
+    "views": {
+      "dbtForge": [
+        {
+          "id": "dbtForge.relatives",
+          "name": "Parents / Children / Tests"
+        }
+      ]
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "dbtForge",
+          "title": "dbt Forge",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "compile": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "package": "node esbuild.js --production",
+    "pretest": "npm run compile && tsc -p . --noEmit",
+    "test": "node --test --import tsx test/suite/*.test.ts",
+    "lint": "eslint src test"
+  },
+  "devDependencies": {
+    "@types/dagre": "^0.7.54",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "dependencies": {
+    "dagre": "^0.8.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "reactflow": "^11.11.4"
+  }
+}

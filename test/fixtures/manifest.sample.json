@@ -1,0 +1,56 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v11.json",
+    "project_name": "example_project"
+  },
+  "nodes": {
+    "model.example_project.stg_customers": {
+      "unique_id": "model.example_project.stg_customers",
+      "resource_type": "model",
+      "name": "stg_customers",
+      "package_name": "example_project",
+      "path": "staging/stg_customers.sql",
+      "original_file_path": "models/staging/stg_customers.sql",
+      "depends_on": { "nodes": ["source.example_project.raw.customers"] }
+    },
+    "model.example_project.dim_customers": {
+      "unique_id": "model.example_project.dim_customers",
+      "resource_type": "model",
+      "name": "dim_customers",
+      "package_name": "example_project",
+      "path": "marts/dim_customers.sql",
+      "original_file_path": "models/marts/dim_customers.sql",
+      "depends_on": { "nodes": ["model.example_project.stg_customers"] }
+    },
+    "test.example_project.not_null_dim_customers_customer_id": {
+      "unique_id": "test.example_project.not_null_dim_customers_customer_id",
+      "resource_type": "test",
+      "name": "not_null_dim_customers_customer_id",
+      "package_name": "example_project",
+      "path": "not_null_dim_customers_customer_id.sql",
+      "original_file_path": "models/marts/dim_customers.yml",
+      "depends_on": { "nodes": ["model.example_project.dim_customers"] }
+    }
+  },
+  "sources": {
+    "source.example_project.raw.customers": {
+      "unique_id": "source.example_project.raw.customers",
+      "resource_type": "source",
+      "name": "customers",
+      "source_name": "raw",
+      "package_name": "example_project",
+      "original_file_path": "models/staging/sources.yml"
+    }
+  },
+  "parent_map": {
+    "model.example_project.stg_customers": ["source.example_project.raw.customers"],
+    "model.example_project.dim_customers": ["model.example_project.stg_customers"],
+    "test.example_project.not_null_dim_customers_customer_id": ["model.example_project.dim_customers"]
+  },
+  "child_map": {
+    "source.example_project.raw.customers": ["model.example_project.stg_customers"],
+    "model.example_project.stg_customers": ["model.example_project.dim_customers"],
+    "model.example_project.dim_customers": ["test.example_project.not_null_dim_customers_customer_id"],
+    "test.example_project.not_null_dim_customers_customer_id": []
+  }
+}
