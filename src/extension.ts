@@ -72,6 +72,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       relativesTree.refresh(vscode.window.activeTextEditor);
       vscode.window.showInformationMessage('dbt Forge: index refreshed.');
     }),
+    vscode.commands.registerCommand('dbtForge.buildModel', (uri?: vscode.Uri) =>
+      withModelNode(uri, (index, node) =>
+        runDbtCommand(index.getConfig(), ['build', '--select', node.name])
+      )
+    ),
     vscode.commands.registerCommand('dbtForge.buildUpstream', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) =>
         runDbtCommand(index.getConfig(), ['build', '--select', `+${node.name}`])
@@ -97,6 +102,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const index = await resolveAnyIndex();
       if (!index) return;
       runDbtCommand(index.getConfig(), ['build']);
+    }),
+    vscode.commands.registerCommand('dbtForge.compileProject', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      runDbtCommand(index.getConfig(), ['compile']);
     })
   );
 

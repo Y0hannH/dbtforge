@@ -1,4 +1,5 @@
 .vscode/**
+.claude/**
 .gitignore
 src/**
 test/**

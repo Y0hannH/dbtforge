@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -28,26 +28,31 @@
         "dbtForge.pythonPath": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Path to the Python executable inside the dbt project's venv (e.g. C:/path/.venv/Scripts/python.exe). Leave empty to use 'dbt' from PATH."
         },
         "dbtForge.projectDir": {
           "type": "string",
           "default": "",
+          "scope": "resource",
           "description": "Path to the dbt project root (containing dbt_project.yml). Defaults to workspace root if empty."
         },
         "dbtForge.manifestPath": {
           "type": "string",
           "default": "target/manifest.json",
+          "scope": "resource",
           "description": "Path to manifest.json, relative to the dbt project root."
         },
         "dbtForge.catalogPath": {
           "type": "string",
           "default": "target/catalog.json",
+          "scope": "resource",
           "description": "Path to catalog.json, relative to the dbt project root."
         },
         "dbtForge.compiledDir": {
           "type": "string",
           "default": "target/compiled",
+          "scope": "resource",
           "description": "Path to the compiled models directory, relative to the dbt project root."
         }
       }
@@ -57,6 +62,16 @@
         "command": "dbtForge.refreshIndex",
         "title": "dbt Forge: Refresh Manifest/Catalog Index",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "dbtForge.compileProject",
+        "title": "dbt Forge: Compile Project",
+        "icon": "$(tools)"
+      },
+      {
+        "command": "dbtForge.buildModel",
+        "title": "dbt Forge: Build Model",
+        "icon": "$(target)"
       },
       {
         "command": "dbtForge.buildUpstream",
@@ -101,6 +116,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "dbtForge.compileProject",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation"
+        },
         {
           "command": "dbtForge.buildProject",
           "when": "view == dbtForge.relatives",

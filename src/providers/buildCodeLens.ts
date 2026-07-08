@@ -21,6 +21,11 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
     const uri = document.uri;
     return [
       new vscode.CodeLens(TOP_OF_FILE, {
+        title: '$(target) Build Model',
+        command: 'dbtForge.buildModel',
+        arguments: [uri],
+      }),
+      new vscode.CodeLens(TOP_OF_FILE, {
         title: '$(arrow-up) Build Upstream',
         command: 'dbtForge.buildUpstream',
         arguments: [uri],
