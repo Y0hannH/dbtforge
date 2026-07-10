@@ -1,3 +1,4 @@
+import * as path from 'path';
 import * as vscode from 'vscode';
 import { previewCompiledSql, compiledSqlContentProvider, COMPILED_SQL_SCHEME } from './commands/compiledSqlPreview';
 import { showLineage } from './commands/lineageFlow';
@@ -103,6 +104,21 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!index) return;
       runDbtCommand(index.getConfig(), ['build']);
     }),
+    vscode.commands.registerCommand('dbtForge.buildFolder', (uri?: vscode.Uri) =>
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbtCommand(index.getConfig(), ['build', '--select', `path:${selectorPath}`])
+      )
+    ),
+    vscode.commands.registerCommand('dbtForge.buildFolderUpstream', (uri?: vscode.Uri) =>
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbtCommand(index.getConfig(), ['build', '--select', `+path:${selectorPath}`])
+      )
+    ),
+    vscode.commands.registerCommand('dbtForge.buildFolderDownstream', (uri?: vscode.Uri) =>
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbtCommand(index.getConfig(), ['build', '--select', `path:${selectorPath}+`])
+      )
+    ),
     vscode.commands.registerCommand('dbtForge.compileProject', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
@@ -136,6 +152,35 @@ function withModelNode(
   }
 
   action(index, node);
+}
+
+/**
+ * Resolves the dbt project a right-clicked explorer folder belongs to, and the `path:`
+ * selector (relative to the project root, forward-slashed for dbt's selector matching)
+ * that scopes a build to every model under that folder.
+ */
+function withProjectFolder(
+  uri: vscode.Uri | undefined,
+  action: (index: DbtProjectIndex, selectorPath: string) => void
+): void {
+  if (!uri) {
+    vscode.window.showWarningMessage('dbt Forge: no folder selected.');
+    return;
+  }
+
+  const index = getIndexForResource(uri);
+  if (!index) {
+    vscode.window.showWarningMessage('dbt Forge: this folder is not part of an indexed dbt project.');
+    return;
+  }
+
+  const relativePath = path.relative(index.getConfig().projectDir, uri.fsPath);
+  if (!relativePath || relativePath.startsWith('..')) {
+    vscode.window.showWarningMessage('dbt Forge: this folder is outside the dbt project.');
+    return;
+  }
+
+  action(index, relativePath.split(path.sep).join('/'));
 }
 
 /**

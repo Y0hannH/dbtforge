@@ -2,6 +2,11 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.3.0] - 2026-07-10
+
+### Added
+- **Build Folder**, **Build Folder Upstream (+folder)**, and **Build Folder Downstream (folder+)** commands, available from the right-click context menu on any folder in the Explorer. Builds every model under that folder (via dbt's `path:` selector) without having to select models one by one.
+
 ## [0.2.0] - 2026-07-08
 
 ### Added

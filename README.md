@@ -3,7 +3,7 @@
 > A smoother dbt workflow, without leaving VS Code — and without your SQL ever leaving your machine.
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.85-007ACC?style=flat-square&logo=visualstudiocode)
-![Version](https://img.shields.io/badge/Version-0.1.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-0.3.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-00B4D8?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)
 
@@ -82,6 +82,9 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 | `dbtForge.buildDownstream` | `dbt build --select model+` for the open model |
 | `dbtForge.testModel` | `dbt test --select model` for the open model |
 | `dbtForge.buildProject` | `dbt build` for the whole project |
+| `dbtForge.buildFolder` | `dbt build --select path:<folder>` for all models in a right-clicked folder |
+| `dbtForge.buildFolderUpstream` | `dbt build --select +path:<folder>` — folder's models + upstream parents |
+| `dbtForge.buildFolderDownstream` | `dbt build --select path:<folder>+` — folder's models + downstream children |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
 

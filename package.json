@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -100,6 +100,21 @@
         "command": "dbtForge.buildProject",
         "title": "dbt Forge: Build Project",
         "icon": "$(rocket)"
+      },
+      {
+        "command": "dbtForge.buildFolder",
+        "title": "dbt Forge: Build Folder",
+        "icon": "$(target)"
+      },
+      {
+        "command": "dbtForge.buildFolderUpstream",
+        "title": "dbt Forge: Build Folder Upstream (+folder)",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "dbtForge.buildFolderDownstream",
+        "title": "dbt Forge: Build Folder Downstream (folder+)",
+        "icon": "$(arrow-down)"
       }
     ],
     "menus": {
@@ -112,6 +127,23 @@
         {
           "command": "dbtForge.showLineage",
           "when": "resourceExtname == .sql",
+          "group": "dbtForge"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "dbtForge.buildFolder",
+          "when": "explorerResourceIsFolder",
+          "group": "dbtForge"
+        },
+        {
+          "command": "dbtForge.buildFolderUpstream",
+          "when": "explorerResourceIsFolder",
+          "group": "dbtForge"
+        },
+        {
+          "command": "dbtForge.buildFolderDownstream",
+          "when": "explorerResourceIsFolder",
           "group": "dbtForge"
         }
       ],
