@@ -11,6 +11,7 @@ import { ColumnCompletionProvider } from './providers/columnCompletion';
 import { RefSourceDefinitionProvider } from './providers/definitionProvider';
 import { JinjaSnippetCompletionProvider } from './providers/jinjaSnippetCompletion';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
+import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
@@ -60,6 +61,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       DBT_SQL_SELECTOR,
       new RefSourceDefinitionProvider(getIndexForResource)
     ),
+    vscode.languages.registerReferenceProvider(DBT_SQL_SELECTOR, new DbtReferenceProvider(getIndexForResource)),
     vscode.languages.registerCodeLensProvider(DBT_SQL_SELECTOR, codeLensProvider),
     vscode.workspace.registerTextDocumentContentProvider(COMPILED_SQL_SCHEME, compiledSqlContentProvider)
   );

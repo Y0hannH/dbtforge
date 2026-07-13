@@ -2,6 +2,12 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.4.0] - 2026-07-13
+
+### Added
+- **Find All References** (`Shift+F12` / right-click) for models, sources, and macros — lists every `ref()`/`source()`/macro call site across the project, resolved from the manifest's dependency graph (no full-project text scan).
+- **Go to Definition** for macro calls (`{{ my_macro(...) }}` or namespaced `{{ dbt_utils.my_macro(...) }}`) — jumps straight to the macro's `.sql` file, same as the existing ref()/source() Go to Definition.
+
 ## [0.3.0] - 2026-07-10
 
 ### Added

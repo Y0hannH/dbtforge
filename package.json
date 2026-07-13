@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",

@@ -40,6 +40,7 @@ const fakeGraph: DependencyGraph = {
   getParents: (id) => parents[id] ?? [],
   getChildren: (id) => children[id] ?? [],
   getTests: () => [],
+  getMacroCallers: () => [],
 };
 
 const fakeIndex = {

@@ -99,3 +99,89 @@ export function findCallAtPosition(lineText: string, character: number): CallMat
 
   return undefined;
 }
+
+export interface CallLocation {
+  start: number;
+  end: number;
+}
+
+/** Every ref() call to `modelName` on a line — a file can reference the same model more than once. */
+export function findAllRefCallLocations(lineText: string, modelName: string): CallLocation[] {
+  const results: CallLocation[] = [];
+  for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    if (match[1] !== modelName) continue;
+    const [start, end] = match.indices[1];
+    results.push({ start, end });
+  }
+  return results;
+}
+
+/** Every source() call to (sourceName, tableName) on a line, pointing at the table-name arg. */
+export function findAllSourceCallLocations(
+  lineText: string,
+  sourceName: string,
+  tableName: string
+): CallLocation[] {
+  const results: CallLocation[] = [];
+  for (const match of lineText.matchAll(SOURCE_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    if (match[1] !== sourceName || match[2] !== tableName) continue;
+    const [start, end] = match.indices[2];
+    results.push({ start, end });
+  }
+  return results;
+}
+
+/**
+ * Every call to `macroName` on a line, bare or namespaced (e.g. `dbt_utils.macroName(`) — `\b`
+ * matches right after the `.` too, so this resolves to just the macro name's span either way.
+ * Macro names are Jinja/Python identifiers, so no regex escaping is needed.
+ */
+export function findAllMacroCallLocations(lineText: string, macroName: string): CallLocation[] {
+  const results: CallLocation[] = [];
+  const pattern = new RegExp(`\\b${macroName}\\s*\\(`, 'g');
+  for (const match of lineText.matchAll(pattern)) {
+    const start = match.index!;
+    results.push({ start, end: start + macroName.length });
+  }
+  return results;
+}
+
+const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_]*/g;
+
+/**
+ * Detects "cursor is on a macro call" for Find All References / Go to Definition: the identifier
+ * under the cursor, provided it's followed (modulo whitespace) by `(`. Resolving the returned name
+ * against the macro index naturally filters out plain SQL function calls (e.g. `sum(`, `coalesce(`)
+ * that happen to look like a call but aren't a known macro.
+ */
+export function findMacroCallAtPosition(
+  lineText: string,
+  character: number
+): { name: string; start: number; end: number } | undefined {
+  for (const match of lineText.matchAll(IDENTIFIER)) {
+    const start = match.index!;
+    const end = start + match[0].length;
+    if (character < start || character > end) continue;
+    if (!/^\s*\(/.test(lineText.slice(end))) continue;
+    return { name: match[0], start, end };
+  }
+  return undefined;
+}
+
+const MACRO_DEFINITION = /\{%-?\s*macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/d;
+
+/**
+ * Detects "cursor is on a `{% macro name(...) %}` definition line". Used so Find All References
+ * works from inside a macro's own file even though the whole-file fallback (used for models,
+ * which are 1:1 with a file) doesn't apply — a macro file can define more than one macro.
+ */
+export function findMacroDefinitionAtPosition(
+  lineText: string,
+  character: number
+): { name: string; start: number; end: number } | undefined {
+  const match = MACRO_DEFINITION.exec(lineText) as RegExpMatchWithIndices | null;
+  if (!match) return undefined;
+  const [start, end] = match.indices[1];
+  if (character < start || character > end) return undefined;
+  return { name: match[1], start, end };
+}

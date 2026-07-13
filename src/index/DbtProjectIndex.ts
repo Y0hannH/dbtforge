@@ -5,7 +5,7 @@ import { DbtForgeConfig } from '../config';
 import { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
 import { watchFile } from './fileWatcher';
 import { buildDependencyGraph, DependencyGraph } from './graph';
-import { DbtManifest, DbtNode, DbtSourceNode } from './manifestTypes';
+import { DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
 
 export interface ModelRef {
   uniqueId: string;
@@ -19,6 +19,13 @@ export interface SourceRef {
   sourceName: string; // first arg to source()
   tableName: string; // second arg to source()
   node: DbtSourceNode;
+}
+
+export interface MacroRef {
+  uniqueId: string;
+  name: string;
+  packageName: string;
+  node: DbtMacroNode;
 }
 
 /**
@@ -36,6 +43,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private modelsByName = new Map<string, ModelRef>();
   // "source_name.table_name" -> node, for source() resolution.
   private sourcesByKey = new Map<string, SourceRef>();
+  // name -> node, for macro call resolution. Same flat-map simplification as modelsByName.
+  private macrosByName = new Map<string, MacroRef>();
   // normalized absolute file path -> unique_id, to map the active editor to a manifest node.
   private uniqueIdByFilePath = new Map<string, string>();
 
@@ -78,6 +87,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.graph = undefined;
       this.modelsByName.clear();
       this.sourcesByKey.clear();
+      this.macrosByName.clear();
       this._onDidChange.fire();
       return;
     }
@@ -115,6 +125,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   private indexModelsAndSources(manifest: DbtManifest): void {
     this.modelsByName.clear();
     this.sourcesByKey.clear();
+    this.macrosByName.clear();
     this.uniqueIdByFilePath.clear();
 
     for (const node of Object.values(manifest.nodes)) {
@@ -139,6 +150,15 @@ export class DbtProjectIndex implements vscode.Disposable {
         uniqueId: node.unique_id,
         sourceName: node.source_name,
         tableName: node.name,
+        node,
+      });
+    }
+
+    for (const node of Object.values(manifest.macros ?? {})) {
+      this.macrosByName.set(node.name, {
+        uniqueId: node.unique_id,
+        name: node.name,
+        packageName: node.package_name,
         node,
       });
     }
@@ -187,8 +207,21 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.sourcesByKey.get(sourceKey(sourceName, tableName));
   }
 
+  resolveMacro(name: string): MacroRef | undefined {
+    return this.macrosByName.get(name);
+  }
+
   getNode(uniqueId: string): DbtNode | undefined {
     return this.manifest?.nodes[uniqueId];
+  }
+
+  getMacroNode(uniqueId: string): DbtMacroNode | undefined {
+    return this.manifest?.macros?.[uniqueId];
+  }
+
+  /** Resolves a caller unique_id from getChildren()/getMacroCallers() to its node or macro. */
+  getAnyEntity(uniqueId: string): DbtNode | DbtMacroNode | undefined {
+    return this.manifest?.nodes[uniqueId] ?? this.manifest?.macros?.[uniqueId];
   }
 
   getCatalogColumns(uniqueId: string): DbtCatalogColumn[] | undefined {
@@ -201,8 +234,8 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.graph;
   }
 
-  /** Absolute file URI for a model/source node, resolved from its manifest-relative path. */
-  getFileUri(node: DbtNode | DbtSourceNode): vscode.Uri {
+  /** Absolute file URI for a model/source/macro node, resolved from its manifest-relative path. */
+  getFileUri(node: DbtNode | DbtSourceNode | DbtMacroNode): vscode.Uri {
     return vscode.Uri.file(path.join(this.config.projectDir, node.original_file_path));
   }
 

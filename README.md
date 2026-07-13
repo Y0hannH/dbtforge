@@ -3,7 +3,7 @@
 > A smoother dbt workflow, without leaving VS Code — and without your SQL ever leaving your machine.
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.85-007ACC?style=flat-square&logo=visualstudiocode)
-![Version](https://img.shields.io/badge/Version-0.3.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-0.4.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-00B4D8?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)
 
@@ -23,7 +23,8 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 |---|---|---|
 | 🔗 | **ref()/source() autocomplete** | Suggests model and source names as you type inside `{{ ref('...` / `{{ source('...', '...` |
 | ⚡ | **Snippet expansion** | Type `ref` or `source` in plain SQL to expand into the full `{{ ref("") }}` tag, cursor ready to autocomplete |
-| 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()` call to jump straight to the model's `.sql` file |
+| 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()`/macro call to jump straight to the model/macro's `.sql` file |
+| 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (built models) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
@@ -116,6 +117,9 @@ dbt Forge does not collect any data and has no network calls of its own:
 
 ### ✅ Core (v1)
 ref()/source() autocomplete, Go to Definition, column autocomplete (aliases + CTEs), Parents/Children/Tests panel, build/test shortcuts, compiled SQL preview, interactive lineage graph.
+
+### ✅ v0.4
+Find All References and Go to Definition for macros, in addition to models/sources.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

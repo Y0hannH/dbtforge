@@ -1,6 +1,15 @@
 import { strict as assert } from 'assert';
 import { test } from 'node:test';
-import { findCallAtPosition, isInsideJinjaTag, parseCompletionContext } from '../../src/sql/jinjaRefParser';
+import {
+  findAllMacroCallLocations,
+  findAllRefCallLocations,
+  findAllSourceCallLocations,
+  findCallAtPosition,
+  findMacroCallAtPosition,
+  findMacroDefinitionAtPosition,
+  isInsideJinjaTag,
+  parseCompletionContext,
+} from '../../src/sql/jinjaRefParser';
 
 test('parseCompletionContext: ref single-quote prefix', () => {
   const ctx = parseCompletionContext("select * from {{ ref('dim_cus");
@@ -103,4 +112,75 @@ test('findCallAtPosition: source name equal to "source" itself resolves correctl
     argStart,
     argEnd: argStart + 'source'.length,
   });
+});
+
+test('findAllRefCallLocations: finds every ref() call to the given model on a line', () => {
+  const line = "select * from {{ ref('a') }} join {{ ref('b') }} on {{ ref('a') }}.id = 1";
+  const locations = findAllRefCallLocations(line, 'a');
+  assert.equal(locations.length, 2);
+  for (const loc of locations) {
+    assert.equal(line.slice(loc.start, loc.end), 'a');
+  }
+});
+
+test('findAllRefCallLocations: returns empty array when the model is not referenced', () => {
+  const line = "select * from {{ ref('a') }}";
+  assert.deepEqual(findAllRefCallLocations(line, 'b'), []);
+});
+
+test('findAllSourceCallLocations: finds every source() call to (sourceName, tableName), pointing at the table arg', () => {
+  const line = "select * from {{ source('raw', 'customers') }} c";
+  const locations = findAllSourceCallLocations(line, 'raw', 'customers');
+  assert.equal(locations.length, 1);
+  assert.equal(line.slice(locations[0].start, locations[0].end), 'customers');
+});
+
+test('findAllSourceCallLocations: does not match a different table under the same source', () => {
+  const line = "select * from {{ source('raw', 'orders') }} c";
+  assert.deepEqual(findAllSourceCallLocations(line, 'raw', 'customers'), []);
+});
+
+test('findAllMacroCallLocations: finds a bare macro call', () => {
+  const line = '{{ generate_surrogate_key(["id"]) }}';
+  const locations = findAllMacroCallLocations(line, 'generate_surrogate_key');
+  assert.equal(locations.length, 1);
+  assert.equal(line.slice(locations[0].start, locations[0].end), 'generate_surrogate_key');
+});
+
+test('findAllMacroCallLocations: finds a namespaced macro call, span excludes the package prefix', () => {
+  const line = '{{ dbt_utils.generate_surrogate_key(["id"]) }}';
+  const locations = findAllMacroCallLocations(line, 'generate_surrogate_key');
+  assert.equal(locations.length, 1);
+  const start = line.indexOf('generate_surrogate_key');
+  assert.deepEqual(locations[0], { start, end: start + 'generate_surrogate_key'.length });
+});
+
+test('findMacroCallAtPosition: cursor on a bare macro call name', () => {
+  const line = '{{ my_macro(1, 2) }}';
+  const idx = line.indexOf('my_macro') + 2;
+  assert.deepEqual(findMacroCallAtPosition(line, idx), {
+    name: 'my_macro',
+    start: line.indexOf('my_macro'),
+    end: line.indexOf('my_macro') + 'my_macro'.length,
+  });
+});
+
+test('findMacroCallAtPosition: identifier not followed by "(" is not a call', () => {
+  const line = '{{ some_var }}';
+  const idx = line.indexOf('some_var') + 2;
+  assert.equal(findMacroCallAtPosition(line, idx), undefined);
+});
+
+test('findMacroDefinitionAtPosition: cursor on the macro name in a definition line', () => {
+  const line = "{% macro generate_surrogate_key(field_list) %}";
+  const idx = line.indexOf('generate_surrogate_key') + 2;
+  assert.deepEqual(findMacroDefinitionAtPosition(line, idx), {
+    name: 'generate_surrogate_key',
+    start: line.indexOf('generate_surrogate_key'),
+    end: line.indexOf('generate_surrogate_key') + 'generate_surrogate_key'.length,
+  });
+});
+
+test('findMacroDefinitionAtPosition: not a definition line returns undefined', () => {
+  assert.equal(findMacroDefinitionAtPosition('{{ generate_surrogate_key(x) }}', 5), undefined);
 });

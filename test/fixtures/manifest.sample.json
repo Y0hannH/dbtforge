@@ -20,7 +20,10 @@
       "package_name": "example_project",
       "path": "marts/dim_customers.sql",
       "original_file_path": "models/marts/dim_customers.sql",
-      "depends_on": { "nodes": ["model.example_project.stg_customers"] }
+      "depends_on": {
+        "nodes": ["model.example_project.stg_customers"],
+        "macros": ["macro.example_project.generate_surrogate_key"]
+      }
     },
     "test.example_project.not_null_dim_customers_customer_id": {
       "unique_id": "test.example_project.not_null_dim_customers_customer_id",
@@ -30,6 +33,16 @@
       "path": "not_null_dim_customers_customer_id.sql",
       "original_file_path": "models/marts/dim_customers.yml",
       "depends_on": { "nodes": ["model.example_project.dim_customers"] }
+    }
+  },
+  "macros": {
+    "macro.example_project.generate_surrogate_key": {
+      "unique_id": "macro.example_project.generate_surrogate_key",
+      "resource_type": "macro",
+      "name": "generate_surrogate_key",
+      "package_name": "example_project",
+      "path": "macros/generate_surrogate_key.sql",
+      "original_file_path": "macros/generate_surrogate_key.sql"
     }
   },
   "sources": {

@@ -35,3 +35,15 @@ test('getParents/getChildren return empty array for unknown node', () => {
   assert.deepEqual(graph.getParents('model.example_project.unknown'), []);
   assert.deepEqual(graph.getChildren('model.example_project.unknown'), []);
 });
+
+test('getMacroCallers returns nodes whose depends_on.macros includes the macro', () => {
+  const graph = buildDependencyGraph(manifest);
+  assert.deepEqual(graph.getMacroCallers('macro.example_project.generate_surrogate_key'), [
+    'model.example_project.dim_customers',
+  ]);
+});
+
+test('getMacroCallers returns empty array for a macro with no callers', () => {
+  const graph = buildDependencyGraph(manifest);
+  assert.deepEqual(graph.getMacroCallers('macro.example_project.unknown'), []);
+});

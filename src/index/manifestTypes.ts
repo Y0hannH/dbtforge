@@ -9,6 +9,7 @@ export interface DbtManifest {
   };
   nodes: Record<string, DbtNode>;
   sources: Record<string, DbtSourceNode>;
+  macros?: Record<string, DbtMacroNode>;
   child_map?: Record<string, string[]>;
   parent_map?: Record<string, string[]>;
 }
@@ -22,8 +23,21 @@ export interface DbtNode {
   original_file_path: string; // relative to project root
   depends_on?: {
     nodes: string[];
+    macros?: string[];
   };
   columns?: Record<string, { name: string; description?: string }>;
+}
+
+export interface DbtMacroNode {
+  unique_id: string;
+  resource_type: 'macro';
+  name: string;
+  package_name: string;
+  path: string;
+  original_file_path: string;
+  depends_on?: {
+    macros?: string[];
+  };
 }
 
 export interface DbtSourceNode {
