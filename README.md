@@ -3,7 +3,7 @@
 > A smoother dbt workflow, without leaving VS Code — and without your SQL ever leaving your machine.
 
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.85-007ACC?style=flat-square&logo=visualstudiocode)
-![Version](https://img.shields.io/badge/Version-0.4.0-blue?style=flat-square)
+![Version](https://img.shields.io/badge/Version-0.5.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-00B4D8?style=flat-square)
 ![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)
 
@@ -30,6 +30,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
+| 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
 
 ---
 
@@ -88,6 +89,7 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 | `dbtForge.buildFolderDownstream` | `dbt build --select path:<folder>+` — folder's models + downstream children |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
+| `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
 
 ---
 
@@ -100,6 +102,7 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 | `dbtForge.manifestPath` | `target/manifest.json` | Path to manifest.json, relative to the project root |
 | `dbtForge.catalogPath` | `target/catalog.json` | Path to catalog.json, relative to the project root |
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
+| `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
 
 ---
 
@@ -120,6 +123,9 @@ ref()/source() autocomplete, Go to Definition, column autocomplete (aliases + CT
 
 ### ✅ v0.4
 Find All References and Go to Definition for macros, in addition to models/sources.
+
+### ✅ v0.5
+Environment switching: pick a profile/target from the status bar, and every dbt command runs against it.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

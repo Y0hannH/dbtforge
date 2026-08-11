@@ -2,6 +2,18 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.5.0] - 2026-08-11
+
+### Added
+- **Environment switching.** A status bar item shows which dbt profile/target dbt Forge runs against; clicking it lists the profiles found in your `profiles.yml` (and their targets, when a profile has several). Every dbt command the extension launches — Build Model, Build Folder, Test, Compile, Build Project — then carries the matching `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main without editing `profiles.yml`.
+  - The choice is stored per dbt project in the workspace state, not in settings: it's a per-checkout, per-machine decision and has no business in a committed `.vscode/settings.json`.
+  - `profiles.yml` is looked up the way dbt looks it up: the new `dbtForge.profilesDir` setting, then `DBT_PROFILES_DIR`, then the project root, then `~/.dbt`.
+  - Switching offers to run `dbt compile`, since the indexed `manifest.json` still describes the previous environment.
+  - Nothing is ever written to `profiles.yml`; only command-line flags change.
+
+### Added (settings)
+- `dbtForge.profilesDir` — directory holding `profiles.yml`. Empty by default (search where dbt does); when set, it's also passed to dbt as `--profiles-dir`.
+
 ## [0.4.1] - 2026-08-11
 
 ### Fixed

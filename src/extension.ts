@@ -3,13 +3,16 @@ import * as vscode from 'vscode';
 import { previewCompiledSql, compiledSqlContentProvider, COMPILED_SQL_SCHEME } from './commands/compiledSqlPreview';
 import { showLineage } from './commands/lineageFlow';
 import { disposeSharedTerminal, handleTerminalClosed, runDbtCommand } from './commands/runDbtCommand';
-import { resolveConfig } from './config';
+import { selectProfile } from './commands/selectProfile';
+import { DbtForgeConfig, resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
 import { DbtNode } from './index/manifestTypes';
+import { ProfileStore } from './profiles/profileStore';
 import { BuildCodeLensProvider } from './providers/buildCodeLens';
 import { ColumnCompletionProvider } from './providers/columnCompletion';
 import { RefSourceDefinitionProvider } from './providers/definitionProvider';
 import { JinjaSnippetCompletionProvider } from './providers/jinjaSnippetCompletion';
+import { ProfileStatusBar } from './providers/profileStatusBar';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
@@ -27,15 +30,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   await setupWorkspaceFolders(context, output);
 
+  const profileStore = new ProfileStore(context.workspaceState);
+  const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
+  context.subscriptions.push(profileStore, profileStatusBar);
+
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       disposeAllIndexes();
       await setupWorkspaceFolders(context, output);
+      profileStatusBar.refresh();
     })
   );
 
   const relativesTree = new RelativesTreeProvider(getIndexForResource);
   const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
+
+  // Every dbt invocation carries the project's selected environment, so a build launched from a
+  // CodeLens can't quietly run against a different workspace than the status bar advertises.
+  const runDbt = (index: DbtProjectIndex, args: string[]): void => {
+    const config = index.getConfig();
+    runDbtCommand(config, [...args, ...profileStore.toCliArgs(config.projectDir)]);
+  };
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('dbtForge.relatives', relativesTree),
@@ -76,24 +91,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.showInformationMessage('dbt Forge: index refreshed.');
     }),
     vscode.commands.registerCommand('dbtForge.buildModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', node.name])
-      )
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', node.name]))
     ),
     vscode.commands.registerCommand('dbtForge.buildUpstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', `+${node.name}`])
-      )
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `+${node.name}`]))
     ),
     vscode.commands.registerCommand('dbtForge.buildDownstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', `${node.name}+`])
-      )
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `${node.name}+`]))
     ),
     vscode.commands.registerCommand('dbtForge.testModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) =>
-        runDbtCommand(index.getConfig(), ['test', '--select', node.name])
-      )
+      withModelNode(uri, (index, node) => runDbt(index, ['test', '--select', node.name]))
     ),
     vscode.commands.registerCommand('dbtForge.previewCompiledSql', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node))
@@ -104,27 +111,35 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('dbtForge.buildProject', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
-      runDbtCommand(index.getConfig(), ['build']);
+      runDbt(index, ['build']);
     }),
     vscode.commands.registerCommand('dbtForge.buildFolder', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', `path:${selectorPath}`])
-      )
+      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `path:${selectorPath}`]))
     ),
     vscode.commands.registerCommand('dbtForge.buildFolderUpstream', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', `+path:${selectorPath}`])
-      )
+      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `+path:${selectorPath}`]))
     ),
     vscode.commands.registerCommand('dbtForge.buildFolderDownstream', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) =>
-        runDbtCommand(index.getConfig(), ['build', '--select', `path:${selectorPath}+`])
-      )
+      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `path:${selectorPath}+`]))
     ),
     vscode.commands.registerCommand('dbtForge.compileProject', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
-      runDbtCommand(index.getConfig(), ['compile']);
+      runDbt(index, ['compile']);
+    }),
+    vscode.commands.registerCommand('dbtForge.selectProfile', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      if (!(await selectProfile(index.getConfig(), profileStore))) return;
+
+      // The manifest on disk was compiled against the previous environment, so everything read
+      // from it (lineage, columns, compiled SQL) is stale until dbt runs again.
+      const action = await vscode.window.showInformationMessage(
+        `dbt Forge: dbt commands now run with ${describeSelection(profileStore, index)}. ` +
+          'The indexed manifest still reflects the previous environment.',
+        'Compile project'
+      );
+      if (action) runDbt(index, ['compile']);
     })
   );
 
@@ -210,6 +225,25 @@ async function resolveAnyIndex(): Promise<DbtProjectIndex | undefined> {
     { placeHolder: 'Select a dbt project' }
   );
   return picked?.index;
+}
+
+function describeSelection(store: ProfileStore, index: DbtProjectIndex): string {
+  const args = store.toCliArgs(index.getConfig().projectDir);
+  return args.length > 0 ? args.join(' ') : 'the profiles.yml default (no --profile/--target)';
+}
+
+/**
+ * The project the status bar speaks for: the active editor's, or the only indexed one. Undefined
+ * (status bar hidden) when there's no dbt project, or when several are indexed and nothing in the
+ * editor says which one is meant.
+ */
+function activeProjectConfig(): DbtForgeConfig | undefined {
+  const active = vscode.window.activeTextEditor;
+  const fromActiveEditor = active ? getIndexForResource(active.document.uri) : undefined;
+  if (fromActiveEditor) return fromActiveEditor.getConfig();
+
+  const all = [...indexes.values()];
+  return all.length === 1 ? all[0].getConfig() : undefined;
 }
 
 async function setupWorkspaceFolders(

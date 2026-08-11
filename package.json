@@ -2,20 +2,35 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Y0hannH/dbtforge"
+    "url": "https://github.com/Y0hannH/dbtforge.git"
   },
+  "bugs": {
+    "url": "https://github.com/Y0hannH/dbtforge/issues"
+  },
+  "homepage": "https://github.com/Y0hannH/dbtforge#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
   "categories": [
     "Programming Languages",
+    "Linters",
     "Other"
+  ],
+  "keywords": [
+    "dbt",
+    "dbt-core",
+    "fabric",
+    "sql",
+    "lineage",
+    "analytics engineering",
+    "data engineering",
+    "jinja"
   ],
   "activationEvents": [
     "workspaceContains:**/dbt_project.yml"
@@ -54,6 +69,12 @@
           "default": "target/compiled",
           "scope": "resource",
           "description": "Path to the compiled models directory, relative to the dbt project root."
+        },
+        "dbtForge.profilesDir": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Directory containing profiles.yml, used to list the environments you can switch between. Leave empty to look where dbt itself does: DBT_PROFILES_DIR, then the dbt project root, then ~/.dbt. When set, it is also passed to dbt as --profiles-dir."
         }
       }
     },
@@ -115,6 +136,11 @@
         "command": "dbtForge.buildFolderDownstream",
         "title": "dbt Forge: Build Folder Downstream (folder+)",
         "icon": "$(arrow-down)"
+      },
+      {
+        "command": "dbtForge.selectProfile",
+        "title": "dbt Forge: Switch Environment (profile / target)",
+        "icon": "$(server-environment)"
       }
     ],
     "menus": {
@@ -148,6 +174,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "dbtForge.selectProfile",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation"
+        },
         {
           "command": "dbtForge.compileProject",
           "when": "view == dbtForge.relatives",
@@ -184,6 +215,7 @@
     }
   },
   "scripts": {
+    "vscode:prepublish": "npm run package",
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "package": "node esbuild.js --production",
@@ -206,6 +238,7 @@
     "dagre": "^0.8.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "reactflow": "^11.11.4"
+    "reactflow": "^11.11.4",
+    "yaml": "^2.9.0"
   }
 }

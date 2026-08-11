@@ -34,7 +34,14 @@ export function runDbtCommand(config: DbtForgeConfig, args: string[]): void {
   const terminal = getTerminal();
   terminal.show();
   terminal.sendText(`cd ${quotePath(config.projectDir)}`);
-  terminal.sendText(`${quoteExecutable(dbtExecutable)} ${args.join(' ')}`);
+  terminal.sendText(`${quoteExecutable(dbtExecutable)} ${[...args, ...profilesDirArgs(config)].join(' ')}`);
+}
+
+// Only passed when the location is configured: dbt already looks in DBT_PROFILES_DIR, in the
+// working directory (which is the project dir here) and in ~/.dbt on its own, and spelling those
+// out on every command line would be noise.
+function profilesDirArgs(config: DbtForgeConfig): string[] {
+  return config.profilesDir ? ['--profiles-dir', quotePath(config.profilesDir)] : [];
 }
 
 // dbt-core has no `__main__.py`, so `python -m dbt` always fails with

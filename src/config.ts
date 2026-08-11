@@ -7,6 +7,10 @@ export interface DbtForgeConfig {
   manifestPath: string; // absolute
   catalogPath: string; // absolute
   compiledDir: string; // absolute
+  // Directory holding profiles.yml, or empty to search where dbt itself would (DBT_PROFILES_DIR,
+  // the project dir, then ~/.dbt). Kept as the configured value, not a resolved location, so a
+  // profiles.yml created after activation is still picked up.
+  profilesDir: string; // absolute or empty
 }
 
 const NESTED_PROJECT_SEARCH_EXCLUDE = '**/{node_modules,target,dbt_packages,.venv,venv}/**';
@@ -28,6 +32,7 @@ export async function resolveConfig(
   const manifestPathSetting = cfg.get<string>('manifestPath', 'target/manifest.json');
   const catalogPathSetting = cfg.get<string>('catalogPath', 'target/catalog.json');
   const compiledDirSetting = cfg.get<string>('compiledDir', 'target/compiled');
+  const profilesDirSetting = cfg.get<string>('profilesDir', '');
 
   return {
     projectDir,
@@ -35,6 +40,11 @@ export async function resolveConfig(
     manifestPath: path.join(projectDir, manifestPathSetting),
     catalogPath: path.join(projectDir, catalogPathSetting),
     compiledDir: path.join(projectDir, compiledDirSetting),
+    profilesDir: profilesDirSetting
+      ? path.isAbsolute(profilesDirSetting)
+        ? profilesDirSetting
+        : path.join(projectDir, profilesDirSetting)
+      : '',
   };
 }
 
