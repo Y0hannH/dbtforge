@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -81,13 +81,18 @@
     "commands": [
       {
         "command": "dbtForge.refreshIndex",
-        "title": "dbt Forge: Refresh Manifest/Catalog Index",
+        "title": "dbt Forge: Reload Manifest/Catalog from Disk",
         "icon": "$(refresh)"
       },
       {
         "command": "dbtForge.compileProject",
         "title": "dbt Forge: Compile Project",
         "icon": "$(tools)"
+      },
+      {
+        "command": "dbtForge.generateDocs",
+        "title": "dbt Forge: Generate Docs (catalog.json)",
+        "icon": "$(book)"
       },
       {
         "command": "dbtForge.buildModel",
@@ -181,6 +186,11 @@
         },
         {
           "command": "dbtForge.compileProject",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation"
+        },
+        {
+          "command": "dbtForge.generateDocs",
           "when": "view == dbtForge.relatives",
           "group": "navigation"
         },

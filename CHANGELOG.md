@@ -2,6 +2,15 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.6.0] - 2026-08-11
+
+### Added
+- **Generate Docs** command and title-bar button — runs `dbt docs generate` through your venv and selected environment. `catalog.json` is what column autocomplete reads, and only `dbt docs generate` writes it: neither `compile` nor `build` produces or refreshes it, so until now the extension had no way to produce the one file its column suggestions depend on. The index watches `catalog.json`, so suggestions light up as soon as dbt finishes.
+
+### Changed
+- Renamed **Refresh Manifest/Catalog Index** to **Reload Manifest/Catalog from Disk**. It never ran dbt — it re-reads the files dbt produced — and the old name read as "refresh my catalog", which is exactly the confusion the new Generate Docs button resolves.
+- README now documents what column autocomplete actually requires: the two independent paths (same-file CTEs need nothing; model/source aliases need `dbt docs generate`), that the alias is mandatory, and that only single-argument `ref()`/`source()` calls are detected.
+
 ## [0.5.0] - 2026-08-11
 
 ### Added

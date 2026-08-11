@@ -25,7 +25,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | ⚡ | **Snippet expansion** | Type `ref` or `source` in plain SQL to expand into the full `{{ ref("") }}` tag, cursor ready to autocomplete |
 | 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()`/macro call to jump straight to the model/macro's `.sql` file |
 | 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
-| 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (built models) and from same-file CTEs |
+| 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
@@ -41,7 +41,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 - VS Code 1.85+
 - A dbt project (`dbt_project.yml`) with its own Python virtual environment (dbt-core + your adapter installed inside it)
 - `manifest.json` generated at least once (`dbt compile` or `dbt build`) for autocomplete/lineage/panels to have data
-- `catalog.json` generated (`dbt docs generate`) for column autocomplete on already-built models
+- `catalog.json` generated (`dbt docs generate`, or the **Generate Docs** button) for column autocomplete on already-built models
 
 ### Installation
 
@@ -81,7 +81,28 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 1. Open your dbt project folder (containing `dbt_project.yml`, or nested inside a larger workspace)
 2. Set `dbtForge.pythonPath` to your project's venv Python (e.g. `C:/path/to/project/.venv/Scripts/python.exe`)
 3. Run `dbt compile` (or `dbt build`) at least once so `manifest.json` exists
-4. Open a model `.sql` file — autocomplete, CodeLens, and the Parents/Children/Tests panel activate automatically
+4. Run **dbt Forge: Generate Docs** (the 📖 button in the panel's title bar) so `catalog.json` exists — column autocomplete needs it
+5. Open a model `.sql` file — autocomplete, CodeLens, and the Parents/Children/Tests panel activate automatically
+
+---
+
+## Column autocomplete: what it needs
+
+Column suggestions come from two independent paths, which explains why they sometimes appear and sometimes don't:
+
+| You type | Where the columns come from | Requires |
+|---|---|---|
+| `my_cte.` | The CTE's own `SELECT` list, parsed from the open file | Nothing — works offline, on an unbuilt model |
+| `m.` where `m` aliases a model/source | `catalog.json` | **`dbt docs generate`**, and the model must have been built |
+
+Two things trip people up:
+
+- **`catalog.json` is only written by `dbt docs generate`.** Neither `dbt compile`, nor `dbt run`, nor `dbt build` produces or refreshes it. A model can be perfectly compiled and still have no column suggestions. Use the **Generate Docs** button, then re-run it whenever columns change.
+- **The alias is mandatory.** `from {{ ref('orders') }} o` gives you `o.`; `from {{ ref('orders') }}` with no alias gives you nothing to type before the dot.
+
+Also note that the alias must sit right after a single-argument `ref()`/`source()` call — `ref('package', 'model')`, `ref('model', version=2)`, and calls split across lines aren't detected yet.
+
+If nothing is suggested, dbt Forge stays silent rather than guessing. Check those conditions in order.
 
 ---
 
@@ -100,7 +121,8 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 
 | Command | Description |
 |---|---|
-| `dbtForge.refreshIndex` | Reload manifest.json / catalog.json |
+| `dbtForge.generateDocs` | `dbt docs generate` — writes `catalog.json`, which column autocomplete reads |
+| `dbtForge.refreshIndex` | Re-read `manifest.json` / `catalog.json` from disk (does **not** run dbt) |
 | `dbtForge.buildUpstream` | `dbt build --select +model` for the open model |
 | `dbtForge.buildDownstream` | `dbt build --select model+` for the open model |
 | `dbtForge.testModel` | `dbt test --select model` for the open model |

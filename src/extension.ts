@@ -127,6 +127,15 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (!index) return;
       runDbt(index, ['compile']);
     }),
+    // catalog.json is what column autocomplete reads, and only `dbt docs generate` writes it —
+    // neither compile nor build does. Without this command the extension had no way to produce
+    // the one file its column suggestions depend on. No explicit reload afterwards: the index
+    // watches catalog.json and picks the new one up on its own.
+    vscode.commands.registerCommand('dbtForge.generateDocs', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      runDbt(index, ['docs', 'generate']);
+    }),
     vscode.commands.registerCommand('dbtForge.selectProfile', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
