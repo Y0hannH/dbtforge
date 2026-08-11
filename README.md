@@ -2,10 +2,10 @@
 
 > A smoother dbt workflow, without leaving VS Code — and without your SQL ever leaving your machine.
 
+[![Marketplace](https://img.shields.io/visual-studio-marketplace/v/evolve-data.dbtforge?style=flat-square&label=Marketplace&color=blue)](https://marketplace.visualstudio.com/items?itemName=evolve-data.dbtforge)
+[![Installs](https://img.shields.io/visual-studio-marketplace/i/evolve-data.dbtforge?style=flat-square&color=00B4D8)](https://marketplace.visualstudio.com/items?itemName=evolve-data.dbtforge)
 ![VS Code](https://img.shields.io/badge/VS%20Code-%5E1.85-007ACC?style=flat-square&logo=visualstudiocode)
-![Version](https://img.shields.io/badge/Version-0.5.0-blue?style=flat-square)
 ![License](https://img.shields.io/badge/License-MIT-00B4D8?style=flat-square)
-![Status](https://img.shields.io/badge/Status-In%20Development-orange?style=flat-square)
 
 ---
 
@@ -146,7 +146,7 @@ ref()/source() autocomplete, Go to Definition, column autocomplete (aliases + CT
 Find All References and Go to Definition for macros, in addition to models/sources.
 
 ### ✅ v0.5
-Environment switching: pick a profile/target from the status bar, and every dbt command runs against it. First Marketplace release.
+Environment switching: pick a profile/target from the status bar, and every dbt command runs against it.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects
