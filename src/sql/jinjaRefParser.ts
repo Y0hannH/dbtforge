@@ -20,6 +20,17 @@ export function isInsideJinjaTag(lineTextBeforeCursor: string): boolean {
   return lastOpen > lastClose;
 }
 
+/**
+ * Same as isInsideJinjaTag but also counts statement tags (`{% ... %}`), where macro calls are
+ * just as common (`{% set x = my_macro() %}`, `{% do my_macro() %}`). Used to gate macro-call
+ * detection: without it, any SQL function call would be treated as a candidate macro call.
+ */
+export function isInsideJinjaExpression(lineTextBeforeIndex: string): boolean {
+  const lastOpen = Math.max(lineTextBeforeIndex.lastIndexOf('{{'), lineTextBeforeIndex.lastIndexOf('{%'));
+  const lastClose = Math.max(lineTextBeforeIndex.lastIndexOf('}}'), lineTextBeforeIndex.lastIndexOf('%}'));
+  return lastOpen > lastClose;
+}
+
 const REF_PREFIX = /\{\{\s*ref\(\s*['"]([^'"]*)$/;
 const SOURCE_NAME_PREFIX = /\{\{\s*source\(\s*['"]([^'"]*)$/;
 const SOURCE_TABLE_PREFIX = /\{\{\s*source\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]*)$/;
@@ -49,16 +60,20 @@ export function parseCompletionContext(lineTextBeforeCursor: string): Completion
 }
 
 export type CallMatch =
-  | { kind: 'ref'; name: string; argStart: number; argEnd: number }
+  | { kind: 'ref'; name: string; packageName?: string; argStart: number; argEnd: number }
   | { kind: 'source'; sourceName: string; tableName: string; argStart: number; argEnd: number };
 
 // The `d` flag (match indices) gives exact per-group offsets, so short names that happen to
 // be substrings of the literal "ref(" / "source(" text (e.g. a model named "f") can't be
 // confused with the call syntax the way a match[0].indexOf(match[1]) search would.
-const REF_CALL = /ref\(\s*['"]([^'"]+)['"]\s*\)/gd;
-const SOURCE_CALL = /source\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/gd;
+// ref() is matched in all the shapes dbt accepts: ref('model'), the cross-package
+// ref('package', 'model'), and either of those with a trailing kwarg (ref('model', version=2)).
+// Group 1 is the package (absent for the one-arg form), group 2 is always the model name.
+const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,[^)]*)?\)/gd;
+const SOURCE_CALL = /\bsource\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/gd;
 
-type RegExpMatchWithIndices = RegExpExecArray & { indices: Array<[number, number]> };
+// `indices` entries are undefined for optional groups that didn't participate in the match.
+type RegExpMatchWithIndices = RegExpExecArray & { indices: Array<[number, number] | undefined> };
 
 /**
  * Scans a full line for ref()/source() calls and returns the one whose argument span
@@ -67,14 +82,23 @@ type RegExpMatchWithIndices = RegExpExecArray & { indices: Array<[number, number
  */
 export function findCallAtPosition(lineText: string, character: number): CallMatch | undefined {
   for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
-    const [argStart, argEnd] = match.indices[1];
-    if (character >= argStart && character <= argEnd) {
-      return { kind: 'ref', name: match[1], argStart, argEnd };
+    const packageSpan = match.indices[1];
+    const [nameStart, nameEnd] = match.indices[2]!;
+    // The cursor counts as "on the ref" from either argument of the cross-package form, so
+    // Go to Definition works from ref('package', 'model') with the cursor on the package too.
+    const span =
+      packageSpan && character >= packageSpan[0] && character <= packageSpan[1]
+        ? packageSpan
+        : character >= nameStart && character <= nameEnd
+          ? ([nameStart, nameEnd] as [number, number])
+          : undefined;
+    if (span) {
+      return { kind: 'ref', name: match[2], packageName: match[1], argStart: span[0], argEnd: span[1] };
     }
   }
 
   for (const match of lineText.matchAll(SOURCE_CALL) as IterableIterator<RegExpMatchWithIndices>) {
-    const [sourceStart, sourceEnd] = match.indices[1];
+    const [sourceStart, sourceEnd] = match.indices[1]!;
     if (character >= sourceStart && character <= sourceEnd) {
       return {
         kind: 'source',
@@ -85,7 +109,7 @@ export function findCallAtPosition(lineText: string, character: number): CallMat
       };
     }
 
-    const [tableStart, tableEnd] = match.indices[2];
+    const [tableStart, tableEnd] = match.indices[2]!;
     if (character >= tableStart && character <= tableEnd) {
       return {
         kind: 'source',
@@ -105,12 +129,21 @@ export interface CallLocation {
   end: number;
 }
 
-/** Every ref() call to `modelName` on a line — a file can reference the same model more than once. */
-export function findAllRefCallLocations(lineText: string, modelName: string): CallLocation[] {
+/**
+ * Every ref() call to `modelName` on a line — a file can reference the same model more than once.
+ * When the call names a package explicitly (ref('package', 'model')) and `packageName` is known,
+ * a mismatch is skipped so a same-named model in another package isn't reported as a call site.
+ */
+export function findAllRefCallLocations(
+  lineText: string,
+  modelName: string,
+  packageName?: string
+): CallLocation[] {
   const results: CallLocation[] = [];
   for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
-    if (match[1] !== modelName) continue;
-    const [start, end] = match.indices[1];
+    if (match[2] !== modelName) continue;
+    if (match[1] && packageName && match[1] !== packageName) continue;
+    const [start, end] = match.indices[2]!;
     results.push({ start, end });
   }
   return results;
@@ -125,45 +158,70 @@ export function findAllSourceCallLocations(
   const results: CallLocation[] = [];
   for (const match of lineText.matchAll(SOURCE_CALL) as IterableIterator<RegExpMatchWithIndices>) {
     if (match[1] !== sourceName || match[2] !== tableName) continue;
-    const [start, end] = match.indices[2];
+    const [start, end] = match.indices[2]!;
     results.push({ start, end });
   }
   return results;
 }
 
+function escapeRegExp(literal: string): string {
+  return literal.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Every call to `macroName` on a line, bare or namespaced (e.g. `dbt_utils.macroName(`) — `\b`
- * matches right after the `.` too, so this resolves to just the macro name's span either way.
- * Macro names are Jinja/Python identifiers, so no regex escaping is needed.
+ * Every call to `macroName` on a line, bare or namespaced (e.g. `dbt_utils.macroName(`); the
+ * returned span always covers just the macro name, not the package prefix. Two filters keep this
+ * from matching plain SQL: the call must sit inside a Jinja tag, and an explicit package prefix
+ * must match `packageName` when it's known — dbt ships macros named after common SQL functions
+ * (`replace`, `length`, `concat`, `left`, ...), so an unfiltered scan reports call sites that
+ * are really just SQL.
  */
-export function findAllMacroCallLocations(lineText: string, macroName: string): CallLocation[] {
+export function findAllMacroCallLocations(
+  lineText: string,
+  macroName: string,
+  packageName?: string
+): CallLocation[] {
   const results: CallLocation[] = [];
-  const pattern = new RegExp(`\\b${macroName}\\s*\\(`, 'g');
-  for (const match of lineText.matchAll(pattern)) {
-    const start = match.index!;
-    results.push({ start, end: start + macroName.length });
+  const pattern = new RegExp(
+    `(?:([A-Za-z_][A-Za-z0-9_]*)\\s*\\.\\s*)?\\b(${escapeRegExp(macroName)})\\s*\\(`,
+    'gd'
+  );
+  for (const match of lineText.matchAll(pattern) as IterableIterator<RegExpMatchWithIndices>) {
+    if (match[1] && packageName && match[1] !== packageName) continue;
+    const [start, end] = match.indices[2]!;
+    if (!isInsideJinjaExpression(lineText.slice(0, start))) continue;
+    results.push({ start, end });
   }
   return results;
 }
 
-const IDENTIFIER = /[A-Za-z_][A-Za-z0-9_]*/g;
+const MACRO_CALL = /(?:([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/gd;
+
+export interface MacroCallMatch {
+  name: string;
+  /** The `dbt_utils` in `dbt_utils.star(...)`, when the call is namespaced. */
+  packageName?: string;
+  start: number;
+  end: number;
+}
 
 /**
  * Detects "cursor is on a macro call" for Find All References / Go to Definition: the identifier
- * under the cursor, provided it's followed (modulo whitespace) by `(`. Resolving the returned name
- * against the macro index naturally filters out plain SQL function calls (e.g. `sum(`, `coalesce(`)
- * that happen to look like a call but aren't a known macro.
+ * under the cursor, followed (modulo whitespace) by `(` and sitting inside a Jinja tag. The Jinja
+ * requirement is what separates a macro call from ordinary SQL — resolving the name against the
+ * macro index is not enough on its own, because dbt's own cross-database macros are named after
+ * SQL functions (`replace`, `length`, `concat`, `position`, ...), so `replace(col, 'a', 'b')` in
+ * plain SQL would otherwise resolve to a macro and jump into dbt's internals.
  */
 export function findMacroCallAtPosition(
   lineText: string,
   character: number
-): { name: string; start: number; end: number } | undefined {
-  for (const match of lineText.matchAll(IDENTIFIER)) {
-    const start = match.index!;
-    const end = start + match[0].length;
+): MacroCallMatch | undefined {
+  for (const match of lineText.matchAll(MACRO_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    const [start, end] = match.indices[2]!;
     if (character < start || character > end) continue;
-    if (!/^\s*\(/.test(lineText.slice(end))) continue;
-    return { name: match[0], start, end };
+    if (!isInsideJinjaExpression(lineText.slice(0, match.index!))) continue;
+    return { name: match[2], packageName: match[1], start, end };
   }
   return undefined;
 }
@@ -181,7 +239,19 @@ export function findMacroDefinitionAtPosition(
 ): { name: string; start: number; end: number } | undefined {
   const match = MACRO_DEFINITION.exec(lineText) as RegExpMatchWithIndices | null;
   if (!match) return undefined;
-  const [start, end] = match.indices[1];
+  const [start, end] = match.indices[1]!;
   if (character < start || character > end) return undefined;
   return { name: match[1], start, end };
+}
+
+/**
+ * Line index of `{% macro macroName(...) %}` in a file's lines, if present. One .sql file can
+ * define several macros, so navigating to a macro means navigating to its line, not to the file.
+ */
+export function findMacroDefinitionLine(lines: string[], macroName: string): number | undefined {
+  for (let line = 0; line < lines.length; line++) {
+    const match = MACRO_DEFINITION.exec(lines[line]);
+    if (match?.[1] === macroName) return line;
+  }
+  return undefined;
 }

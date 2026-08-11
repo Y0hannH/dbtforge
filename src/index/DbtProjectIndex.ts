@@ -3,8 +3,10 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { DbtForgeConfig } from '../config';
 import { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
+import { ManifestEntity, resolveEntityPath } from './entityPaths';
 import { watchFile } from './fileWatcher';
 import { buildDependencyGraph, DependencyGraph } from './graph';
+import { buildMacroIndex, MacroIndex, MacroRef } from './macroIndex';
 import { DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
 
 export interface ModelRef {
@@ -21,12 +23,7 @@ export interface SourceRef {
   node: DbtSourceNode;
 }
 
-export interface MacroRef {
-  uniqueId: string;
-  name: string;
-  packageName: string;
-  node: DbtMacroNode;
-}
+export type { MacroRef };
 
 /**
  * Central, per-workspace-folder index over manifest.json / catalog.json.
@@ -43,8 +40,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private modelsByName = new Map<string, ModelRef>();
   // "source_name.table_name" -> node, for source() resolution.
   private sourcesByKey = new Map<string, SourceRef>();
-  // name -> node, for macro call resolution. Same flat-map simplification as modelsByName.
-  private macrosByName = new Map<string, MacroRef>();
+  // Macro names collide across packages, so this one needs real resolution rules — see macroIndex.
+  private macros: MacroIndex | undefined;
   // normalized absolute file path -> unique_id, to map the active editor to a manifest node.
   private uniqueIdByFilePath = new Map<string, string>();
 
@@ -87,7 +84,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.graph = undefined;
       this.modelsByName.clear();
       this.sourcesByKey.clear();
-      this.macrosByName.clear();
+      this.macros = undefined;
       this._onDidChange.fire();
       return;
     }
@@ -125,7 +122,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   private indexModelsAndSources(manifest: DbtManifest): void {
     this.modelsByName.clear();
     this.sourcesByKey.clear();
-    this.macrosByName.clear();
+    this.macros = buildMacroIndex(manifest);
     this.uniqueIdByFilePath.clear();
 
     for (const node of Object.values(manifest.nodes)) {
@@ -133,7 +130,10 @@ export class DbtProjectIndex implements vscode.Disposable {
       // shared schema.yml would otherwise collide on that same path (last one wins), giving
       // getNodeByFileUri() an arbitrary wrong node when that .yml is the active editor.
       if (node.original_file_path.toLowerCase().endsWith('.sql')) {
-        this.uniqueIdByFilePath.set(this.normalizeFilePath(node.original_file_path), node.unique_id);
+        this.uniqueIdByFilePath.set(
+          this.normalizeFilePath(resolveEntityPath(this.config.projectDir, manifest.metadata.project_name, node)),
+          node.unique_id
+        );
       }
       if (node.resource_type !== 'model') continue;
       this.modelsByName.set(node.name, {
@@ -150,15 +150,6 @@ export class DbtProjectIndex implements vscode.Disposable {
         uniqueId: node.unique_id,
         sourceName: node.source_name,
         tableName: node.name,
-        node,
-      });
-    }
-
-    for (const node of Object.values(manifest.macros ?? {})) {
-      this.macrosByName.set(node.name, {
-        uniqueId: node.unique_id,
-        name: node.name,
-        packageName: node.package_name,
         node,
       });
     }
@@ -207,8 +198,21 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.sourcesByKey.get(sourceKey(sourceName, tableName));
   }
 
-  resolveMacro(name: string): MacroRef | undefined {
-    return this.macrosByName.get(name);
+  /** `packageName` is the namespace of a `dbt_utils.star(...)`-style call, when there is one. */
+  resolveMacro(name: string, packageName?: string): MacroRef | undefined {
+    return this.macros?.resolve(name, packageName);
+  }
+
+  /**
+   * The macro named `name` defined in `uri`, if any. Used when the starting point is a macro's own
+   * `{% macro %}` line: the file identifies the package exactly, where a by-name lookup could
+   * resolve to a same-named macro from a different package.
+   */
+  resolveMacroInFile(uri: vscode.Uri, name: string): MacroRef | undefined {
+    const target = this.normalizeFilePath(uri.fsPath);
+    return this.macros
+      ?.findAllByName(name)
+      .find((macro) => this.normalizeFilePath(this.getFileUri(macro.node).fsPath) === target);
   }
 
   getNode(uniqueId: string): DbtNode | undefined {
@@ -234,9 +238,31 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.graph;
   }
 
-  /** Absolute file URI for a model/source/macro node, resolved from its manifest-relative path. */
-  getFileUri(node: DbtNode | DbtSourceNode | DbtMacroNode): vscode.Uri {
-    return vscode.Uri.file(path.join(this.config.projectDir, node.original_file_path));
+  /**
+   * Absolute file URI for a model/source/macro node. Package-aware: an entity from an installed
+   * package resolves under dbt_packages/, since its original_file_path is relative to the package
+   * root. The file is not guaranteed to exist (dbt-core's built-in macros ship with the Python
+   * package) — use getExistingFileUri() before navigating to it.
+   */
+  getFileUri(node: ManifestEntity): vscode.Uri {
+    return vscode.Uri.file(
+      resolveEntityPath(this.config.projectDir, this.manifest?.metadata.project_name ?? '', node)
+    );
+  }
+
+  /**
+   * getFileUri(), but undefined when the file isn't on disk — the case for dbt-core's built-in
+   * macros (installed with the Python package, not vendored under dbt_packages/). Navigation
+   * features use this so they degrade to "no result" instead of opening a nonexistent file.
+   */
+  async getExistingFileUri(node: ManifestEntity): Promise<vscode.Uri | undefined> {
+    const uri = this.getFileUri(node);
+    try {
+      await fs.access(uri.fsPath);
+      return uri;
+    } catch {
+      return undefined;
+    }
   }
 
   dispose(): void {

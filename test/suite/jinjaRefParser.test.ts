@@ -7,6 +7,8 @@ import {
   findCallAtPosition,
   findMacroCallAtPosition,
   findMacroDefinitionAtPosition,
+  findMacroDefinitionLine,
+  isInsideJinjaExpression,
   isInsideJinjaTag,
   parseCompletionContext,
 } from '../../src/sql/jinjaRefParser';
@@ -46,6 +48,7 @@ test('findCallAtPosition: cursor inside ref() argument', () => {
   assert.deepEqual(call, {
     kind: 'ref',
     name: 'dim_customers',
+    packageName: undefined,
     argStart: line.indexOf('dim_customers'),
     argEnd: line.indexOf('dim_customers') + 'dim_customers'.length,
   });
@@ -86,7 +89,13 @@ test('findCallAtPosition: short model name that is a substring of "ref(" resolve
   const line = "select * from {{ ref('f') }} c";
   const argStart = line.indexOf("'f'") + 1;
   const call = findCallAtPosition(line, argStart);
-  assert.deepEqual(call, { kind: 'ref', name: 'f', argStart, argEnd: argStart + 1 });
+  assert.deepEqual(call, {
+    kind: 'ref',
+    name: 'f',
+    packageName: undefined,
+    argStart,
+    argEnd: argStart + 1,
+  });
 });
 
 test('isInsideJinjaTag: plain SQL text is not inside a tag', () => {
@@ -160,6 +169,7 @@ test('findMacroCallAtPosition: cursor on a bare macro call name', () => {
   const idx = line.indexOf('my_macro') + 2;
   assert.deepEqual(findMacroCallAtPosition(line, idx), {
     name: 'my_macro',
+    packageName: undefined,
     start: line.indexOf('my_macro'),
     end: line.indexOf('my_macro') + 'my_macro'.length,
   });
@@ -183,4 +193,95 @@ test('findMacroDefinitionAtPosition: cursor on the macro name in a definition li
 
 test('findMacroDefinitionAtPosition: not a definition line returns undefined', () => {
   assert.equal(findMacroDefinitionAtPosition('{{ generate_surrogate_key(x) }}', 5), undefined);
+});
+
+test('findCallAtPosition: cross-package ref("package", "model") resolves to the model name', () => {
+  const line = "select * from {{ ref('other_project', 'dim_customers') }} c";
+  const idx = line.indexOf('dim_customers') + 3;
+  assert.deepEqual(findCallAtPosition(line, idx), {
+    kind: 'ref',
+    name: 'dim_customers',
+    packageName: 'other_project',
+    argStart: line.indexOf('dim_customers'),
+    argEnd: line.indexOf('dim_customers') + 'dim_customers'.length,
+  });
+});
+
+test('findCallAtPosition: ref() with a version kwarg still resolves', () => {
+  const line = "select * from {{ ref('dim_customers', version=2) }} c";
+  const idx = line.indexOf('dim_customers') + 3;
+  const call = findCallAtPosition(line, idx);
+  assert.equal(call?.kind, 'ref');
+  assert.equal(call?.kind === 'ref' ? call.name : undefined, 'dim_customers');
+});
+
+test('findAllRefCallLocations: finds cross-package and versioned call shapes', () => {
+  const line = "{{ ref('pkg', 'a') }} {{ ref('a', version=2) }} {{ ref('a') }}";
+  assert.equal(findAllRefCallLocations(line, 'a').length, 3);
+  for (const loc of findAllRefCallLocations(line, 'a')) {
+    assert.equal(line.slice(loc.start, loc.end), 'a');
+  }
+});
+
+test('findAllRefCallLocations: an identifier merely ending in "ref" is not a ref() call', () => {
+  assert.deepEqual(findAllRefCallLocations("{{ my_ref('a') }}", 'a'), []);
+});
+
+test('findAllRefCallLocations: an explicit package that differs is not a call site', () => {
+  const line = "{{ ref('other_pkg', 'a') }}";
+  assert.deepEqual(findAllRefCallLocations(line, 'a', 'my_project'), []);
+  assert.equal(findAllRefCallLocations(line, 'a', 'other_pkg').length, 1);
+});
+
+test('findAllMacroCallLocations: a SQL function of the same name outside a Jinja tag is not a call site', () => {
+  // dbt-core ships macros named after SQL functions, so this is the common false positive.
+  assert.deepEqual(findAllMacroCallLocations("select replace(name, 'a', 'b') from t", 'replace'), []);
+  assert.equal(findAllMacroCallLocations("select {{ replace(x, 'a', 'b') }} from t", 'replace').length, 1);
+});
+
+test('findAllMacroCallLocations: a namespaced call from another package is not a call site', () => {
+  const line = '{{ spark_utils.star(from=ref("a")) }}';
+  assert.deepEqual(findAllMacroCallLocations(line, 'star', 'dbt_utils'), []);
+  assert.equal(findAllMacroCallLocations(line, 'star', 'spark_utils').length, 1);
+});
+
+test('findAllMacroCallLocations: macro calls inside a {% %} statement tag count', () => {
+  const line = '{% set key = generate_surrogate_key(["id"]) %}';
+  assert.equal(findAllMacroCallLocations(line, 'generate_surrogate_key').length, 1);
+});
+
+test('findMacroCallAtPosition: a SQL function call outside a Jinja tag is not a macro call', () => {
+  const line = "select replace(name, 'a', 'b') from t";
+  assert.equal(findMacroCallAtPosition(line, line.indexOf('replace') + 2), undefined);
+});
+
+test('findMacroCallAtPosition: namespaced call reports the package', () => {
+  const line = '{{ dbt_utils.star(from=ref("a")) }}';
+  assert.deepEqual(findMacroCallAtPosition(line, line.indexOf('star') + 1), {
+    name: 'star',
+    packageName: 'dbt_utils',
+    start: line.indexOf('star'),
+    end: line.indexOf('star') + 'star'.length,
+  });
+});
+
+test('isInsideJinjaExpression: statement tags count, closed tags do not', () => {
+  assert.equal(isInsideJinjaExpression('{% set x = '), true);
+  assert.equal(isInsideJinjaExpression('{% set x = 1 %} select '), false);
+  assert.equal(isInsideJinjaExpression('select '), false);
+});
+
+test('findMacroDefinitionLine: finds the right macro in a multi-macro file', () => {
+  const lines = [
+    '{% macro first(a) %}',
+    '  select 1',
+    '{% endmacro %}',
+    '',
+    '{%- macro second(b) -%}',
+    '  select 2',
+    '{% endmacro %}',
+  ];
+  assert.equal(findMacroDefinitionLine(lines, 'first'), 0);
+  assert.equal(findMacroDefinitionLine(lines, 'second'), 4);
+  assert.equal(findMacroDefinitionLine(lines, 'missing'), undefined);
 });

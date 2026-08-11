@@ -2,6 +2,19 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.4.1] - 2026-08-11
+
+### Fixed
+- **Go to Definition no longer hijacks plain SQL.** dbt ships macros named after SQL functions (`replace`, `length`, `concat`, `left`, `position`, ...), so Ctrl+click on an ordinary `replace(col, 'a', 'b')` jumped into dbt's internals. A macro call is now only recognised inside a Jinja tag (`{{ ... }}` / `{% ... %}`).
+- **Definitions in installed packages open the right file.** A package's `original_file_path` is relative to the package root, not the project root, so every macro from `dbt_utils` & co resolved to a path that doesn't exist. Package entities now resolve under `dbt_packages/<package>/`, and navigation falls back to "no result" instead of opening a broken editor when the file isn't in the project (dbt's built-in macros ship with the Python package).
+- **Macro name collisions resolve deterministically.** Macro names are not unique across packages (`dbt_utils.star` vs `spark_utils.star`, a project macro shadowing a package one). The root project now wins over any package, a namespaced call (`dbt_utils.star(...)`) resolves to that exact package, and manifest ordering no longer decides.
+- **Go to Definition on a macro jumps to its `{% macro %}` line** instead of the top of a file that may define a dozen macros. Same for the declaration entry in Find All References.
+- **Find All References no longer drops call sites it can't pin down.** `ref('package', 'model')` and `ref('model', version=2)` are now parsed, and a caller whose call site can't be located on a single line is reported at the file level rather than silently omitted.
+- **Cross-package false positives removed** from Find All References: `ref('other_package', 'x')` and `other_package.my_macro()` are no longer reported as call sites for a same-named entity in a different package.
+
+### Changed
+- Find All References honours cancellation, reads caller files directly instead of opening a `TextDocument` per file, and reads them in parallel batches — noticeably cheaper on a source with hundreds of children. Generic tests declared in a `schema.yml` are skipped, since they contain no call site to find.
+
 ## [0.4.0] - 2026-07-13
 
 ### Added
