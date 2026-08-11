@@ -45,15 +45,36 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 
 ### Installation
 
+**From the VS Code Marketplace** — open the Extensions view (`Ctrl+Shift+X`), search for **dbt Forge**, and click Install. Or, from a terminal:
+
 ```bash
-# From source (not yet published to the marketplace)
+code --install-extension evolve-data.dbtforge
+```
+
+The extension is also on the [Marketplace page](https://marketplace.visualstudio.com/items?itemName=evolve-data.dbtforge), and activates on its own as soon as the folder you open contains a `dbt_project.yml`.
+
+<details>
+<summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
+
+```bash
+code --install-extension dbtforge-0.5.0.vsix
+```
+
+</details>
+
+<details>
+<summary><strong>From source</strong> (to hack on the extension)</summary>
+
+```bash
 git clone https://github.com/Y0hannH/dbtforge
 cd dbtforge
 npm install
 npm run compile
 ```
 
-Then press `F5` in VS Code to launch an Extension Development Host with dbt Forge loaded, and open your dbt project in that window.
+Then press `F5` in VS Code to launch an Extension Development Host with dbt Forge loaded, and open your dbt project in that window. `npm test` runs the unit suite; `npx vsce package` produces an installable `.vsix`.
+
+</details>
 
 ### First Run
 
@@ -125,12 +146,11 @@ ref()/source() autocomplete, Go to Definition, column autocomplete (aliases + CT
 Find All References and Go to Definition for macros, in addition to models/sources.
 
 ### ✅ v0.5
-Environment switching: pick a profile/target from the status bar, and every dbt command runs against it.
+Environment switching: pick a profile/target from the status bar, and every dbt command runs against it. First Marketplace release.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects
 - Multi-project workspace polish (multiple dbt projects in one workspace)
-- Marketplace publication
 
 ---
 
