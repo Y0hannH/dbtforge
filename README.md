@@ -33,7 +33,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
-| ⚡ | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
+| 📄 | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
 | 🏷️ | **Tags panel** | Every tag declared in the project, expandable to its resources, with one-click Build / Build Upstream / Build Downstream / Test per tag |
 
 ---
@@ -61,7 +61,7 @@ The extension is also on the [Marketplace page](https://marketplace.visualstudio
 <summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
 
 ```bash
-code --install-extension dbtforge-0.5.0.vsix
+code --install-extension dbtforge-0.9.0.vsix
 ```
 
 </details>
@@ -116,7 +116,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 |---|---|
 | Extension Host | TypeScript + VS Code Extension API |
 | Lineage Webview | React + React Flow + dagre (auto-layout), bundled locally — no CDN |
-| Data Source | Reads `manifest.json` / `catalog.json` / `target/compiled/*.sql` directly, with a file watcher to stay in sync |
+| Data Source | Reads `manifest.json` / `catalog.json` / `target/compiled/*.sql` directly, with a file watcher to stay in sync. `profiles.yml` is read (never written) to list the environments you can switch between |
 | dbt Execution | Runs the `dbt` executable from your configured venv (`Scripts/`/`bin/`) in the integrated terminal |
 
 ---
@@ -129,6 +129,8 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.refreshIndex` | Re-read `manifest.json` / `catalog.json` from disk (does **not** run dbt) |
 | `dbtForge.compileFile` | `dbt compile --select path:<file>` for the open file — works even if it isn't in the manifest yet |
 | `dbtForge.parseProject` | `dbt parse` — regenerates manifest.json without compiling SQL or hitting the warehouse |
+| `dbtForge.compileProject` | `dbt compile` for the whole project |
+| `dbtForge.buildModel` | `dbt build --select model` for the open model, without upstream or downstream |
 | `dbtForge.buildUpstream` | `dbt build --select +model` for the open model |
 | `dbtForge.buildDownstream` | `dbt build --select model+` for the open model |
 | `dbtForge.testModel` | `dbt test --select model` for the open model |
@@ -140,6 +142,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.buildTagUpstream` | `dbt build --select +tag:<tag>` — the tag's resources + upstream parents |
 | `dbtForge.buildTagDownstream` | `dbt build --select tag:<tag>+` — the tag's resources + downstream children |
 | `dbtForge.testTag` | `dbt test --select tag:<tag>` |
+| `dbtForge.refreshTags` | Re-read the tag list from the loaded manifest |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
@@ -164,6 +167,8 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 dbt Forge does not collect any data and has no network calls of its own:
 
 - Reads `manifest.json`, `catalog.json`, and compiled SQL directly from your project's `target/` folder
+- Reads `profiles.yml` to list the profiles and targets you can switch between. It is only ever read, never modified, and nothing from it — credentials included — leaves your machine or is written to your settings; switching environments only changes the `--profile`/`--target` flags on the command line
+- Your environment choice is stored in VS Code's workspace state, not in a committed `.vscode/settings.json`
 - Runs `dbt` through your own configured Python environment, in your own integrated terminal
 - No telemetry, no backend, no external service — everything happens on your machine
 
