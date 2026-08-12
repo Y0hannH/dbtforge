@@ -22,6 +22,11 @@ export interface DbtNode {
   path: string; // relative to the package's models dir
   original_file_path: string; // relative to project root
   description?: string;
+  // dbt resolves tags from dbt_project.yml, the schema .yml, and in-model config() into the
+  // top-level `tags`, but older/partial manifests only carry them under `config.tags` —
+  // both are read and unioned rather than trusting one.
+  tags?: string[];
+  config?: { tags?: string[] };
   depends_on?: {
     nodes: string[];
     macros?: string[];
@@ -51,5 +56,7 @@ export interface DbtSourceNode {
   package_name: string;
   original_file_path: string;
   description?: string;
+  tags?: string[];
+  config?: { tags?: string[] };
   columns?: Record<string, { name: string; description?: string }>;
 }

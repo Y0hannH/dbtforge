@@ -34,6 +34,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
 | ⚡ | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
+| 🏷️ | **Tags panel** | Every tag declared in the project, expandable to its resources, with one-click Build / Build Upstream / Build Downstream / Test per tag |
 
 ---
 
@@ -135,6 +136,10 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.buildFolder` | `dbt build --select path:<folder>` for all models in a right-clicked folder |
 | `dbtForge.buildFolderUpstream` | `dbt build --select +path:<folder>` — folder's models + upstream parents |
 | `dbtForge.buildFolderDownstream` | `dbt build --select path:<folder>+` — folder's models + downstream children |
+| `dbtForge.buildTag` | `dbt build --select tag:<tag>` — every resource carrying the tag |
+| `dbtForge.buildTagUpstream` | `dbt build --select +tag:<tag>` — the tag's resources + upstream parents |
+| `dbtForge.buildTagDownstream` | `dbt build --select tag:<tag>+` — the tag's resources + downstream children |
+| `dbtForge.testTag` | `dbt test --select tag:<tag>` |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
@@ -181,8 +186,11 @@ Generate Docs command, so the `catalog.json` column autocomplete depends on can 
 ### ✅ v0.7
 Hover documentation for models/sources/macros, and Problems-panel diagnostics for broken ref()/source() calls.
 
-### ✅ v0.6
+### ✅ v0.8
 Single-file compile (`dbt compile --select path:<file>`) and `dbt parse` so a just-created model gets indexed without a full-project run, an actionable welcome view on the relatives panel, and immediate panel/CodeLens refresh on manifest reload.
+
+### ✅ v0.9
+Tags panel: build or test every resource carrying a tag, straight from the sidebar.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

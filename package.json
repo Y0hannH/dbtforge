@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -156,6 +156,31 @@
         "command": "dbtForge.selectProfile",
         "title": "dbt Forge: Switch Environment (profile / target)",
         "icon": "$(server-environment)"
+      },
+      {
+        "command": "dbtForge.buildTag",
+        "title": "dbt Forge: Build Tag",
+        "icon": "$(target)"
+      },
+      {
+        "command": "dbtForge.buildTagUpstream",
+        "title": "dbt Forge: Build Tag Upstream (+tag)",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "dbtForge.buildTagDownstream",
+        "title": "dbt Forge: Build Tag Downstream (tag+)",
+        "icon": "$(arrow-down)"
+      },
+      {
+        "command": "dbtForge.testTag",
+        "title": "dbt Forge: Test Tag",
+        "icon": "$(beaker)"
+      },
+      {
+        "command": "dbtForge.refreshTags",
+        "title": "dbt Forge: Refresh Tags",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -223,6 +248,33 @@
           "command": "dbtForge.selectProfile",
           "when": "view == dbtForge.relatives",
           "group": "navigation@6"
+        },
+        {
+          "command": "dbtForge.refreshTags",
+          "when": "view == dbtForge.tags",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "dbtForge.buildTag",
+          "when": "view == dbtForge.tags && viewItem == dbtForge.tag",
+          "group": "inline@1"
+        },
+        {
+          "command": "dbtForge.buildTagUpstream",
+          "when": "view == dbtForge.tags && viewItem == dbtForge.tag",
+          "group": "inline@2"
+        },
+        {
+          "command": "dbtForge.buildTagDownstream",
+          "when": "view == dbtForge.tags && viewItem == dbtForge.tag",
+          "group": "inline@3"
+        },
+        {
+          "command": "dbtForge.testTag",
+          "when": "view == dbtForge.tags && viewItem == dbtForge.tag",
+          "group": "inline@4"
         }
       ]
     },
@@ -236,6 +288,10 @@
         "view": "dbtForge.relatives",
         "contents": "Open a dbt model (.sql) to see its parents, children and tests.",
         "when": "!dbtForge.activeFileCompilable"
+      },
+      {
+        "view": "dbtForge.tags",
+        "contents": "No tags found in the manifest.\nTag a model with `{{ config(tags=['nightly']) }}`, or a whole folder via `dbt_project.yml`, then compile the project to pick them up.\n[Compile Project](command:dbtForge.compileProject)"
       }
     ],
     "views": {
@@ -243,6 +299,10 @@
         {
           "id": "dbtForge.relatives",
           "name": "Parents / Children / Tests"
+        },
+        {
+          "id": "dbtForge.tags",
+          "name": "Tags"
         }
       ]
     },

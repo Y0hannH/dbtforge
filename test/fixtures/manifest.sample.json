@@ -11,6 +11,7 @@
       "package_name": "example_project",
       "path": "staging/stg_customers.sql",
       "original_file_path": "models/staging/stg_customers.sql",
+      "tags": ["staging", "nightly"],
       "depends_on": { "nodes": ["source.example_project.raw.customers"] }
     },
     "model.example_project.dim_customers": {
@@ -20,6 +21,8 @@
       "package_name": "example_project",
       "path": "marts/dim_customers.sql",
       "original_file_path": "models/marts/dim_customers.sql",
+      "tags": ["marts"],
+      "config": { "tags": ["nightly", "marts"] },
       "depends_on": {
         "nodes": ["model.example_project.stg_customers"],
         "macros": ["macro.example_project.generate_surrogate_key"]
@@ -32,6 +35,7 @@
       "package_name": "example_project",
       "path": "not_null_dim_customers_customer_id.sql",
       "original_file_path": "models/marts/dim_customers.yml",
+      "config": { "tags": ["nightly"] },
       "depends_on": { "nodes": ["model.example_project.dim_customers"] }
     }
   },
@@ -52,7 +56,8 @@
       "name": "customers",
       "source_name": "raw",
       "package_name": "example_project",
-      "original_file_path": "models/staging/sources.yml"
+      "original_file_path": "models/staging/sources.yml",
+      "tags": ["raw"]
     }
   },
   "parent_map": {

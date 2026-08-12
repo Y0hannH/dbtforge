@@ -8,6 +8,7 @@ import { watchFile } from './fileWatcher';
 import { buildDependencyGraph, DependencyGraph } from './graph';
 import { buildMacroIndex, MacroIndex, MacroRef } from './macroIndex';
 import { DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
+import { collectTags, TagRef } from './tags';
 
 export interface ModelRef {
   uniqueId: string;
@@ -24,6 +25,7 @@ export interface SourceRef {
 }
 
 export type { MacroRef };
+
 
 /**
  * Central, per-workspace-folder index over manifest.json / catalog.json.
@@ -44,6 +46,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private macros: MacroIndex | undefined;
   // normalized absolute file path -> unique_id, to map the active editor to a manifest node.
   private uniqueIdByFilePath = new Map<string, string>();
+  // Every tag declared in the project, for the Tags view and `--select tag:x` shortcuts.
+  private tags: TagRef[] = [];
 
   private readonly disposables: vscode.Disposable[] = [];
   private readonly _onDidChange = new vscode.EventEmitter<void>();
@@ -85,6 +89,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.modelsByName.clear();
       this.sourcesByKey.clear();
       this.macros = undefined;
+      this.tags = [];
       this._onDidChange.fire();
       return;
     }
@@ -124,6 +129,7 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.sourcesByKey.clear();
     this.macros = buildMacroIndex(manifest);
     this.uniqueIdByFilePath.clear();
+    this.tags = collectTags(manifest);
 
     for (const node of Object.values(manifest.nodes)) {
       // Only .sql-backed nodes have a 1:1 file->node relationship. Schema tests defined in a
@@ -190,6 +196,11 @@ export class DbtProjectIndex implements vscode.Disposable {
     return [...this.sourcesByKey.values()];
   }
 
+  /** Every tag declared anywhere in the project, alphabetically. */
+  getAllTags(): TagRef[] {
+    return this.tags;
+  }
+
   resolveRef(modelName: string): ModelRef | undefined {
     return this.modelsByName.get(modelName);
   }
@@ -221,6 +232,10 @@ export class DbtProjectIndex implements vscode.Disposable {
 
   getMacroNode(uniqueId: string): DbtMacroNode | undefined {
     return this.manifest?.macros?.[uniqueId];
+  }
+
+  getSourceNode(uniqueId: string): DbtSourceNode | undefined {
+    return this.manifest?.sources[uniqueId];
   }
 
   /** Resolves a caller unique_id from getChildren()/getMacroCallers() to its node or macro. */

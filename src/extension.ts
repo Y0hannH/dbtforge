@@ -18,6 +18,7 @@ import { ProfileStatusBar } from './providers/profileStatusBar';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
+import { TagItem, TagsTreeProvider } from './providers/tagsTreeView';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
 const indexes = new Map<string, DbtProjectIndex>();
@@ -34,6 +35,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(diagnostics);
 
   const relativesTree = new RelativesTreeProvider(getIndexForResource);
+  const tagsTree = new TagsTreeProvider(getActiveIndex);
   const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
 
   // A manifest reload can turn an unknown file into a known model (typically right after
@@ -44,6 +46,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     diagnostics.revalidateOpenDocuments();
     codeLensProvider.refresh();
     refreshActiveEditorViews(relativesTree);
+    tagsTree.refresh();
   };
 
   await setupWorkspaceFolders(context, output, onIndexChanged);
@@ -75,7 +78,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('dbtForge.relatives', relativesTree),
-    vscode.window.onDidChangeActiveTextEditor(() => refreshActiveEditorViews(relativesTree))
+    vscode.window.registerTreeDataProvider('dbtForge.tags', tagsTree),
+    vscode.window.onDidChangeActiveTextEditor(() => {
+      refreshActiveEditorViews(relativesTree);
+      // Which project the tags view describes follows the active editor in a multi-root
+      // workspace, so it has to re-read on editor change too, not just on manifest reload.
+      tagsTree.refresh();
+    })
   );
   refreshActiveEditorViews(relativesTree);
 
@@ -180,7 +189,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const index = await resolveAnyIndex();
       if (!index) return;
       runDbt(index, ['parse']);
-    })
+    }),
+    vscode.commands.registerCommand('dbtForge.buildTag', (item?: TagItem) =>
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}`]))
+    ),
+    vscode.commands.registerCommand('dbtForge.buildTagUpstream', (item?: TagItem) =>
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `+tag:${tag}`]))
+    ),
+    vscode.commands.registerCommand('dbtForge.buildTagDownstream', (item?: TagItem) =>
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}+`]))
+    ),
+    vscode.commands.registerCommand('dbtForge.testTag', (item?: TagItem) =>
+      withTag(item, (index, tag) => runDbt(index, ['test', '--select', `tag:${tag}`]))
+    ),
+    vscode.commands.registerCommand('dbtForge.refreshTags', () => tagsTree.refresh())
   );
 
   context.subscriptions.push(
@@ -270,6 +292,42 @@ function withSqlFileSelector(
   }
 
   action(index, selectorPath);
+}
+
+/**
+ * Resolves the tag to act on. Clicking an inline button in the Tags view passes the TagItem
+ * (which already knows its project); invoking the same command from the palette passes
+ * nothing, so the tag is picked from a quick pick instead.
+ */
+async function withTag(
+  item: TagItem | undefined,
+  action: (index: DbtProjectIndex, tag: string) => void
+): Promise<void> {
+  if (item) {
+    action(item.index, item.tag);
+    return;
+  }
+
+  const index = await resolveAnyIndex();
+  if (!index) return;
+
+  const tags = index.getAllTags();
+  if (tags.length === 0) {
+    vscode.window.showWarningMessage(
+      'dbt Forge: no tags declared in this project (or the manifest predates them — try Compile Project).'
+    );
+    return;
+  }
+
+  const picked = await vscode.window.showQuickPick(
+    tags.map((t) => ({
+      label: t.tag,
+      description: `${t.modelCount} model${t.modelCount === 1 ? '' : 's'}`,
+      tag: t.tag,
+    })),
+    { placeHolder: 'Select a tag' }
+  );
+  if (picked) action(index, picked.tag);
 }
 
 /** Project-relative, forward-slashed path for dbt's `path:` selector; undefined if outside. */
@@ -365,6 +423,20 @@ async function setupWorkspaceFolders(
 function disposeAllIndexes(): void {
   for (const index of indexes.values()) index.dispose();
   indexes.clear();
+}
+
+/**
+ * Synchronous counterpart to resolveAnyIndex() for views that have to render right now and
+ * can't await a quick pick. Deliberately gives up (rather than guessing) when a multi-root
+ * workspace has several dbt projects and no active editor says which one is meant.
+ */
+function getActiveIndex(): DbtProjectIndex | undefined {
+  const active = vscode.window.activeTextEditor;
+  if (active) {
+    const index = getIndexForResource(active.document.uri);
+    if (index) return index;
+  }
+  return indexes.size === 1 ? [...indexes.values()][0] : undefined;
 }
 
 export function getIndexForResource(uri: vscode.Uri): DbtProjectIndex | undefined {

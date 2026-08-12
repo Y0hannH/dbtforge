@@ -2,6 +2,12 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.9.0] - 2026-08-12
+
+### Added
+- **Tags view** in the dbt Forge sidebar — lists every tag declared in the project (models, tests, seeds, snapshots and sources), each expandable to the resources carrying it, with inline Build / Build Upstream (`+tag:`) / Build Downstream (`tag:+`) / Test buttons. Tags are read from both a node's top-level `tags` and its `config.tags`, unioned, since manifests don't populate the two identically. Every tag command carries the environment selected in the status bar.
+- **Build Tag / Build Tag Upstream / Build Tag Downstream / Test Tag** commands — also available from the palette, where they prompt with a quick pick of the project's tags.
+
 ## [0.8.0] - 2026-08-12
 
 Faster feedback loop on files dbt hasn't parsed yet.
