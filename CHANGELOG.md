@@ -2,6 +2,12 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.7.0] - 2026-08-12
+
+### Added
+- **Hover documentation** on `ref()`/`source()`/macro calls (and macro definition lines) — shows the model/source/macro's manifest description, and a macro's argument signature when documented.
+- **Diagnostics** for `ref()`/`source()` calls that don't resolve against the loaded manifest — surfaced as warnings in the editor and the Problems panel, refreshed on edit, file open/close, and manifest reload. Scoped to `ref()`/`source()` only (unambiguous call syntax); macro calls are excluded to avoid false positives against built-in Jinja functions.
+
 ## [0.6.0] - 2026-08-11
 
 ### Added
@@ -35,7 +41,6 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ### Changed
 - Find All References honours cancellation, reads caller files directly instead of opening a `TextDocument` per file, and reads them in parallel batches — noticeably cheaper on a source with hundreds of children. Generic tests declared in a `schema.yml` are skipped, since they contain no call site to find.
-
 ## [0.4.0] - 2026-07-13
 
 ### Added

@@ -21,6 +21,7 @@ export interface DbtNode {
   package_name: string;
   path: string; // relative to the package's models dir
   original_file_path: string; // relative to project root
+  description?: string;
   depends_on?: {
     nodes: string[];
     macros?: string[];
@@ -35,6 +36,8 @@ export interface DbtMacroNode {
   package_name: string;
   path: string;
   original_file_path: string;
+  description?: string;
+  arguments?: Array<{ name: string; type?: string; description?: string }>;
   depends_on?: {
     macros?: string[];
   };
@@ -47,5 +50,6 @@ export interface DbtSourceNode {
   source_name: string; // source (schema) name, i.e. first arg to source()
   package_name: string;
   original_file_path: string;
+  description?: string;
   columns?: Record<string, { name: string; description?: string }>;
 }

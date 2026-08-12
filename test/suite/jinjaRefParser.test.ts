@@ -2,7 +2,9 @@ import { strict as assert } from 'assert';
 import { test } from 'node:test';
 import {
   findAllMacroCallLocations,
+  findAllRefCalls,
   findAllRefCallLocations,
+  findAllSourceCalls,
   findAllSourceCallLocations,
   findCallAtPosition,
   findMacroCallAtPosition,
@@ -121,6 +123,35 @@ test('findCallAtPosition: source name equal to "source" itself resolves correctl
     argStart,
     argEnd: argStart + 'source'.length,
   });
+});
+
+test('findAllRefCalls: finds every ref() call on a line regardless of model name', () => {
+  const line = "select * from {{ ref('a') }} join {{ ref('b') }}";
+  const calls = findAllRefCalls(line);
+  assert.deepEqual(
+    calls.map((c) => c.name),
+    ['a', 'b']
+  );
+});
+
+test('findAllRefCalls: no calls returns empty array', () => {
+  assert.deepEqual(findAllRefCalls('select 1'), []);
+});
+
+test('findAllSourceCalls: finds every source() call on a line regardless of names', () => {
+  const line = "select * from {{ source('raw', 'a') }} join {{ source('raw', 'b') }}";
+  const calls = findAllSourceCalls(line);
+  assert.deepEqual(
+    calls.map((c) => [c.sourceName, c.tableName]),
+    [
+      ['raw', 'a'],
+      ['raw', 'b'],
+    ]
+  );
+});
+
+test('findAllSourceCalls: no calls returns empty array', () => {
+  assert.deepEqual(findAllSourceCalls('select 1'), []);
 });
 
 test('findAllRefCallLocations: finds every ref() call to the given model on a line', () => {

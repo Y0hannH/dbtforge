@@ -25,6 +25,8 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | ⚡ | **Snippet expansion** | Type `ref` or `source` in plain SQL to expand into the full `{{ ref("") }}` tag, cursor ready to autocomplete |
 | 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()`/macro call to jump straight to the model/macro's `.sql` file |
 | 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
+| 💬 | **Hover documentation** | Hover a `ref()`/`source()`/macro call to see its description (and a macro's argument signature) straight from the manifest |
+| ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
@@ -169,6 +171,12 @@ Find All References and Go to Definition for macros, in addition to models/sourc
 
 ### ✅ v0.5
 Environment switching: pick a profile/target from the status bar, and every dbt command runs against it.
+
+### ✅ v0.6
+Generate Docs command, so the `catalog.json` column autocomplete depends on can be produced from the editor.
+
+### ✅ v0.7
+Hover documentation for models/sources/macros, and Problems-panel diagnostics for broken ref()/source() calls.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

@@ -11,6 +11,8 @@ import { ProfileStore } from './profiles/profileStore';
 import { BuildCodeLensProvider } from './providers/buildCodeLens';
 import { ColumnCompletionProvider } from './providers/columnCompletion';
 import { RefSourceDefinitionProvider } from './providers/definitionProvider';
+import { DbtDiagnosticsController } from './providers/diagnostics';
+import { DbtHoverProvider } from './providers/hoverProvider';
 import { JinjaSnippetCompletionProvider } from './providers/jinjaSnippetCompletion';
 import { ProfileStatusBar } from './providers/profileStatusBar';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
@@ -28,7 +30,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const output = vscode.window.createOutputChannel('dbt Forge');
   context.subscriptions.push(output);
 
-  await setupWorkspaceFolders(context, output);
+  const diagnostics = new DbtDiagnosticsController(getIndexForResource);
+  context.subscriptions.push(diagnostics);
+
+  await setupWorkspaceFolders(context, output, diagnostics);
 
   const profileStore = new ProfileStore(context.workspaceState);
   const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
@@ -37,10 +42,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       disposeAllIndexes();
-      await setupWorkspaceFolders(context, output);
+      await setupWorkspaceFolders(context, output, diagnostics);
       profileStatusBar.refresh();
-    })
+    }),
+    vscode.workspace.onDidOpenTextDocument((doc) => diagnostics.validate(doc)),
+    vscode.workspace.onDidChangeTextDocument((e) => diagnostics.validateDebounced(e.document)),
+    vscode.workspace.onDidCloseTextDocument((doc) => diagnostics.clear(doc.uri))
   );
+  for (const doc of vscode.workspace.textDocuments) diagnostics.validate(doc);
 
   const relativesTree = new RelativesTreeProvider(getIndexForResource);
   const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
@@ -77,6 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       new RefSourceDefinitionProvider(getIndexForResource)
     ),
     vscode.languages.registerReferenceProvider(DBT_SQL_SELECTOR, new DbtReferenceProvider(getIndexForResource)),
+    vscode.languages.registerHoverProvider(DBT_SQL_SELECTOR, new DbtHoverProvider(getIndexForResource)),
     vscode.languages.registerCodeLensProvider(DBT_SQL_SELECTOR, codeLensProvider),
     vscode.workspace.registerTextDocumentContentProvider(COMPILED_SQL_SCHEME, compiledSqlContentProvider)
   );
@@ -257,7 +267,8 @@ function activeProjectConfig(): DbtForgeConfig | undefined {
 
 async function setupWorkspaceFolders(
   context: vscode.ExtensionContext,
-  output: vscode.OutputChannel
+  output: vscode.OutputChannel,
+  diagnostics: DbtDiagnosticsController
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of folders) {
@@ -266,7 +277,7 @@ async function setupWorkspaceFolders(
 
     const index = new DbtProjectIndex(config);
     indexes.set(folder.uri.toString(), index);
-    context.subscriptions.push(index);
+    context.subscriptions.push(index, index.onDidChange(() => diagnostics.revalidateOpenDocuments()));
 
     output.appendLine(`dbt Forge: indexing project at ${config.projectDir}`);
     await index.initialize();

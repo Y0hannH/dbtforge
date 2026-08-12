@@ -129,6 +129,40 @@ export interface CallLocation {
   end: number;
 }
 
+export interface RefCallMatch extends CallLocation {
+  name: string;
+  /** Package named explicitly in `ref('package', 'model')`, absent for a plain `ref('model')`. */
+  packageName?: string;
+}
+
+export interface SourceCallMatch extends CallLocation {
+  sourceName: string;
+  tableName: string;
+}
+
+/**
+ * Every ref() call on a line, regardless of the model name — the span covers the model-name
+ * argument, never the optional package prefix.
+ */
+export function findAllRefCalls(lineText: string): RefCallMatch[] {
+  const results: RefCallMatch[] = [];
+  for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    const [start, end] = match.indices[2]!;
+    results.push({ name: match[2], packageName: match[1], start, end });
+  }
+  return results;
+}
+
+/** Every source() call on a line, regardless of source/table name — span points at the table-name arg. */
+export function findAllSourceCalls(lineText: string): SourceCallMatch[] {
+  const results: SourceCallMatch[] = [];
+  for (const match of lineText.matchAll(SOURCE_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    const [start, end] = match.indices[2]!;
+    results.push({ sourceName: match[1], tableName: match[2], start, end });
+  }
+  return results;
+}
+
 /**
  * Every ref() call to `modelName` on a line — a file can reference the same model more than once.
  * When the call names a package explicitly (ref('package', 'model')) and `packageName` is known,
@@ -139,14 +173,10 @@ export function findAllRefCallLocations(
   modelName: string,
   packageName?: string
 ): CallLocation[] {
-  const results: CallLocation[] = [];
-  for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
-    if (match[2] !== modelName) continue;
-    if (match[1] && packageName && match[1] !== packageName) continue;
-    const [start, end] = match.indices[2]!;
-    results.push({ start, end });
-  }
-  return results;
+  return findAllRefCalls(lineText)
+    .filter((call) => call.name === modelName)
+    .filter((call) => !call.packageName || !packageName || call.packageName === packageName)
+    .map(({ start, end }) => ({ start, end }));
 }
 
 /** Every source() call to (sourceName, tableName) on a line, pointing at the table-name arg. */
@@ -155,13 +185,9 @@ export function findAllSourceCallLocations(
   sourceName: string,
   tableName: string
 ): CallLocation[] {
-  const results: CallLocation[] = [];
-  for (const match of lineText.matchAll(SOURCE_CALL) as IterableIterator<RegExpMatchWithIndices>) {
-    if (match[1] !== sourceName || match[2] !== tableName) continue;
-    const [start, end] = match.indices[2]!;
-    results.push({ start, end });
-  }
-  return results;
+  return findAllSourceCalls(lineText)
+    .filter((call) => call.sourceName === sourceName && call.tableName === tableName)
+    .map(({ start, end }) => ({ start, end }));
 }
 
 function escapeRegExp(literal: string): string {
