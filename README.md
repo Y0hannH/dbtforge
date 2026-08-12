@@ -33,6 +33,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
+| ⚡ | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
 
 ---
 
@@ -125,6 +126,8 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 |---|---|
 | `dbtForge.generateDocs` | `dbt docs generate` — writes `catalog.json`, which column autocomplete reads |
 | `dbtForge.refreshIndex` | Re-read `manifest.json` / `catalog.json` from disk (does **not** run dbt) |
+| `dbtForge.compileFile` | `dbt compile --select path:<file>` for the open file — works even if it isn't in the manifest yet |
+| `dbtForge.parseProject` | `dbt parse` — regenerates manifest.json without compiling SQL or hitting the warehouse |
 | `dbtForge.buildUpstream` | `dbt build --select +model` for the open model |
 | `dbtForge.buildDownstream` | `dbt build --select model+` for the open model |
 | `dbtForge.testModel` | `dbt test --select model` for the open model |
@@ -177,6 +180,9 @@ Generate Docs command, so the `catalog.json` column autocomplete depends on can 
 
 ### ✅ v0.7
 Hover documentation for models/sources/macros, and Problems-panel diagnostics for broken ref()/source() calls.
+
+### ✅ v0.6
+Single-file compile (`dbt compile --select path:<file>`) and `dbt parse` so a just-created model gets indexed without a full-project run, an actionable welcome view on the relatives panel, and immediate panel/CodeLens refresh on manifest reload.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

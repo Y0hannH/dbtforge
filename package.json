@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -95,6 +95,16 @@
         "icon": "$(book)"
       },
       {
+        "command": "dbtForge.compileFile",
+        "title": "dbt Forge: Compile This File",
+        "icon": "$(file-code)"
+      },
+      {
+        "command": "dbtForge.parseProject",
+        "title": "dbt Forge: Refresh Manifest (dbt parse)",
+        "icon": "$(sync)"
+      },
+      {
         "command": "dbtForge.buildModel",
         "title": "dbt Forge: Build Model",
         "icon": "$(target)"
@@ -151,6 +161,11 @@
     "menus": {
       "editor/context": [
         {
+          "command": "dbtForge.compileFile",
+          "when": "resourceExtname == .sql",
+          "group": "dbtForge"
+        },
+        {
           "command": "dbtForge.previewCompiledSql",
           "when": "resourceExtname == .sql",
           "group": "dbtForge"
@@ -180,32 +195,49 @@
       ],
       "view/title": [
         {
-          "command": "dbtForge.selectProfile",
+          "command": "dbtForge.compileFile",
           "when": "view == dbtForge.relatives",
-          "group": "navigation"
+          "group": "navigation@1"
         },
         {
           "command": "dbtForge.compileProject",
           "when": "view == dbtForge.relatives",
-          "group": "navigation"
-        },
-        {
-          "command": "dbtForge.generateDocs",
-          "when": "view == dbtForge.relatives",
-          "group": "navigation"
+          "group": "navigation@2"
         },
         {
           "command": "dbtForge.buildProject",
           "when": "view == dbtForge.relatives",
-          "group": "navigation"
+          "group": "navigation@3"
+        },
+        {
+          "command": "dbtForge.generateDocs",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation@4"
         },
         {
           "command": "dbtForge.refreshIndex",
           "when": "view == dbtForge.relatives",
-          "group": "navigation"
+          "group": "navigation@5"
+        },
+        {
+          "command": "dbtForge.selectProfile",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation@6"
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "dbtForge.relatives",
+        "contents": "This file isn't in the manifest yet — dbt hasn't parsed it since it was created or renamed.\n[Compile This File](command:dbtForge.compileFile)\n[Refresh Manifest (dbt parse)](command:dbtForge.parseProject)\nCompiling this file re-parses the project, so the panel fills in as soon as dbt finishes.",
+        "when": "dbtForge.activeFileCompilable"
+      },
+      {
+        "view": "dbtForge.relatives",
+        "contents": "Open a dbt model (.sql) to see its parents, children and tests.",
+        "when": "!dbtForge.activeFileCompilable"
+      }
+    ],
     "views": {
       "dbtForge": [
         {

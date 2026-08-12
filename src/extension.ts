@@ -33,7 +33,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const diagnostics = new DbtDiagnosticsController(getIndexForResource);
   context.subscriptions.push(diagnostics);
 
-  await setupWorkspaceFolders(context, output, diagnostics);
+  const relativesTree = new RelativesTreeProvider(getIndexForResource);
+  const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
+
+  // A manifest reload can turn an unknown file into a known model (typically right after
+  // "Compile This File" on a freshly created one). Every view derived from the index has to
+  // be re-driven from that event, not just from the active-editor change — otherwise the
+  // panel stays empty until the user switches tabs and comes back.
+  const onIndexChanged = (): void => {
+    diagnostics.revalidateOpenDocuments();
+    codeLensProvider.refresh();
+    refreshActiveEditorViews(relativesTree);
+  };
+
+  await setupWorkspaceFolders(context, output, onIndexChanged);
 
   const profileStore = new ProfileStore(context.workspaceState);
   const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
@@ -42,7 +55,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       disposeAllIndexes();
-      await setupWorkspaceFolders(context, output, diagnostics);
+      await setupWorkspaceFolders(context, output, onIndexChanged);
+      onIndexChanged();
       profileStatusBar.refresh();
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => diagnostics.validate(doc)),
@@ -51,9 +65,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
   for (const doc of vscode.workspace.textDocuments) diagnostics.validate(doc);
 
-  const relativesTree = new RelativesTreeProvider(getIndexForResource);
-  const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
-
   // Every dbt invocation carries the project's selected environment, so a build launched from a
   // CodeLens can't quietly run against a different workspace than the status bar advertises.
   const runDbt = (index: DbtProjectIndex, args: string[]): void => {
@@ -61,11 +72,12 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     runDbtCommand(config, [...args, ...profileStore.toCliArgs(config.projectDir)]);
   };
 
+
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('dbtForge.relatives', relativesTree),
-    vscode.window.onDidChangeActiveTextEditor((editor) => relativesTree.refresh(editor))
+    vscode.window.onDidChangeActiveTextEditor(() => refreshActiveEditorViews(relativesTree))
   );
-  relativesTree.refresh(vscode.window.activeTextEditor);
+  refreshActiveEditorViews(relativesTree);
 
   context.subscriptions.push(
     vscode.languages.registerCompletionItemProvider(
@@ -96,8 +108,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       for (const index of indexes.values()) {
         await index.initialize();
       }
-      codeLensProvider.refresh();
-      relativesTree.refresh(vscode.window.activeTextEditor);
+      onIndexChanged();
       vscode.window.showInformationMessage('dbt Forge: index refreshed.');
     }),
     vscode.commands.registerCommand('dbtForge.buildModel', (uri?: vscode.Uri) =>
@@ -159,6 +170,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         'Compile project'
       );
       if (action) runDbt(index, ['compile']);
+    }),
+    vscode.commands.registerCommand('dbtForge.compileFile', (uri?: vscode.Uri) =>
+      withSqlFileSelector(uri, (index, selectorPath) =>
+        runDbt(index, ['compile', '--select', `path:${selectorPath}`])
+      )
+    ),
+    vscode.commands.registerCommand('dbtForge.parseProject', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      runDbt(index, ['parse']);
     })
   );
 
@@ -210,13 +231,70 @@ function withProjectFolder(
     return;
   }
 
-  const relativePath = path.relative(index.getConfig().projectDir, uri.fsPath);
-  if (!relativePath || relativePath.startsWith('..')) {
+  const selectorPath = toSelectorPath(index, uri);
+  if (!selectorPath) {
     vscode.window.showWarningMessage('dbt Forge: this folder is outside the dbt project.');
     return;
   }
 
-  action(index, relativePath.split(path.sep).join('/'));
+  action(index, selectorPath);
+}
+
+/**
+ * Same `path:` selector resolution as withProjectFolder(), but for a single .sql file — and,
+ * unlike withModelNode(), deliberately *without* requiring the file to exist in the manifest.
+ * That's the point of "Compile This File": a model that was just created or renamed isn't
+ * indexed yet, so a selector has to be derivable from the file path alone (`path:` also avoids
+ * guessing the model name from the filename).
+ */
+function withSqlFileSelector(
+  uri: vscode.Uri | undefined,
+  action: (index: DbtProjectIndex, selectorPath: string) => void
+): void {
+  const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
+  if (!targetUri || !isDbtSqlFile(targetUri)) {
+    vscode.window.showWarningMessage('dbt Forge: no active SQL file.');
+    return;
+  }
+
+  const index = getIndexForResource(targetUri);
+  if (!index) {
+    vscode.window.showWarningMessage('dbt Forge: this file is not part of an indexed dbt project.');
+    return;
+  }
+
+  const selectorPath = toSelectorPath(index, targetUri);
+  if (!selectorPath) {
+    vscode.window.showWarningMessage('dbt Forge: this file is outside the dbt project.');
+    return;
+  }
+
+  action(index, selectorPath);
+}
+
+/** Project-relative, forward-slashed path for dbt's `path:` selector; undefined if outside. */
+function toSelectorPath(index: DbtProjectIndex, uri: vscode.Uri): string | undefined {
+  const relativePath = path.relative(index.getConfig().projectDir, uri.fsPath);
+  if (!relativePath || relativePath.startsWith('..')) return undefined;
+  return relativePath.split(path.sep).join('/');
+}
+
+function isDbtSqlFile(uri: vscode.Uri): boolean {
+  return uri.scheme === 'file' && uri.fsPath.toLowerCase().endsWith('.sql');
+}
+
+/**
+ * Re-drives everything keyed off "which file is in front of the user": the relatives panel,
+ * and the `dbtForge.activeFileCompilable` context key that decides which welcome view the
+ * panel shows when it's empty (offer to compile this file vs. "open a model").
+ */
+function refreshActiveEditorViews(relativesTree: RelativesTreeProvider): void {
+  const editor = vscode.window.activeTextEditor;
+  relativesTree.refresh(editor);
+
+  const uri = editor?.document.uri;
+  const compilable = uri !== undefined && isDbtSqlFile(uri) && getIndexForResource(uri) !== undefined;
+  void vscode.commands.executeCommand('setContext', 'dbtForge.activeFileCompilable', compilable);
 }
 
 /**
@@ -268,7 +346,7 @@ function activeProjectConfig(): DbtForgeConfig | undefined {
 async function setupWorkspaceFolders(
   context: vscode.ExtensionContext,
   output: vscode.OutputChannel,
-  diagnostics: DbtDiagnosticsController
+  onIndexChanged: () => void
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of folders) {
@@ -277,7 +355,7 @@ async function setupWorkspaceFolders(
 
     const index = new DbtProjectIndex(config);
     indexes.set(folder.uri.toString(), index);
-    context.subscriptions.push(index, index.onDidChange(() => diagnostics.revalidateOpenDocuments()));
+    context.subscriptions.push(index, index.onDidChange(onIndexChanged));
 
     output.appendLine(`dbt Forge: indexing project at ${config.projectDir}`);
     await index.initialize();

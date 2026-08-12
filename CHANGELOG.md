@@ -2,6 +2,18 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.8.0] - 2026-08-12
+
+Faster feedback loop on files dbt hasn't parsed yet.
+
+### Added
+- **Compile This File** command (`dbt compile --select path:<file>`) — compiles only the open model instead of the whole project, so a file that was just created gets into the manifest without waiting on a full `dbt compile`. Available from the editor's right-click menu, the sidebar's title bar, and the panel's welcome view. Works on files dbt doesn't know yet: the selector is derived from the file path, not from the manifest. Like every other dbt invocation, it carries the environment selected in the status bar.
+- **Refresh Manifest (dbt parse)** command — regenerates `manifest.json` without compiling any SQL or touching the warehouse, the fastest way to get newly added models recognized.
+- **Welcome view on the Parents/Children/Tests panel** — instead of an empty panel, an unindexed `.sql` file now explains why and offers Compile This File / Refresh Manifest inline.
+
+### Fixed
+- The Parents/Children/Tests panel and the CodeLens row no longer wait for an editor switch to pick up a manifest reload — they refresh as soon as the index reloads, so a model appears in the panel right after the dbt run that indexed it finishes.
+
 ## [0.7.0] - 2026-08-12
 
 ### Added
