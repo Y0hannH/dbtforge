@@ -75,6 +75,13 @@
           "default": "",
           "scope": "resource",
           "description": "Directory containing profiles.yml, used to list the environments you can switch between. Leave empty to look where dbt itself does: DBT_PROFILES_DIR, then the dbt project root, then ~/.dbt. When set, it is also passed to dbt as --profiles-dir."
+        },
+        "dbtForge.previewRowLimit": {
+          "type": "integer",
+          "default": 100,
+          "minimum": -1,
+          "scope": "resource",
+          "description": "Rows a data preview asks dbt for (passed to 'dbt show --limit'). Use -1 for every row. A preview runs a real query against the warehouse you are pointed at."
         }
       }
     },
@@ -127,6 +134,16 @@
       {
         "command": "dbtForge.previewCompiledSql",
         "title": "dbt Forge: Preview Compiled SQL"
+      },
+      {
+        "command": "dbtForge.previewData",
+        "title": "dbt Forge: Preview Data",
+        "icon": "$(table)"
+      },
+      {
+        "command": "dbtForge.rerunPreview",
+        "title": "dbt Forge: Re-run Data Preview",
+        "icon": "$(refresh)"
       },
       {
         "command": "dbtForge.showLineage",
@@ -196,6 +213,11 @@
           "group": "dbtForge"
         },
         {
+          "command": "dbtForge.previewData",
+          "when": "resourceExtname == .sql",
+          "group": "dbtForge"
+        },
+        {
           "command": "dbtForge.showLineage",
           "when": "resourceExtname == .sql",
           "group": "dbtForge"
@@ -253,6 +275,11 @@
           "command": "dbtForge.refreshTags",
           "when": "view == dbtForge.tags",
           "group": "navigation"
+        },
+        {
+          "command": "dbtForge.rerunPreview",
+          "when": "view == dbtForge.preview",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -304,6 +331,14 @@
           "id": "dbtForge.tags",
           "name": "Tags"
         }
+      ],
+      "dbtForgePreview": [
+        {
+          "id": "dbtForge.preview",
+          "name": "Data Preview",
+          "type": "webview",
+          "contextualTitle": "dbt Forge"
+        }
       ]
     },
     "viewsContainers": {
@@ -313,8 +348,23 @@
           "title": "dbt Forge",
           "icon": "resources/icon.svg"
         }
+      ],
+      "panel": [
+        {
+          "id": "dbtForgePreview",
+          "title": "dbt Preview",
+          "icon": "resources/icon.svg"
+        }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "dbtForge.previewData",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      }
+    ]
   },
   "scripts": {
     "vscode:prepublish": "npm run package",

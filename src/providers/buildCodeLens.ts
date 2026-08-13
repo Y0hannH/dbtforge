@@ -46,6 +46,11 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
         arguments: [uri],
       }),
       new vscode.CodeLens(TOP_OF_FILE, {
+        title: '$(table) Preview Data',
+        command: 'dbtForge.previewData',
+        arguments: [uri],
+      }),
+      new vscode.CodeLens(TOP_OF_FILE, {
         title: '$(git-merge) Lineage',
         command: 'dbtForge.showLineage',
         arguments: [uri],

@@ -1,127 +1,172 @@
-// Extracts top-level CTEs (`WITH name AS ( ... ), name2 AS ( ... )`) and, for each, the
-// column aliases of its own outer-most SELECT. Deliberately shallow: no resolution of nested
-// CTEs' internals, no type inference, no `SELECT *` expansion. If a column's alias can't be
-// determined unambiguously (e.g. a bare expression with no AS), it is simply omitted.
+// Structural parsing of a dbt model's SQL: its top-level CTEs, and the final SELECT they feed.
+//
+// Two consumers with very different tolerances share this. Column autocomplete only needs CTE
+// names and their output columns, and a miss there costs nothing. The preview rewrite needs to know
+// exactly where the final SELECT starts and what shape it has, because it splices text around it —
+// so every function here reports "I could not tell" rather than returning a best guess.
+
+import {
+  findMatchingParen,
+  findTopLevelKeyword,
+  matchesWordAt,
+  skipIgnorable,
+  splitTopLevel,
+} from './scanner';
 
 export interface CteDefinition {
   name: string;
+  /** Output columns of the CTE's own outer-most SELECT; empty when they can't be resolved. */
   columns: string[];
+  /** Offset just past the CTE's opening parenthesis. */
+  bodyStart: number;
+  /** Offset of the CTE's closing parenthesis. */
+  bodyEnd: number;
 }
 
-// Matches T-SQL bracket identifiers ([Some Column]) or plain identifiers.
-const IDENT = `(?:\\[[^\\]]+\\]|[A-Za-z_][A-Za-z0-9_]*)`;
-const CTE_NAME_RE = new RegExp(`\\b(${IDENT})\\s+AS\\s*\\(`, 'gi');
+export interface ParsedModelSql {
+  ctes: CteDefinition[];
+  /**
+   * Offset where the statement's final SELECT begins — after the WITH clause, if any.
+   * -1 when the statement could not be understood, which is the signal to leave it alone.
+   */
+  finalSelectStart: number;
+  /** `SELECT DISTINCT`, which constrains what an ORDER BY bolted onto it may reference. */
+  isDistinct: boolean;
+  /** A top-level ORDER BY, which a derived table cannot contain without TOP or OFFSET. */
+  hasOrderBy: boolean;
+}
 
-export function parseCtes(documentText: string): CteDefinition[] {
-  const withMatch = /\bWITH\b/i.exec(documentText);
-  if (!withMatch) return [];
+const IDENT = `(?:\\[[^\\]]+\\]|"[^"]+"|[A-Za-z_][A-Za-z0-9_]*)`;
 
-  const ctes: CteDefinition[] = [];
-  CTE_NAME_RE.lastIndex = withMatch.index;
+export function parseModelSql(sql: string): ParsedModelSql {
+  const unparsed: ParsedModelSql = {
+    ctes: [],
+    finalSelectStart: -1,
+    isDistinct: false,
+    hasOrderBy: false,
+  };
 
-  let match: RegExpExecArray | null;
-  let expectMore = true;
-  while (expectMore && (match = CTE_NAME_RE.exec(documentText))) {
-    const cteName = stripBrackets(match[1]);
-    const openParenIndex = match.index + match[0].length - 1;
-    const closeParenIndex = findMatchingParen(documentText, openParenIndex);
-    if (closeParenIndex === -1) break;
+  const withClause = parseWithClause(sql);
+  if (!withClause) return unparsed;
 
-    const body = documentText.slice(openParenIndex + 1, closeParenIndex);
-    const columns = extractTopLevelSelectColumns(body);
-    if (columns.length > 0) {
-      ctes.push({ name: cteName, columns });
-    }
-
-    // A CTE list is comma-separated; once the char after the closing paren isn't a comma,
-    // we've reached the final SELECT and there are no more CTEs to parse.
-    const afterParen = /^\s*(,)?/.exec(documentText.slice(closeParenIndex + 1));
-    expectMore = Boolean(afterParen?.[1]);
-    CTE_NAME_RE.lastIndex = closeParenIndex + 1;
+  const selectStart = withClause.endIndex;
+  if (!matchesWordAt(sql, selectStart, 'select')) {
+    // Not a SELECT statement at all, or a form this parser doesn't model. Either way, nothing
+    // downstream may assume it knows where to splice.
+    return { ...unparsed, ctes: withClause.ctes };
   }
 
-  return ctes;
+  const afterSelect = skipIgnorable(sql, selectStart + 'select'.length);
+
+  return {
+    ctes: withClause.ctes,
+    finalSelectStart: selectStart,
+    isDistinct: matchesWordAt(sql, afterSelect, 'distinct'),
+    hasOrderBy: hasTopLevelOrderBy(sql, selectStart),
+  };
+}
+
+/** CTE names and columns only, for autocomplete. */
+export function parseCtes(sql: string): CteDefinition[] {
+  return parseWithClause(sql)?.ctes ?? [];
+}
+
+interface WithClause {
+  ctes: CteDefinition[];
+  /** Offset of the first code character after the CTE list. */
+  endIndex: number;
+}
+
+function parseWithClause(sql: string): WithClause | undefined {
+  let i = skipIgnorable(sql, 0);
+  if (!matchesWordAt(sql, i, 'with')) return { ctes: [], endIndex: i };
+
+  const ctes: CteDefinition[] = [];
+  i = skipIgnorable(sql, i + 'with'.length);
+
+  for (;;) {
+    const name = readIdentifier(sql, i);
+    if (!name) return undefined;
+    i = skipIgnorable(sql, name.endIndex);
+
+    // `with a (x, y) as (...)`: an explicit column list sits between the name and AS.
+    if (sql[i] === '(') {
+      const listEnd = findMatchingParen(sql, i);
+      if (listEnd === -1) return undefined;
+      i = skipIgnorable(sql, listEnd + 1);
+    }
+
+    if (!matchesWordAt(sql, i, 'as')) return undefined;
+    i = skipIgnorable(sql, i + 'as'.length);
+
+    if (sql[i] !== '(') return undefined;
+    const bodyStart = i + 1;
+    const bodyEnd = findMatchingParen(sql, i);
+    if (bodyEnd === -1) return undefined;
+
+    ctes.push({
+      name: name.value,
+      columns: extractTopLevelSelectColumns(sql.slice(bodyStart, bodyEnd)),
+      bodyStart,
+      bodyEnd,
+    });
+
+    i = skipIgnorable(sql, bodyEnd + 1);
+    if (sql[i] !== ',') return { ctes, endIndex: i };
+    i = skipIgnorable(sql, i + 1);
+  }
+}
+
+interface Identifier {
+  value: string;
+  endIndex: number;
+}
+
+function readIdentifier(sql: string, index: number): Identifier | undefined {
+  const match = new RegExp(`^${IDENT}`).exec(sql.slice(index));
+  if (!match) return undefined;
+  return { value: stripDelimiters(match[0]), endIndex: index + match[0].length };
+}
+
+function hasTopLevelOrderBy(sql: string, fromIndex: number): boolean {
+  const orderIndex = findTopLevelKeyword(sql, 'order', fromIndex);
+  if (orderIndex === -1) return false;
+  return matchesWordAt(sql, skipIgnorable(sql, orderIndex + 'order'.length), 'by');
 }
 
 function extractTopLevelSelectColumns(body: string): string[] {
-  const selectMatch = /\bSELECT\b/i.exec(body);
-  if (!selectMatch) return [];
+  const selectIndex = findTopLevelKeyword(body, 'select', 0);
+  if (selectIndex === -1) return [];
 
-  const selectListStart = selectMatch.index + selectMatch[0].length;
-  const fromIndex = findTopLevelKeyword(body, /\bFROM\b/iy, selectListStart);
-  const columnListText = body.slice(selectListStart, fromIndex === -1 ? body.length : fromIndex);
+  const listStart = selectIndex + 'select'.length;
+  const fromIndex = findTopLevelKeyword(body, 'from', listStart);
+  const columnList = body.slice(listStart, fromIndex === -1 ? body.length : fromIndex);
 
-  return splitTopLevel(columnListText, ',')
+  return splitTopLevel(columnList, ',')
     .map(extractColumnAlias)
     .filter((alias): alias is string => alias !== undefined);
 }
 
-function extractColumnAlias(expr: string): string | undefined {
-  const trimmed = expr.trim();
+function extractColumnAlias(expression: string): string | undefined {
+  const trimmed = expression.trim();
   if (!trimmed) return undefined;
 
-  const asMatch = new RegExp(`\\bAS\\s+(${IDENT})\\s*$`, 'i').exec(trimmed);
-  if (asMatch) return stripBrackets(asMatch[1]);
+  const aliased = new RegExp(`\\bAS\\s+(${IDENT})\\s*$`, 'i').exec(trimmed);
+  if (aliased) return stripDelimiters(aliased[1]);
 
   // No explicit alias: only resolve unambiguous bare references (`col`, `t.col`, `t.[col]`).
   // Anything else — function calls, arithmetic, string concatenation — is left unresolved.
-  const bareMatch = new RegExp(`^(?:${IDENT}\\.)?(${IDENT})$`).exec(trimmed);
-  if (bareMatch) return stripBrackets(bareMatch[1]);
+  const bare = new RegExp(`^(?:${IDENT}\\.)?(${IDENT})$`).exec(trimmed);
+  if (bare) return stripDelimiters(bare[1]);
 
   return undefined;
 }
 
-function stripBrackets(ident: string): string {
-  return ident.startsWith('[') && ident.endsWith(']') ? ident.slice(1, -1) : ident;
-}
-
-function findMatchingParen(text: string, openIndex: number): number {
-  let depth = 0;
-  for (let i = openIndex; i < text.length; i++) {
-    if (text[i] === '(') depth++;
-    else if (text[i] === ')') {
-      depth--;
-      if (depth === 0) return i;
-    }
+function stripDelimiters(identifier: string): string {
+  const first = identifier[0];
+  const last = identifier[identifier.length - 1];
+  if ((first === '[' && last === ']') || (first === '"' && last === '"')) {
+    return identifier.slice(1, -1);
   }
-  return -1;
-}
-
-/** Finds the first match of a sticky (`y`-flagged) regex that occurs at paren depth 0. */
-function findTopLevelKeyword(text: string, stickyRe: RegExp, fromIndex: number): number {
-  let depth = 0;
-  for (let i = fromIndex; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === '(') {
-      depth++;
-      continue;
-    }
-    if (ch === ')') {
-      depth--;
-      continue;
-    }
-    if (depth === 0) {
-      stickyRe.lastIndex = i;
-      if (stickyRe.test(text)) return i;
-    }
-  }
-  return -1;
-}
-
-/** Splits on `separator` only at paren depth 0 (so commas inside function calls are kept intact). */
-function splitTopLevel(text: string, separator: string): string[] {
-  const parts: string[] = [];
-  let depth = 0;
-  let start = 0;
-  for (let i = 0; i < text.length; i++) {
-    const ch = text[i];
-    if (ch === '(') depth++;
-    else if (ch === ')') depth--;
-    else if (ch === separator && depth === 0) {
-      parts.push(text.slice(start, i));
-      start = i + 1;
-    }
-  }
-  parts.push(text.slice(start));
-  return parts;
+  return identifier;
 }

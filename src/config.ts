@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { DEFAULT_ROW_LIMIT, normalizeRowLimit } from './dbt/showCommand';
 
 export interface DbtForgeConfig {
   projectDir: string; // absolute
@@ -11,6 +12,7 @@ export interface DbtForgeConfig {
   // the project dir, then ~/.dbt). Kept as the configured value, not a resolved location, so a
   // profiles.yml created after activation is still picked up.
   profilesDir: string; // absolute or empty
+  previewRowLimit: number; // rows requested by a data preview; -1 means every row
 }
 
 const NESTED_PROJECT_SEARCH_EXCLUDE = '**/{node_modules,target,dbt_packages,.venv,venv}/**';
@@ -33,6 +35,7 @@ export async function resolveConfig(
   const catalogPathSetting = cfg.get<string>('catalogPath', 'target/catalog.json');
   const compiledDirSetting = cfg.get<string>('compiledDir', 'target/compiled');
   const profilesDirSetting = cfg.get<string>('profilesDir', '');
+  const previewRowLimitSetting = cfg.get<number>('previewRowLimit', DEFAULT_ROW_LIMIT);
 
   return {
     projectDir,
@@ -45,6 +48,7 @@ export async function resolveConfig(
         ? profilesDirSetting
         : path.join(projectDir, profilesDirSetting)
       : '',
+    previewRowLimit: normalizeRowLimit(previewRowLimitSetting),
   };
 }
 

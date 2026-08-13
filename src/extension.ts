@@ -7,6 +7,8 @@ import { selectProfile } from './commands/selectProfile';
 import { DbtForgeConfig, resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
 import { DbtNode } from './index/manifestTypes';
+import { PreviewController } from './preview/previewController';
+import { PreviewViewProvider } from './preview/previewViewProvider';
 import { ProfileStore } from './profiles/profileStore';
 import { BuildCodeLensProvider } from './providers/buildCodeLens';
 import { ColumnCompletionProvider } from './providers/columnCompletion';
@@ -54,6 +56,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const profileStore = new ProfileStore(context.workspaceState);
   const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
   context.subscriptions.push(profileStore, profileStatusBar);
+
+  const previewView = new PreviewViewProvider();
+  const previewController = new PreviewController(previewView, profileStore, output);
+  context.subscriptions.push(
+    previewView,
+    previewController,
+    previewView.onDidRequestCancel(() => previewController.cancel()),
+    // Retaining the context keeps a result (and its scroll position) alive while the user switches
+    // to the Terminal tab and back — the panel is shared real estate, so that happens constantly.
+    vscode.window.registerWebviewViewProvider(PreviewViewProvider.viewType, previewView, {
+      webviewOptions: { retainContextWhenHidden: true },
+    })
+  );
 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
@@ -138,6 +153,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('dbtForge.showLineage', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => showLineage(context, index, node.unique_id))
     ),
+    vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) =>
+      withModelNode(uri, (index, node) => void previewController.previewModel(index, node))
+    ),
+    vscode.commands.registerCommand('dbtForge.rerunPreview', () => previewController.rerun()),
     vscode.commands.registerCommand('dbtForge.buildProject', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
