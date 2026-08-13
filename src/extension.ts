@@ -156,6 +156,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => void previewController.previewModel(index, node))
     ),
+    vscode.commands.registerCommand('dbtForge.previewCte', (uri: vscode.Uri, cteName: string) =>
+      withModelNode(uri, (index, node) => void previewController.previewCte(index, node, cteName))
+    ),
     vscode.commands.registerCommand('dbtForge.rerunPreview', () => previewController.rerun()),
     vscode.commands.registerCommand('dbtForge.buildProject', async () => {
       const index = await resolveAnyIndex();

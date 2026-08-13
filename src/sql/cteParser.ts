@@ -14,7 +14,12 @@ import {
 } from './scanner';
 
 export interface CteDefinition {
+  /** Delimiters stripped, for matching against an alias the user typed. */
   name: string;
+  /** Exactly as written, so a quoted or bracketed name can be re-emitted verbatim. */
+  rawName: string;
+  /** Offset of the name in the document, for placing a CodeLens on the CTE. */
+  nameStart: number;
   /** Output columns of the CTE's own outer-most SELECT; empty when they can't be resolved. */
   columns: string[];
   /** Offset just past the CTE's opening parenthesis. */
@@ -105,7 +110,9 @@ function parseWithClause(sql: string): WithClause | undefined {
     if (bodyEnd === -1) return undefined;
 
     ctes.push({
-      name: name.value,
+      name: stripDelimiters(name.value),
+      rawName: name.value,
+      nameStart: name.startIndex,
       columns: extractTopLevelSelectColumns(sql.slice(bodyStart, bodyEnd)),
       bodyStart,
       bodyEnd,
@@ -118,14 +125,16 @@ function parseWithClause(sql: string): WithClause | undefined {
 }
 
 interface Identifier {
+  /** Source text, delimiters included. */
   value: string;
+  startIndex: number;
   endIndex: number;
 }
 
 function readIdentifier(sql: string, index: number): Identifier | undefined {
   const match = new RegExp(`^${IDENT}`).exec(sql.slice(index));
   if (!match) return undefined;
-  return { value: stripDelimiters(match[0]), endIndex: index + match[0].length };
+  return { value: match[0], startIndex: index, endIndex: index + match[0].length };
 }
 
 function hasTopLevelOrderBy(sql: string, fromIndex: number): boolean {

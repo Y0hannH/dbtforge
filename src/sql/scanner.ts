@@ -27,15 +27,35 @@ export function skipNonCode(text: string, index: number): number {
   return index;
 }
 
-/** Advances past whitespace and every non-code region, to the next character that is real code. */
+/**
+ * Advances to the next token: past whitespace, comments and Jinja blocks only.
+ *
+ * Deliberately narrower than skipNonCode. A string literal or a bracketed identifier must be
+ * stepped *over* when counting parentheses, but it is still a token — skipping it here would carry
+ * the scanner past the very name it was positioned to read, and `with [My CTE] as (...)` would
+ * parse as a CTE called `as`.
+ */
 export function skipIgnorable(text: string, index: number): number {
   let i = index;
   for (;;) {
     while (i < text.length && /\s/.test(text[i])) i++;
-    const next = skipNonCode(text, i);
+    const next = skipTrivia(text, i);
     if (next === i) return i;
     i = next;
   }
+}
+
+/** Comments and Jinja blocks: regions that carry no token at all. */
+function skipTrivia(text: string, index: number): number {
+  const pair = text.slice(index, index + 2);
+
+  if (pair === '--') return endOfLine(text, index);
+  if (pair === '/*') return skipBlockComment(text, index);
+  if (pair === '{{') return skipUntil(text, index + 2, '}}');
+  if (pair === '{%') return skipUntil(text, index + 2, '%}');
+  if (pair === '{#') return skipUntil(text, index + 2, '#}');
+
+  return index;
 }
 
 /** Index of the `)` matching the `(` at `openIndex`, or -1 when the query is unbalanced. */

@@ -141,6 +141,11 @@
         "icon": "$(table)"
       },
       {
+        "command": "dbtForge.previewCte",
+        "title": "dbt Forge: Preview CTE Data",
+        "icon": "$(table)"
+      },
+      {
         "command": "dbtForge.rerunPreview",
         "title": "dbt Forge: Re-run Data Preview",
         "icon": "$(refresh)"
@@ -201,6 +206,12 @@
       }
     ],
     "menus": {
+      "commandPalette": [
+        {
+          "command": "dbtForge.previewCte",
+          "when": "false"
+        }
+      ],
       "editor/context": [
         {
           "command": "dbtForge.compileFile",

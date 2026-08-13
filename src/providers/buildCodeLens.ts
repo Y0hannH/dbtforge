@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
+import { parseCtes } from '../sql/cteParser';
 
 const TOP_OF_FILE = new vscode.Range(0, 0, 0, 0);
 
@@ -19,6 +20,10 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
     if (!node || node.resource_type !== 'model') return [];
 
     const uri = document.uri;
+    return [...this.modelLenses(uri), ...ctePreviewLenses(document)];
+  }
+
+  private modelLenses(uri: vscode.Uri): vscode.CodeLens[] {
     return [
       new vscode.CodeLens(TOP_OF_FILE, {
         title: '$(target) Build Model',
@@ -61,4 +66,19 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
       }),
     ];
   }
+}
+
+/**
+ * One preview action per CTE, on the line where the CTE is declared — so an intermediate step can
+ * be inspected where it is written, rather than by commenting out the rest of the query.
+ */
+function ctePreviewLenses(document: vscode.TextDocument): vscode.CodeLens[] {
+  return parseCtes(document.getText()).map((cte) => {
+    const position = document.positionAt(cte.nameStart);
+    return new vscode.CodeLens(new vscode.Range(position, position), {
+      title: '$(table) Preview CTE',
+      command: 'dbtForge.previewCte',
+      arguments: [document.uri, cte.name],
+    });
+  });
 }

@@ -124,6 +124,13 @@ test('parseModelSql: a top-level ORDER BY is distinguished from a windowed one',
   assert.equal(parseModelSql('select rank() over (order by a) from t').hasOrderBy, false);
 });
 
+test('parseCtes: a bracketed CTE name is read as a name, not skipped as a literal', () => {
+  const ctes = parseCtes('with [My CTE] as (select 1 as x) select * from [My CTE]');
+  assert.equal(ctes.length, 1);
+  assert.equal(ctes[0].name, 'My CTE');
+  assert.equal(ctes[0].rawName, '[My CTE]');
+});
+
 test('parseCtes: an explicit CTE column list is accepted', () => {
   const ctes = parseCtes('with a (x, y) as (select 1 as x, 2 as y) select * from a');
   assert.equal(ctes.length, 1);

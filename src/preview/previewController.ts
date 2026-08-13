@@ -7,6 +7,7 @@ import { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { DbtNode } from '../index/manifestTypes';
 import { resolveAdapterType } from '../profiles/adapterType';
 import { ProfileStore } from '../profiles/profileStore';
+import { buildCtePreviewSql } from '../sql/ctePreview';
 import { PreviewViewProvider } from './previewViewProvider';
 import { describeTarget } from './previewState';
 
@@ -39,6 +40,13 @@ export class PreviewController implements vscode.Disposable {
     await run();
   }
 
+  /** Previews one CTE of a model, by truncating the query just after that CTE. */
+  async previewCte(index: DbtProjectIndex, node: DbtNode, cteName: string): Promise<void> {
+    const run = (): Promise<void> => this.run(index, node, cteName);
+    this.lastRun = run;
+    await run();
+  }
+
   /** Re-runs the last preview, for the panel's refresh action. */
   async rerun(): Promise<void> {
     if (!this.lastRun) {
@@ -48,10 +56,10 @@ export class PreviewController implements vscode.Disposable {
     await this.lastRun();
   }
 
-  private async run(index: DbtProjectIndex, node: DbtNode): Promise<void> {
+  private async run(index: DbtProjectIndex, node: DbtNode, cteName?: string): Promise<void> {
     const config = index.getConfig();
     const profileArgs = this.profileStore.toCliArgs(config.projectDir);
-    const label = describeTarget(node.name, profileArgs);
+    const label = describeTarget(cteName ? `${node.name} › ${cteName}` : node.name, profileArgs);
 
     this.inFlight?.abort();
     const controller = new AbortController();
@@ -60,22 +68,20 @@ export class PreviewController implements vscode.Disposable {
     await this.view.reveal();
     this.view.setState({ kind: 'running', label });
 
-    const plan = await this.planPreview(index, node, config.previewRowLimit);
-    if (this.isSuperseded(controller)) return;
-
-    const request: DbtShowRequest = {
-      pythonPath: config.pythonPath,
-      projectDir: config.projectDir,
-      profilesDir: config.profilesDir,
-      profileArgs,
-      rowLimit: plan.dbtRowLimit,
-      target: plan.target,
-      signal: controller.signal,
-    };
-
     const startedAt = Date.now();
     try {
-      const table = await runDbtShow(request);
+      const plan = await this.planPreview(index, node, config.previewRowLimit, cteName);
+      if (this.isSuperseded(controller)) return;
+
+      const table = await runDbtShow({
+        pythonPath: config.pythonPath,
+        projectDir: config.projectDir,
+        profilesDir: config.profilesDir,
+        profileArgs,
+        rowLimit: plan.dbtRowLimit,
+        target: plan.target,
+        signal: controller.signal,
+      });
       if (this.isSuperseded(controller)) return;
 
       this.view.setState({
@@ -103,8 +109,11 @@ export class PreviewController implements vscode.Disposable {
   private async planPreview(
     index: DbtProjectIndex,
     node: DbtNode,
-    rowLimit: number
+    rowLimit: number,
+    cteName?: string
   ): Promise<PreviewPlan> {
+    if (cteName) return this.planCtePreview(index, node, rowLimit, cteName);
+
     const ordinary: PreviewPlan = { target: { kind: 'node', name: node.name }, dbtRowLimit: rowLimit };
     if (rowLimit < 1) return ordinary; // no limit requested: dbt appends nothing to collide with
 
@@ -135,6 +144,34 @@ export class PreviewController implements vscode.Disposable {
         `${adapterType} limit clause is invalid on SELECT DISTINCT.`
     );
     return { target: { kind: 'inline', sql: rewritten }, dbtRowLimit: -1 };
+  }
+
+  /**
+   * A CTE preview always goes through `--inline`, since the query being run doesn't exist as a
+   * node. dbt's own `--limit` is safe here regardless of adapter: the generated final SELECT is
+   * `select * from <cte>`, never DISTINCT, so the clause dbt-fabric appends has nothing to collide
+   * with — the TOP rewrite is needed only for a model's own final SELECT.
+   */
+  private async planCtePreview(
+    index: DbtProjectIndex,
+    node: DbtNode,
+    rowLimit: number,
+    cteName: string
+  ): Promise<PreviewPlan> {
+    const modelSql = await readModelSql(index, node);
+    if (!modelSql) {
+      throw new DbtShowError(`could not read the source of "${node.name}" to preview its CTEs.`);
+    }
+
+    const sql = buildCtePreviewSql(modelSql, cteName);
+    if (!sql) {
+      throw new DbtShowError(
+        `could not build a preview for CTE "${cteName}" — it is no longer in ${node.name}, or the ` +
+          'query changed shape since the button was drawn. Save the file and try again.'
+      );
+    }
+
+    return { target: { kind: 'inline', sql }, dbtRowLimit: rowLimit };
   }
 
   /** True once a newer preview has taken over the panel, making this run's outcome irrelevant. */
