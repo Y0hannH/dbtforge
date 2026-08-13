@@ -31,6 +31,8 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
+| 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
+| 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
 | 📄 | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
@@ -61,7 +63,7 @@ The extension is also on the [Marketplace page](https://marketplace.visualstudio
 <summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
 
 ```bash
-code --install-extension dbtforge-0.9.0.vsix
+code --install-extension dbtforge-0.10.0.vsix
 ```
 
 </details>
@@ -117,7 +119,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | Extension Host | TypeScript + VS Code Extension API |
 | Lineage Webview | React + React Flow + dagre (auto-layout), bundled locally — no CDN |
 | Data Source | Reads `manifest.json` / `catalog.json` / `target/compiled/*.sql` directly, with a file watcher to stay in sync. `profiles.yml` is read (never written) to list the environments you can switch between |
-| dbt Execution | Runs the `dbt` executable from your configured venv (`Scripts/`/`bin/`) in the integrated terminal |
+| dbt Execution | Runs the `dbt` executable from your configured venv (`Scripts/`/`bin/`) in the integrated terminal — except data preview, which spawns `dbt show` directly so it can read the rows back |
 
 ---
 
@@ -144,6 +146,9 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.testTag` | `dbt test --select tag:<tag>` |
 | `dbtForge.refreshTags` | Re-read the tag list from the loaded manifest |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
+| `dbtForge.previewData` | `dbt show` for the open model — rows land in the Data Preview panel (`Ctrl+Enter` / `Cmd+Enter`) |
+| `dbtForge.previewCte` | `dbt show` for one CTE of the open model — invoked from the CodeLens on the CTE itself |
+| `dbtForge.rerunPreview` | Re-run the last data preview |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
 
@@ -159,6 +164,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.catalogPath` | `target/catalog.json` | Path to catalog.json, relative to the project root |
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
+| `dbtForge.previewRowLimit` | `100` | Rows a data preview asks dbt for (`dbt show --limit`). `-1` fetches every row |
 
 ---
 
@@ -170,6 +176,7 @@ dbt Forge does not collect any data and has no network calls of its own:
 - Reads `profiles.yml` to list the profiles and targets you can switch between. It is only ever read, never modified, and nothing from it — credentials included — leaves your machine or is written to your settings; switching environments only changes the `--profile`/`--target` flags on the command line
 - Your environment choice is stored in VS Code's workspace state, not in a committed `.vscode/settings.json`
 - Runs `dbt` through your own configured Python environment, in your own integrated terminal
+- **Data preview queries your warehouse** — it runs `dbt show` through your own venv and your own profile, so rows travel between your warehouse and your machine exactly as they would if you ran `dbt show` yourself. The extension stores no credentials and opens no connection of its own, but a preview is not an offline operation: it costs a query against whichever target you are pointed at
 - No telemetry, no backend, no external service — everything happens on your machine
 
 ---
@@ -196,6 +203,9 @@ Single-file compile (`dbt compile --select path:<file>`) and `dbt parse` so a ju
 
 ### ✅ v0.9
 Tags panel: build or test every resource carrying a tag, straight from the sidebar.
+
+### ✅ v0.10
+Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Data Preview tab in the bottom panel.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects

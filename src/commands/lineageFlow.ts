@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { buildInitialSubgraph, expandNode } from '../lineage/buildLineageGraph';
 import { WebviewToHostMessage } from '../lineage/messages';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
+import { getNonce } from '../webview/nonce';
 
 export function showLineage(
   context: vscode.ExtensionContext,
@@ -77,11 +78,4 @@ function renderHtml(
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;
-}
-
-function getNonce(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-  let text = '';
-  for (let i = 0; i < 32; i++) text += chars.charAt(Math.floor(Math.random() * chars.length));
-  return text;
 }

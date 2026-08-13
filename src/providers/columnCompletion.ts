@@ -30,7 +30,10 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
 
     const documentText = document.getText();
 
-    const cte = parseCtes(documentText).find((c) => c.name === alias);
+    // A CTE whose columns couldn't be resolved is skipped rather than matched: the parser now
+    // reports every CTE (the preview rewrite needs them all), so matching one blindly would answer
+    // "no columns" where the alias resolution below might still have found some.
+    const cte = parseCtes(documentText).find((c) => c.name === alias && c.columns.length > 0);
     if (cte) {
       return cte.columns.map(
         (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Field)

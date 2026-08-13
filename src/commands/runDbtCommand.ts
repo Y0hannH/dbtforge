@@ -1,7 +1,6 @@
-import * as fs from 'fs';
-import * as path from 'path';
 import * as vscode from 'vscode';
 import { DbtForgeConfig } from '../config';
+import { resolveDbtExecutable } from '../dbt/executable';
 
 let sharedTerminal: vscode.Terminal | undefined;
 
@@ -23,7 +22,7 @@ function getTerminal(): vscode.Terminal {
 
 /** Runs a dbt subcommand (e.g. ["build", "--select", "+my_model"]) in a shared integrated terminal. */
 export function runDbtCommand(config: DbtForgeConfig, args: string[]): void {
-  const dbtExecutable = resolveDbtExecutable(config);
+  const dbtExecutable = resolveDbtExecutable(config.pythonPath);
   if (!dbtExecutable) {
     vscode.window.showErrorMessage(
       `dbt Forge: no "dbt" executable found next to the configured pythonPath (${config.pythonPath}). Make sure dbt-core is installed in that venv.`
@@ -42,18 +41,6 @@ export function runDbtCommand(config: DbtForgeConfig, args: string[]): void {
 // out on every command line would be noise.
 function profilesDirArgs(config: DbtForgeConfig): string[] {
   return config.profilesDir ? ['--profiles-dir', quotePath(config.profilesDir)] : [];
-}
-
-// dbt-core has no `__main__.py`, so `python -m dbt` always fails with
-// "No module named dbt.__main__; 'dbt' is a package and cannot be directly executed" —
-// the venv's own `dbt` script (installed next to python.exe via its console-script entry
-// point) has to be invoked directly instead.
-function resolveDbtExecutable(config: DbtForgeConfig): string | undefined {
-  if (!config.pythonPath) return 'dbt'; // no venv configured: fall back to PATH
-
-  const scriptsDir = path.dirname(config.pythonPath);
-  const candidate = path.join(scriptsDir, process.platform === 'win32' ? 'dbt.exe' : 'dbt');
-  return fs.existsSync(candidate) ? candidate : undefined;
 }
 
 function quotePath(p: string): string {

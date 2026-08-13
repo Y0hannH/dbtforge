@@ -2,6 +2,23 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.10.0] - 2026-08-13
+
+Data preview, the one thing the extension was most often asked for.
+
+### Added
+- **Preview Data** — runs `dbt show` through your venv and selected environment, and shows the rows in a **Data Preview tab in the bottom panel**, next to Terminal and Problems. Available from the CodeLens row, the editor's right-click menu, the palette, and `Ctrl+Enter` (`Cmd+Enter` on macOS). Because it goes through `dbt show`, it works on models that have never been materialized and on `ephemeral` ones — though their upstream `ref()`s still have to exist in the warehouse. The run is cancellable, and a second preview supersedes the first rather than racing it.
+  - Unlike every other dbt command in the extension, this one does **not** go to the integrated terminal: a preview has to read what dbt printed, so it spawns dbt directly and parses its JSON output. Errors are reported in the panel and the full dbt output goes to the dbt Forge output channel.
+  - A preview runs a real query against whichever warehouse your selected target points at.
+- **Preview CTE** — a preview action on every CTE in the file, on the line where it is declared. The model is truncated just after the chosen CTE and given a `select * from <cte>`, so an intermediate step can be inspected without commenting out the rest of the query. Earlier CTEs are kept (the chosen one may depend on them) along with anything preceding the `WITH` clause; later ones are dropped, which is safe since a non-recursive CTE can only reference those declared before it.
+- **Re-run Data Preview** — refresh button in the Data Preview title bar.
+
+### Added (settings)
+- `dbtForge.previewRowLimit` — rows a preview asks dbt for (`dbt show --limit`). Defaults to 100; `-1` fetches every row.
+
+### Fixed
+- **Preview works on `SELECT DISTINCT` models on Fabric / SQL Server / Synapse.** `dbt-fabric`'s `get_limit_sql` appends `order by (select null) offset 0 rows fetch first N rows only` to the model's own SQL rather than wrapping it, which SQL Server rejects on a `SELECT DISTINCT` (error 145: ORDER BY items must appear in the select list). Those models are now previewed by carrying the limit ourselves — `select top N * from ( <final select> ) as dbtforge_preview`, with any CTEs left at the top level where T-SQL requires them — and asking dbt for no limit at all. The deviation is entered only for models that would otherwise fail, on those adapters only, since `--inline` doesn't apply the model's config; everything else keeps the ordinary path. When the SQL can't be rewritten with certainty, the preview runs unchanged so dbt reports the real error, rather than sending a query whose row limit isn't guaranteed.
+
 ## [0.9.0] - 2026-08-12
 
 ### Added
