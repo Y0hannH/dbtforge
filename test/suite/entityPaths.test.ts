@@ -1,7 +1,7 @@
 import { strict as assert } from 'assert';
 import * as path from 'path';
 import { test } from 'node:test';
-import { resolveEntityPath } from '../../src/index/entityPaths';
+import { isOneNodePerFilePath, resolveEntityPath } from '../../src/index/entityPaths';
 import { DbtMacroNode } from '../../src/index/manifestTypes';
 
 const PROJECT_DIR = path.join('C:', 'projects', 'analytics');
@@ -31,4 +31,15 @@ test('resolveEntityPath: package entity resolves under dbt_packages/<package>', 
     resolveEntityPath(PROJECT_DIR, 'analytics', macro('dbt_utils', 'macros/sql/star.sql')),
     path.join(PROJECT_DIR, 'dbt_packages', 'dbt_utils', 'macros', 'sql', 'star.sql')
   );
+});
+
+test('isOneNodePerFilePath: .sql and a seed .csv back exactly one node', () => {
+  assert.equal(isOneNodePerFilePath('models/marts/dim_customers.sql'), true);
+  assert.equal(isOneNodePerFilePath('seeds/country_codes.csv'), true);
+  assert.equal(isOneNodePerFilePath('seeds/Country_Codes.CSV'), true);
+});
+
+test('isOneNodePerFilePath: a .yml can declare several nodes, so it backs none', () => {
+  assert.equal(isOneNodePerFilePath('models/marts/dim_customers.yml'), false);
+  assert.equal(isOneNodePerFilePath('models/staging/sources.yaml'), false);
 });

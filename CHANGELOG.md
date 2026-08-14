@@ -2,6 +2,15 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **`ref()` on a seed or a snapshot resolves like any other ref.** The index only ever held `model` nodes, so `{{ ref('my_seed') }}` was reported in the Problems panel as a model that doesn't exist, Ctrl+click did nothing, and hover showed nothing — even though the seed was right there in the manifest and showed up in the lineage of the model referencing it. Models, seeds and snapshots are now indexed together, matching what dbt itself lets `ref()` target ([#6](https://github.com/Y0hannH/dbtforge/issues/6)).
+  - Autocomplete inside `{{ ref('...` suggests seeds and snapshots too, each labelled with its resource type rather than all of them as "model".
+  - The diagnostic's wording follows: *No model, seed or snapshot named "x" in the manifest*.
+- **Lineage opens on a seed.** A seed's `.csv` is now mapped to its manifest node, so the Lineage action is available on one (CodeLens at the top of the file, or the editor's right-click menu) and the Parents/Children/Tests panel fills in — previously only `.sql` files were matched to a node, which left a seed with no way to be the root of its own graph. Snapshots get the same Lineage action.
+- **Find All References works from inside a snapshot's file**, the same whole-file way it already did from a model's.
+
 ## [0.10.0] - 2026-08-13
 
 Data preview, the one thing the extension was most often asked for.

@@ -3,19 +3,13 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { DbtForgeConfig } from '../config';
 import { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
-import { ManifestEntity, resolveEntityPath } from './entityPaths';
+import { isOneNodePerFilePath, ManifestEntity, resolveEntityPath } from './entityPaths';
 import { watchFile } from './fileWatcher';
 import { buildDependencyGraph, DependencyGraph } from './graph';
 import { buildMacroIndex, MacroIndex, MacroRef } from './macroIndex';
 import { DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
+import { buildRefIndex, ModelRef } from './refIndex';
 import { collectTags, TagRef } from './tags';
-
-export interface ModelRef {
-  uniqueId: string;
-  name: string;
-  packageName: string;
-  node: DbtNode;
-}
 
 export interface SourceRef {
   uniqueId: string;
@@ -24,7 +18,7 @@ export interface SourceRef {
   node: DbtSourceNode;
 }
 
-export type { MacroRef };
+export type { MacroRef, ModelRef };
 
 
 /**
@@ -37,9 +31,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private catalog: DbtCatalog | undefined;
   private graph: DependencyGraph | undefined;
 
-  // name -> node, for ref() resolution. dbt itself requires unique model names across
-  // packages by default, so a flat map keyed by name is sufficient for v1.
-  private modelsByName = new Map<string, ModelRef>();
+  // name -> node, for ref() resolution — models, seeds and snapshots alike. See refIndex.
+  private refsByName = new Map<string, ModelRef>();
   // "source_name.table_name" -> node, for source() resolution.
   private sourcesByKey = new Map<string, SourceRef>();
   // Macro names collide across packages, so this one needs real resolution rules — see macroIndex.
@@ -86,7 +79,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       }
       this.manifest = undefined;
       this.graph = undefined;
-      this.modelsByName.clear();
+      this.refsByName.clear();
       this.sourcesByKey.clear();
       this.macros = undefined;
       this.tags = [];
@@ -125,29 +118,22 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   private indexModelsAndSources(manifest: DbtManifest): void {
-    this.modelsByName.clear();
     this.sourcesByKey.clear();
+    this.refsByName = buildRefIndex(manifest);
     this.macros = buildMacroIndex(manifest);
     this.uniqueIdByFilePath.clear();
     this.tags = collectTags(manifest);
 
     for (const node of Object.values(manifest.nodes)) {
-      // Only .sql-backed nodes have a 1:1 file->node relationship. Schema tests defined in a
-      // shared schema.yml would otherwise collide on that same path (last one wins), giving
-      // getNodeByFileUri() an arbitrary wrong node when that .yml is the active editor.
-      if (node.original_file_path.toLowerCase().endsWith('.sql')) {
+      // Only nodes that own their file get a path entry — a seed's .csv does, a schema test
+      // sharing a schema.yml doesn't, and mapping that .yml back would hand getNodeByFileUri()
+      // an arbitrary one of the tests declared in it.
+      if (isOneNodePerFilePath(node.original_file_path)) {
         this.uniqueIdByFilePath.set(
           this.normalizeFilePath(resolveEntityPath(this.config.projectDir, manifest.metadata.project_name, node)),
           node.unique_id
         );
       }
-      if (node.resource_type !== 'model') continue;
-      this.modelsByName.set(node.name, {
-        uniqueId: node.unique_id,
-        name: node.name,
-        packageName: node.package_name,
-        node,
-      });
     }
 
     for (const node of Object.values(manifest.sources)) {
@@ -188,8 +174,9 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.catalog !== undefined;
   }
 
-  getAllModels(): ModelRef[] {
-    return [...this.modelsByName.values()];
+  /** Everything `ref()` can point at: models, seeds and snapshots. */
+  getAllRefTargets(): ModelRef[] {
+    return [...this.refsByName.values()];
   }
 
   getAllSources(): SourceRef[] {
@@ -201,8 +188,9 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.tags;
   }
 
-  resolveRef(modelName: string): ModelRef | undefined {
-    return this.modelsByName.get(modelName);
+  /** Resolves the argument of a `ref()` — a model, seed or snapshot name. */
+  resolveRef(name: string): ModelRef | undefined {
+    return this.refsByName.get(name);
   }
 
   resolveSource(sourceName: string, tableName: string): SourceRef | undefined {

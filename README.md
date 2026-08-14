@@ -21,15 +21,15 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 
 | | Feature | Description |
 |---|---|---|
-| 🔗 | **ref()/source() autocomplete** | Suggests model and source names as you type inside `{{ ref('...` / `{{ source('...', '...` |
+| 🔗 | **ref()/source() autocomplete** | Suggests model, seed, snapshot and source names as you type inside `{{ ref('...` / `{{ source('...', '...` |
 | ⚡ | **Snippet expansion** | Type `ref` or `source` in plain SQL to expand into the full `{{ ref("") }}` tag, cursor ready to autocomplete |
-| 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()`/macro call to jump straight to the model/macro's `.sql` file |
+| 🧭 | **Go to Definition** | Ctrl+click a `ref()`/`source()`/macro call to jump straight to the file it resolves to — a model's or macro's `.sql`, a seed's `.csv` |
 | 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
 | 💬 | **Hover documentation** | Hover a `ref()`/`source()`/macro call to see its description (and a macro's argument signature) straight from the manifest |
 | ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
-| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, no giant unreadable diagram dumped on you |
+| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
 | 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query |
@@ -149,7 +149,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.previewData` | `dbt show` for the open model — rows land in the Data Preview panel (`Ctrl+Enter` / `Cmd+Enter`) |
 | `dbtForge.previewCte` | `dbt show` for one CTE of the open model — invoked from the CodeLens on the CTE itself |
 | `dbtForge.rerunPreview` | Re-run the last data preview |
-| `dbtForge.showLineage` | Open the interactive lineage graph for the open model |
+| `dbtForge.showLineage` | Open the interactive lineage graph for the open model, seed or snapshot |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
 
 ---

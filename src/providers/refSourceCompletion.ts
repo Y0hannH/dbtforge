@@ -18,9 +18,9 @@ export class RefSourceCompletionProvider implements vscode.CompletionItemProvide
 
     switch (context.kind) {
       case 'ref':
-        return index.getAllModels().map((model) => {
-          const item = new vscode.CompletionItem(model.name, vscode.CompletionItemKind.Class);
-          item.detail = `model (${model.packageName})`;
+        return index.getAllRefTargets().map((target) => {
+          const item = new vscode.CompletionItem(target.name, vscode.CompletionItemKind.Class);
+          item.detail = `${target.resourceType} (${target.packageName})`;
           return item;
         });
 
