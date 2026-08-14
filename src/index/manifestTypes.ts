@@ -26,12 +26,26 @@ export interface DbtNode {
   // top-level `tags`, but older/partial manifests only carry them under `config.tags` —
   // both are read and unioned rather than trusting one.
   tags?: string[];
-  config?: { tags?: string[] };
+  config?: {
+    tags?: string[];
+    /** 'table' | 'view' | 'incremental' | 'ephemeral' | adapter-specific ones. */
+    materialized?: string;
+    // `docs` appears both here and at the top level of the node; which one carries node_color
+    // depends on where it was declared, so both are read — see nodeDisplay.
+    docs?: DbtDocsConfig;
+  };
+  docs?: DbtDocsConfig;
   depends_on?: {
     nodes: string[];
     macros?: string[];
   };
   columns?: Record<string, { name: string; description?: string }>;
+}
+
+export interface DbtDocsConfig {
+  show?: boolean;
+  /** Colour declared via `+docs: node_color:` or `config(docs={'node_color': ...})`. */
+  node_color?: string | null;
 }
 
 export interface DbtMacroNode {

@@ -4,6 +4,11 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Lineage nodes show what they materialize as, and wear the colour the project gave them** ([#5](https://github.com/Y0hannH/dbtforge/issues/5)). The row above a node's name now reads `model · incremental` (or `· view`, `· ephemeral`, `· materialized_view`…), so the graph answers what a node *is* and not only what it is called. Seeds and snapshots keep their single-word label, since their materialization only repeats their resource type.
+  - A node's `node_color` — declared in `dbt_project.yml` under `+docs:` or via `config(docs={'node_color': ...})` — paints a stripe down the left edge of its box. It is read from both places dbt records it, and validated before it reaches the webview: a hex code or a CSS colour keyword is used, anything else is ignored and the node keeps its default border. The stripe deliberately isn't the border itself, which already carries the "this is the node you opened" highlight.
+  - Both are read straight from `manifest.json`, so they cost no extra dbt run.
+
 ### Fixed
 - **Lineage nodes no longer collide when model names are long.** Every node was laid out as if it were 170px wide while the box itself grew to fit its text, so a long name overflowed the slot dagre had reserved for it and landed on top of the next rank — over its neighbour's expand button, and often over the neighbour itself ([#3](https://github.com/Y0hannH/dbtforge/issues/3)). Each node is now measured from its own name and that single width drives both the layout and the rendered box, so they can't disagree. Widths are clamped: short names keep the previous 170px floor, and anything past 340px ellipsizes with the full name in the node's tooltip rather than pushing the rest of the graph off-screen.
   - Nodes in the same column are aligned on their left edge instead of on their centres, which is what dagre does by default and what made a column of mixed-width boxes look ragged.

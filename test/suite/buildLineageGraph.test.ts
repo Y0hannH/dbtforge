@@ -64,6 +64,31 @@ test('buildInitialSubgraph: root node reports correct parent/child counts', () =
   assert.equal(root?.childCount, 2);
 });
 
+test('buildInitialSubgraph: carries the materialization and colour the project declared', () => {
+  const decorated: Record<string, DbtNode> = {
+    ...nodes,
+    'model.pkg.b': {
+      ...nodes['model.pkg.b'],
+      config: { materialized: 'incremental' },
+      docs: { node_color: '#ff8800' },
+    },
+  };
+  const index = {
+    getGraph: () => fakeGraph,
+    getNode: (id: string) => decorated[id],
+  } as unknown as DbtProjectIndex;
+
+  const root = buildInitialSubgraph(index, 'model.pkg.b').nodes.find((n) => n.id === 'model.pkg.b');
+  assert.equal(root?.metaLabel, 'model · incremental');
+  assert.equal(root?.color, '#ff8800');
+});
+
+test('buildInitialSubgraph: a node declaring neither still gets a usable label', () => {
+  const root = buildInitialSubgraph(fakeIndex, 'model.pkg.b').nodes.find((n) => n.id === 'model.pkg.b');
+  assert.equal(root?.metaLabel, 'model');
+  assert.equal(root?.color, undefined);
+});
+
 test('expandNode: "up" returns the next hop of parents with correctly directed edges', () => {
   const { nodes: resultNodes, edges } = expandNode(fakeIndex, 'model.pkg.a', 'up');
   assert.deepEqual(

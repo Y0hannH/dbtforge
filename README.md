@@ -29,7 +29,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
-| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you |
+| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization and wears the `node_color` your project declares |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
 | 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query |
