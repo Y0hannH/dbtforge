@@ -213,6 +213,27 @@ Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Da
 
 ---
 
+## Non-goals
+
+dbt Forge stays small on purpose. One question decides what goes in:
+
+> **Does the feature need to know your dbt project?**
+
+If it has to read `manifest.json`, `catalog.json` or your dependency graph to be useful, it belongs here — nobody else can do it as well. If it works the same on any SQL file, it is somebody else's extension, and pulling it in would only make this one heavier at doing what it is actually for.
+
+So these are deliberately **out of scope**, not "not yet":
+
+| Not in scope | Use instead |
+|---|---|
+| Jinja / SQL syntax highlighting | [Better Jinja](https://marketplace.visualstudio.com/items?itemName=samuelcolvin.jinjahtml) — mature, and it covers `.sql`, `.yml` and `.md` |
+| SQL formatting and linting | [sqlfmt](https://docs.sqlfmt.com/), [SQLFluff](https://sqlfluff.com/), or your editor's own formatter |
+| A warehouse browser or general SQL client | A warehouse-specific extension. Data preview here goes through `dbt show` and nothing else — dbt Forge opens no connection of its own |
+| dbt Cloud, remote execution, AI assistance | Not planned in any form. Everything runs locally through your own venv, and nothing leaves your machine (see *Local Data & Privacy*) |
+
+A request that falls on the wrong side of that line is not a bad idea — it is usually a good idea for a different extension. Where the underlying need *does* touch the project (say, resolving a `doc()` to the block that defines it, rather than colouring the `{% docs %}` tag), that is the version worth opening an issue for.
+
+---
+
 ## Contributing
 
 The project is under active development.
