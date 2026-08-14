@@ -29,3 +29,15 @@ export function resolveEntityPath(
   }
   return path.join(projectDir, PACKAGES_DIR, entity.package_name, entity.original_file_path);
 }
+
+// A node's file only identifies it when nothing else can be declared in that same file. `.sql`
+// (models, snapshots, analyses, singular tests) and `.csv` (seeds) hold exactly one node each;
+// a `.yml` can declare many (schema tests, and YAML snapshots since dbt 1.9), so mapping one
+// back to "the" node it defines would pick an arbitrary one.
+const ONE_NODE_PER_FILE_EXTENSIONS = ['.sql', '.csv'];
+
+/** Whether `path` is a file that backs exactly one manifest node — see the note above. */
+export function isOneNodePerFilePath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+  return ONE_NODE_PER_FILE_EXTENSIONS.some((extension) => lower.endsWith(extension));
+}

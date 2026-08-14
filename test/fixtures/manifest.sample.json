@@ -28,6 +28,30 @@
         "macros": ["macro.example_project.generate_surrogate_key"]
       }
     },
+    "seed.example_project.country_codes": {
+      "unique_id": "seed.example_project.country_codes",
+      "resource_type": "seed",
+      "name": "country_codes",
+      "package_name": "example_project",
+      "path": "country_codes.csv",
+      "original_file_path": "seeds/country_codes.csv"
+    },
+    "snapshot.example_project.orders_snapshot": {
+      "unique_id": "snapshot.example_project.orders_snapshot",
+      "resource_type": "snapshot",
+      "name": "orders_snapshot",
+      "package_name": "example_project",
+      "path": "orders_snapshot.sql",
+      "original_file_path": "snapshots/orders_snapshot.sql"
+    },
+    "analysis.example_project.ad_hoc_revenue": {
+      "unique_id": "analysis.example_project.ad_hoc_revenue",
+      "resource_type": "analysis",
+      "name": "ad_hoc_revenue",
+      "package_name": "example_project",
+      "path": "ad_hoc_revenue.sql",
+      "original_file_path": "analyses/ad_hoc_revenue.sql"
+    },
     "test.example_project.not_null_dim_customers_customer_id": {
       "unique_id": "test.example_project.not_null_dim_customers_customer_id",
       "resource_type": "test",

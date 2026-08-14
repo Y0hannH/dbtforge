@@ -50,7 +50,7 @@ export class DbtHoverProvider implements vscode.HoverProvider {
 
 function modelMarkdown(model: ModelRef): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
-  md.appendMarkdown(`**${model.name}** _(model · ${model.packageName})_`);
+  md.appendMarkdown(`**${model.name}** _(${model.resourceType} · ${model.packageName})_`);
   if (model.node.description) {
     md.appendMarkdown(`\n\n${model.node.description}`);
   }

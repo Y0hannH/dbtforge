@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { ManifestEntity } from '../index/entityPaths';
 import { DbtMacroNode, DbtNode, DbtSourceNode } from '../index/manifestTypes';
+import { isReferenceable } from '../index/refIndex';
 import { readFileLines } from '../index/textFiles';
 import {
   CallLocation,
@@ -160,11 +161,11 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
       if (macro) return macroTarget(macro);
     }
 
-    // Whole-file fallback: a model's .sql file is 1:1 with a manifest node, so invoking Find All
-    // References anywhere in it (not on a call) means "who references this model". Not offered for
-    // macro files since one file can define more than one macro.
+    // Whole-file fallback: a model's or snapshot's .sql file is 1:1 with a manifest node, so
+    // invoking Find All References anywhere in it (not on a call) means "who references this".
+    // Not offered for macro files since one file can define more than one macro.
     const node = index.getNodeByFileUri(document.uri);
-    if (node?.resource_type === 'model') {
+    if (node && isReferenceable(node)) {
       return {
         kind: 'model',
         uniqueId: node.unique_id,

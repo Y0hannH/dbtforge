@@ -38,7 +38,7 @@ export class DbtDiagnosticsController implements vscode.Disposable {
             line,
             call.start,
             call.end,
-            `Model "${call.name}" not found in the manifest. Run dbt compile if it was just added.`
+            `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`
           )
         );
       }

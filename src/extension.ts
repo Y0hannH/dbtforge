@@ -7,6 +7,7 @@ import { selectProfile } from './commands/selectProfile';
 import { DbtForgeConfig, resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
 import { DbtNode } from './index/manifestTypes';
+import { isReferenceable } from './index/refIndex';
 import { PreviewController } from './preview/previewController';
 import { PreviewViewProvider } from './preview/previewViewProvider';
 import { ProfileStore } from './profiles/profileStore';
@@ -28,6 +29,13 @@ const indexes = new Map<string, DbtProjectIndex>();
 // dbt models are plain .sql files with embedded Jinja — we don't require a dedicated
 // language id, just scope providers to .sql files inside a workspace folder that has an index.
 const DBT_SQL_SELECTOR: vscode.DocumentSelector = { scheme: 'file', pattern: '**/*.sql' };
+
+// Seeds are .csv, and the only editor feature that applies to one is its lineage — the CodeLens
+// provider returns nothing for a .csv that isn't a seed in the manifest.
+const DBT_NODE_SELECTOR: vscode.DocumentSelector = [
+  { scheme: 'file', pattern: '**/*.sql' },
+  { scheme: 'file', pattern: '**/*.csv' },
+];
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = vscode.window.createOutputChannel('dbt Forge');
@@ -123,7 +131,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.languages.registerReferenceProvider(DBT_SQL_SELECTOR, new DbtReferenceProvider(getIndexForResource)),
     vscode.languages.registerHoverProvider(DBT_SQL_SELECTOR, new DbtHoverProvider(getIndexForResource)),
-    vscode.languages.registerCodeLensProvider(DBT_SQL_SELECTOR, codeLensProvider),
+    vscode.languages.registerCodeLensProvider(DBT_NODE_SELECTOR, codeLensProvider),
     vscode.workspace.registerTextDocumentContentProvider(COMPILED_SQL_SCHEME, compiledSqlContentProvider)
   );
 
@@ -151,7 +159,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node))
     ),
     vscode.commands.registerCommand('dbtForge.showLineage', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => showLineage(context, index, node.unique_id))
+      withRefTargetNode(uri, (index, node) => showLineage(context, index, node.unique_id))
     ),
     vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => void previewController.previewModel(index, node))
@@ -239,16 +247,37 @@ function withModelNode(
   uri: vscode.Uri | undefined,
   action: (index: DbtProjectIndex, node: DbtNode) => void
 ): void {
+  withNode(uri, (node) => node.resource_type === 'model', 'this file is not a known dbt model.', action);
+}
+
+/**
+ * Same, but for the actions that make sense on anything `ref()` can point at. Lineage is the
+ * case in point: a seed is a real node in the graph, so opening the lineage *of* one has to work
+ * the same way opening it from the model downstream of it does.
+ */
+function withRefTargetNode(
+  uri: vscode.Uri | undefined,
+  action: (index: DbtProjectIndex, node: DbtNode) => void
+): void {
+  withNode(uri, isReferenceable, 'this file is not a known dbt model, seed or snapshot.', action);
+}
+
+function withNode(
+  uri: vscode.Uri | undefined,
+  accepts: (node: DbtNode) => boolean,
+  rejectionMessage: string,
+  action: (index: DbtProjectIndex, node: DbtNode) => void
+): void {
   const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
   if (!targetUri) {
-    vscode.window.showWarningMessage('dbt Forge: no active SQL file.');
+    vscode.window.showWarningMessage('dbt Forge: no active file.');
     return;
   }
 
   const index = getIndexForResource(targetUri);
   const node = index?.getNodeByFileUri(targetUri);
-  if (!index || !node || node.resource_type !== 'model') {
-    vscode.window.showWarningMessage('dbt Forge: this file is not a known dbt model.');
+  if (!index || !node || !accepts(node)) {
+    vscode.window.showWarningMessage(`dbt Forge: ${rejectionMessage}`);
     return;
   }
 

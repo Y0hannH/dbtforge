@@ -230,7 +230,7 @@
         },
         {
           "command": "dbtForge.showLineage",
-          "when": "resourceExtname == .sql",
+          "when": "resourceExtname == .sql || resourceExtname == .csv",
           "group": "dbtForge"
         }
       ],

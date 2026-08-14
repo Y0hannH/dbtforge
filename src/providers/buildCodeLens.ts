@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
+import { isReferenceable } from '../index/refIndex';
 import { parseCtes } from '../sql/cteParser';
 
 const TOP_OF_FILE = new vscode.Range(0, 0, 0, 0);
@@ -17,10 +18,14 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {
     const index = this.getIndex(document.uri);
     const node = index?.getNodeByFileUri(document.uri);
-    if (!node || node.resource_type !== 'model') return [];
+    if (!node) return [];
 
     const uri = document.uri;
-    return [...this.modelLenses(uri), ...ctePreviewLenses(document)];
+    if (node.resource_type === 'model') return [...this.modelLenses(uri), ...ctePreviewLenses(document)];
+    // A seed's .csv and a snapshot have no model SQL to build, test or preview, but they are
+    // nodes in the graph like any other — so at least offer the one action that applies.
+    if (isReferenceable(node)) return [lineageLens(uri)];
+    return [];
   }
 
   private modelLenses(uri: vscode.Uri): vscode.CodeLens[] {
@@ -55,17 +60,21 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
         command: 'dbtForge.previewData',
         arguments: [uri],
       }),
-      new vscode.CodeLens(TOP_OF_FILE, {
-        title: '$(git-merge) Lineage',
-        command: 'dbtForge.showLineage',
-        arguments: [uri],
-      }),
+      lineageLens(uri),
       new vscode.CodeLens(TOP_OF_FILE, {
         title: '$(rocket) Build Project',
         command: 'dbtForge.buildProject',
       }),
     ];
   }
+}
+
+function lineageLens(uri: vscode.Uri): vscode.CodeLens {
+  return new vscode.CodeLens(TOP_OF_FILE, {
+    title: '$(git-merge) Lineage',
+    command: 'dbtForge.showLineage',
+    arguments: [uri],
+  });
 }
 
 /**
