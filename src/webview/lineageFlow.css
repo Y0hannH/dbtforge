@@ -42,6 +42,11 @@ body,
   font-size: 10px;
   text-transform: uppercase;
   opacity: 0.6;
+  /* "snapshot · materialized_view" is sized for by nodeSize, but a value long enough to hit the
+     width ceiling has to clip here rather than push the box wider than its slot. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .lineage-node-name {

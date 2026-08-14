@@ -1,9 +1,14 @@
 import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
 
 export interface LineageNode {
   id: string;
   name: string;
   resourceType: string;
+  /** Resource type and materialization, already formatted for the row above the name. */
+  metaLabel: string;
+  /** The project's own `node_color`, validated — see nodeDisplay. */
+  color?: string;
   isRoot: boolean;
   parentCount: number;
   childCount: number;
@@ -28,6 +33,8 @@ function toLineageNode(index: DbtProjectIndex, id: string, isRoot: boolean): Lin
     id,
     name: node.name,
     resourceType: node.resource_type,
+    metaLabel: nodeMetaLabel(node.resource_type, node.config?.materialized),
+    color: readNodeColor(node),
     isRoot,
     parentCount: graph.getParents(id).length,
     childCount: graph.getChildren(id).length,

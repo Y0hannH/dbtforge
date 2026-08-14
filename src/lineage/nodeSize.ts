@@ -24,13 +24,19 @@ const HORIZONTAL_CHROME = 22;
 // under-estimating truncates a name that would have fit.
 const NAME_CHAR_WIDTH = 7.2;
 
+// The meta row above the name is 10px, uppercased — narrower per character than the name, but
+// wider per letter than lowercase, and long enough to decide the box on its own once the
+// materialization joins the resource type ("SNAPSHOT · MATERIALIZED_VIEW").
+const META_CHAR_WIDTH = 6.6;
+
 /**
- * Width of the box for a node named `name`, in pixels.
+ * Width of the box for a lineage node, in pixels.
  *
- * The resource-type row ("MODEL", "SNAPSHOT") is not part of the calculation: at 10px uppercase
- * the longest of them is still well under MIN_NODE_WIDTH, so the name always decides.
+ * Both rows are measured because either can be the longest: a short name under a long
+ * type-and-materialization label would otherwise be sized off the wrong one.
  */
-export function lineageNodeWidth(name: string): number {
-  const contentWidth = name.length * NAME_CHAR_WIDTH + HORIZONTAL_CHROME;
+export function lineageNodeWidth(name: string, metaLabel = ''): number {
+  const contentWidth =
+    Math.max(name.length * NAME_CHAR_WIDTH, metaLabel.length * META_CHAR_WIDTH) + HORIZONTAL_CHROME;
   return Math.round(Math.min(Math.max(contentWidth, MIN_NODE_WIDTH), MAX_NODE_WIDTH));
 }

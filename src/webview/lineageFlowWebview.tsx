@@ -47,7 +47,9 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
   return (
     <div
       className={`lineage-node${data.isRoot ? ' is-root' : ''}`}
-      style={{ width: data.width }}
+      // The project's node_color paints a stripe rather than the border: the border already
+      // carries the root highlight, and overriding it would make the two indistinguishable.
+      style={{ width: data.width, borderLeftColor: data.color, borderLeftWidth: data.color ? 5 : undefined }}
       onClick={() => data.onOpen(id)}
     >
       {showUpButton && (
@@ -64,7 +66,7 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
         </button>
       )}
       <Handle type="target" position={Position.Left} />
-      <span className="lineage-node-type">{data.resourceType}</span>
+      <span className="lineage-node-type">{data.metaLabel}</span>
       {/* A name past MAX_NODE_WIDTH is ellipsized, so it has to stay readable on hover. */}
       <span className="lineage-node-name" title={data.name}>
         {data.name}
@@ -105,7 +107,9 @@ function layoutGraph(
   // Every node is measured from its own name. A single fixed width used to be handed to dagre
   // while the box itself grew to fit its text, so a long-named model overflowed the slot dagre
   // had reserved and landed on top of the next rank.
-  const widths = new Map([...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name)]));
+  const widths = new Map(
+    [...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name, n.metaLabel)])
+  );
 
   for (const id of rawNodes.keys()) g.setNode(id, { width: widths.get(id), height: NODE_HEIGHT });
   for (const edge of rawEdges.values()) g.setEdge(edge.source, edge.target);

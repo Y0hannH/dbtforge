@@ -22,6 +22,18 @@ test('an unbounded name is capped rather than pushing the graph off-screen', () 
   assert.equal(lineageNodeWidth('x'.repeat(200)), MAX_NODE_WIDTH);
 });
 
+test('a long meta row widens the box even when the name is short', () => {
+  // A short name under "snapshot · materialized_view" would otherwise be sized off the name
+  // alone, and the row above it would overflow the box.
+  assert.ok(lineageNodeWidth('orders', 'snapshot · materialized_view') > MIN_NODE_WIDTH);
+  assert.equal(lineageNodeWidth('orders', 'model'), MIN_NODE_WIDTH);
+});
+
+test('the wider of the two rows decides', () => {
+  const longName = 'int_orders_joined_to_customers_and_payments';
+  assert.equal(lineageNodeWidth(longName, 'model'), lineageNodeWidth(longName));
+});
+
 test('widths are whole pixels', () => {
   for (const name of ['a', 'stg_customers', 'int_orders_joined_to_customers', 'y'.repeat(60)]) {
     assert.equal(lineageNodeWidth(name) % 1, 0, name);
