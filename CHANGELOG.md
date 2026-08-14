@@ -2,7 +2,9 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.11.0] - 2026-08-14
+
+The first release driven by user reports: two bugs found in real projects, and the lineage graph starting to say more about what it draws.
 
 ### Added
 - **Lineage nodes show what they materialize as, and wear the colour the project gave them** ([#5](https://github.com/Y0hannH/dbtforge/issues/5)). The row above a node's name now reads `model · incremental` (or `· view`, `· ephemeral`, `· materialized_view`…), so the graph answers what a node *is* and not only what it is called. Seeds and snapshots keep their single-word label, since their materialization only repeats their resource type.
