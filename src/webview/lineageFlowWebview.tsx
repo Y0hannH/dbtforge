@@ -17,6 +17,7 @@ import 'reactflow/dist/style.css';
 import './lineageFlow.css';
 import type { LineageEdge, LineageNode, LineageSubgraph } from '../lineage/buildLineageGraph';
 import type { ExpandDirection, HostToWebviewMessage, WebviewToHostMessage } from '../lineage/messages';
+import { lineageNodeWidth, NODE_HEIGHT } from '../lineage/nodeSize';
 
 declare global {
   interface Window {
@@ -28,10 +29,9 @@ declare global {
 
 const vscode = acquireVsCodeApi();
 
-const NODE_WIDTH = 170;
-const NODE_HEIGHT = 44;
-
 interface LineageNodeViewData extends LineageNode {
+  /** Same width dagre reserved for this node — see nodeSize. */
+  width: number;
   expandedUp: boolean;
   expandedDown: boolean;
   pendingUp: boolean;
@@ -45,7 +45,11 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
   const showDownButton = data.childCount > 0 && !data.expandedDown;
 
   return (
-    <div className={`lineage-node${data.isRoot ? ' is-root' : ''}`} onClick={() => data.onOpen(id)}>
+    <div
+      className={`lineage-node${data.isRoot ? ' is-root' : ''}`}
+      style={{ width: data.width }}
+      onClick={() => data.onOpen(id)}
+    >
       {showUpButton && (
         <button
           className="lineage-expand-btn lineage-expand-left"
@@ -61,7 +65,10 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
       )}
       <Handle type="target" position={Position.Left} />
       <span className="lineage-node-type">{data.resourceType}</span>
-      <span className="lineage-node-name">{data.name}</span>
+      {/* A name past MAX_NODE_WIDTH is ellipsized, so it has to stay readable on hover. */}
+      <span className="lineage-node-name" title={data.name}>
+        {data.name}
+      </span>
       <Handle type="source" position={Position.Right} />
       {showDownButton && (
         <button
@@ -95,19 +102,36 @@ function layoutGraph(
   g.setGraph({ rankdir: 'LR', nodesep: 32, ranksep: 90 });
   g.setDefaultEdgeLabel(() => ({}));
 
-  for (const id of rawNodes.keys()) g.setNode(id, { width: NODE_WIDTH, height: NODE_HEIGHT });
+  // Every node is measured from its own name. A single fixed width used to be handed to dagre
+  // while the box itself grew to fit its text, so a long-named model overflowed the slot dagre
+  // had reserved and landed on top of the next rank.
+  const widths = new Map([...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name)]));
+
+  for (const id of rawNodes.keys()) g.setNode(id, { width: widths.get(id), height: NODE_HEIGHT });
   for (const edge of rawEdges.values()) g.setEdge(edge.source, edge.target);
 
   dagre.layout(g);
 
+  // dagre centres every node of a rank on the same x. Once widths vary that reads as a ragged
+  // column, so each rank is aligned on its left edge — the side the incoming edges arrive at.
+  const rankLeft = new Map<number, number>();
+  for (const id of rawNodes.keys()) {
+    const centre = Math.round(g.node(id).x);
+    const left = centre - (widths.get(id) ?? 0) / 2;
+    rankLeft.set(centre, Math.min(rankLeft.get(centre) ?? left, left));
+  }
+
   const nodes: Node<LineageNodeViewData>[] = [...rawNodes.values()].map((n) => {
     const pos = g.node(n.id);
+    const width = widths.get(n.id) ?? 0;
     return {
       id: n.id,
       type: 'lineageNode',
-      position: { x: pos.x - NODE_WIDTH / 2, y: pos.y - NODE_HEIGHT / 2 },
+      // dagre reports a node's centre; React Flow positions by its top-left corner.
+      position: { x: rankLeft.get(Math.round(pos.x)) ?? pos.x - width / 2, y: pos.y - NODE_HEIGHT / 2 },
       data: {
         ...n,
+        width,
         expandedUp: n.parentCount === 0 || expandedUp.has(n.id),
         expandedDown: n.childCount === 0 || expandedDown.has(n.id),
         pendingUp: pending.has(`${n.id}:up`),
