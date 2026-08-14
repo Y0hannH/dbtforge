@@ -16,7 +16,10 @@ body,
 
 .lineage-node {
   position: relative;
-  min-width: 150px;
+  /* Width is set per node from its name (see nodeSize.ts) and is the same value dagre lays the
+     graph out with, so the box can never outgrow its slot. border-box keeps the padding and
+     border inside that number rather than adding 22px on top of it. */
+  box-sizing: border-box;
   padding: 6px 10px;
   border-radius: 4px;
   border: 1px solid var(--vscode-panel-border, #454545);

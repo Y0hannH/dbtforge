@@ -5,6 +5,8 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **Lineage nodes no longer collide when model names are long.** Every node was laid out as if it were 170px wide while the box itself grew to fit its text, so a long name overflowed the slot dagre had reserved for it and landed on top of the next rank — over its neighbour's expand button, and often over the neighbour itself ([#3](https://github.com/Y0hannH/dbtforge/issues/3)). Each node is now measured from its own name and that single width drives both the layout and the rendered box, so they can't disagree. Widths are clamped: short names keep the previous 170px floor, and anything past 340px ellipsizes with the full name in the node's tooltip rather than pushing the rest of the graph off-screen.
+  - Nodes in the same column are aligned on their left edge instead of on their centres, which is what dagre does by default and what made a column of mixed-width boxes look ragged.
 - **`ref()` on a seed or a snapshot resolves like any other ref.** The index only ever held `model` nodes, so `{{ ref('my_seed') }}` was reported in the Problems panel as a model that doesn't exist, Ctrl+click did nothing, and hover showed nothing — even though the seed was right there in the manifest and showed up in the lineage of the model referencing it. Models, seeds and snapshots are now indexed together, matching what dbt itself lets `ref()` target ([#6](https://github.com/Y0hannH/dbtforge/issues/6)).
   - Autocomplete inside `{{ ref('...` suggests seeds and snapshots too, each labelled with its resource type rather than all of them as "model".
   - The diagnostic's wording follows: *No model, seed or snapshot named "x" in the manifest*.
