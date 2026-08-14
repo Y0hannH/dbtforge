@@ -63,7 +63,7 @@ The extension is also on the [Marketplace page](https://marketplace.visualstudio
 <summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
 
 ```bash
-code --install-extension dbtforge-0.10.0.vsix
+code --install-extension dbtforge-0.11.0.vsix
 ```
 
 </details>
@@ -206,6 +206,9 @@ Tags panel: build or test every resource carrying a tag, straight from the sideb
 
 ### ✅ v0.10
 Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Data Preview tab in the bottom panel.
+
+### ✅ v0.11
+`ref()` resolving to seeds and snapshots (not models only), lineage that opens on a seed, node boxes sized from their own name, and lineage nodes showing their materialization and `node_color`.
 
 ### 🔲 Next
 - Configurable lineage depth / filtering for very large projects
