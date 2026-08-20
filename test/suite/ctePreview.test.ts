@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { test } from 'node:test';
-import { buildCtePreviewSql, listCteNames } from '../../src/sql/ctePreview';
+import { buildCtePreviewSql, cteNameAtOffset, listCteNames } from '../../src/sql/ctePreview';
 
 const MODEL = `{{ config(materialized='table') }}
 
@@ -78,4 +78,59 @@ test('listCteNames: reports every CTE in declaration order', () => {
 test('listCteNames: includes CTEs whose columns could not be resolved', () => {
   // `select *` defeats column extraction, but the CTE still deserves a preview button.
   assert.deepEqual(listCteNames('with a as (select * from t) select * from a'), ['a']);
+});
+
+/** The offset of `needle` in MODEL, so a cursor can be placed on real text rather than a number. */
+function offsetOf(needle: string, source = MODEL): number {
+  const index = source.indexOf(needle);
+  assert.notEqual(index, -1, `fixture does not contain ${needle}`);
+  return index;
+}
+
+test('cteNameAtOffset: a cursor inside a CTE body names that CTE', () => {
+  assert.equal(cteNameAtOffset(MODEL, offsetOf('customer_id')), 'orders');
+});
+
+test('cteNameAtOffset: a cursor on the declaration line counts as inside', () => {
+  // That line is where the Preview CTE lens is drawn; the shortcut has to agree with it.
+  assert.equal(cteNameAtOffset(MODEL, offsetOf('joined as (')), 'joined');
+});
+
+test('cteNameAtOffset: a cursor on the closing parenthesis still names the CTE', () => {
+  const sql = 'with a as (select 1 as x) select * from a';
+  assert.equal(cteNameAtOffset(sql, sql.indexOf(')')), 'a');
+});
+
+test('cteNameAtOffset: a cursor in the final select names nothing', () => {
+  assert.equal(cteNameAtOffset(MODEL, offsetOf('select distinct')), undefined);
+});
+
+test('cteNameAtOffset: a cursor above the WITH clause names nothing', () => {
+  assert.equal(cteNameAtOffset(MODEL, offsetOf('config(')), undefined);
+});
+
+test('cteNameAtOffset: a cursor between two CTEs names nothing', () => {
+  // The blank line separating two CTEs belongs to neither, so neither may claim a cursor on it.
+  assert.equal(cteNameAtOffset(MODEL, offsetOf('orders as (') - 1), undefined);
+});
+
+test('cteNameAtOffset: a model with no CTEs names nothing', () => {
+  assert.equal(cteNameAtOffset('select 1 as x', 3), undefined);
+});
+
+test('cteNameAtOffset: unparseable SQL names nothing, rather than a guess', () => {
+  assert.equal(cteNameAtOffset('with a as (select 1', 14), undefined);
+});
+
+test('cteNameAtOffset: a nested CTE resolves to the top-level one containing it', () => {
+  // Only top-level CTEs can be previewed, so the enclosing one is the closest true answer.
+  const sql = 'with outer_cte as (with inner_cte as (select 1 as x) select * from inner_cte) select * from outer_cte';
+  assert.equal(cteNameAtOffset(sql, sql.indexOf('inner_cte')), 'outer_cte');
+});
+
+test('cteNameAtOffset: the name it reports can be previewed', () => {
+  const name = cteNameAtOffset(MODEL, offsetOf('c.name, o.total'));
+
+  assert.ok(name);
+  assert.ok(buildCtePreviewSql(MODEL, name));
 });

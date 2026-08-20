@@ -27,6 +27,7 @@ import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
 import { TagItem, TagsTreeProvider } from './providers/tagsTreeView';
+import { cteNameAtOffset } from './sql/ctePreview';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
 const indexes = new Map<string, DbtProjectIndex>();
@@ -203,9 +204,18 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         showLineage(context, index, node.unique_id, lineageView)
       )
     ),
-    vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => void previewController.previewModel(index, node))
-    ),
+    vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) => {
+      // Called with no file, this is the keyboard shortcut or the palette — the two entry points
+      // that have a cursor, and no way to say which part of the model they mean. So the cursor
+      // says it. Every menu item and CodeLens passes the file it was drawn on, and the one at the
+      // top of the file means the whole model, so those keep previewing the whole model.
+      const cteName = uri ? undefined : cteUnderCursor();
+      withModelNode(uri, (index, node) =>
+        void (cteName
+          ? previewController.previewCte(index, node, cteName)
+          : previewController.previewModel(index, node))
+      );
+    }),
     vscode.commands.registerCommand('dbtForge.previewCte', (uri: vscode.Uri, cteName: string) =>
       withModelNode(uri, (index, node) => void previewController.previewCte(index, node, cteName))
     ),
@@ -322,6 +332,23 @@ function withRefTargetNode(
   action: (index: DbtProjectIndex, node: DbtNode) => void
 ): void {
   withNode(uri, isReferenceable, 'this file is not a known dbt model, seed or snapshot.', action);
+}
+
+/**
+ * The CTE the cursor sits in, or undefined when it is anywhere else — in the final SELECT, above
+ * the WITH clause, or in a model with no CTEs at all. Undefined is the ordinary case, and means
+ * the whole model.
+ *
+ * The editor's buffer is read rather than the file on disk, so the answer matches what the user
+ * has in front of them. The preview itself still runs from the saved file, as it always has: a CTE
+ * that only exists in unsaved text fails to build, with the message that already says to save.
+ */
+function cteUnderCursor(): string | undefined {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor) return undefined;
+
+  const offset = editor.document.offsetAt(editor.selection.active);
+  return cteNameAtOffset(editor.document.getText(), offset);
 }
 
 function withNode(

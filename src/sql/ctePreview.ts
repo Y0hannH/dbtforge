@@ -30,3 +30,19 @@ export function buildCtePreviewSql(modelSql: string, cteName: string): string | 
 export function listCteNames(modelSql: string): string[] {
   return parseCtes(modelSql).map((cte) => cte.name);
 }
+
+/**
+ * The CTE containing `offset`, for a keyboard preview that follows the cursor — or undefined when
+ * it sits outside every CTE, which is the signal to preview the whole model instead.
+ *
+ * A CTE owns everything from its name to its closing parenthesis, so the declaration line counts
+ * as inside it: that is where the Preview CTE action is drawn, and pressing the shortcut there has
+ * to mean the same thing as clicking it. Only top-level CTEs are addressable, so a cursor in a
+ * nested one resolves to the enclosing CTE — the innermost thing that can actually be previewed.
+ */
+export function cteNameAtOffset(modelSql: string, offset: number): string | undefined {
+  const containing = parseCtes(modelSql).find(
+    (cte) => offset >= cte.nameStart && offset <= cte.bodyEnd
+  );
+  return containing?.name;
+}
