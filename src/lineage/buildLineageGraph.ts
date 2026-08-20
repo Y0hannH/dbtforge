@@ -1,4 +1,6 @@
 import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DependencyGraph } from '../index/graph';
+import { canDescend, DEFAULT_SCOPE, isInScope, LineageScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
 
 export interface LineageNode {
@@ -24,7 +26,32 @@ export interface LineageSubgraph {
   edges: LineageEdge[];
 }
 
-function toLineageNode(index: DbtProjectIndex, id: string, isRoot: boolean): LineageNode | undefined {
+type Direction = 'up' | 'down';
+
+/**
+ * The neighbours of `id` that the current scope actually shows. Everything else in this file
+ * goes through here, so a filtered-out node can never leak in as a node, an edge, or a count.
+ */
+function neighborsInScope(
+  index: DbtProjectIndex,
+  graph: DependencyGraph,
+  id: string,
+  direction: Direction,
+  scope: LineageScope
+): string[] {
+  const neighbors = direction === 'up' ? graph.getParents(id) : graph.getChildren(id);
+  return neighbors.filter((neighborId) => {
+    const node = index.getNode(neighborId);
+    return node !== undefined && isInScope(node, scope);
+  });
+}
+
+function toLineageNode(
+  index: DbtProjectIndex,
+  id: string,
+  isRoot: boolean,
+  scope: LineageScope
+): LineageNode | undefined {
   const node = index.getNode(id);
   const graph = index.getGraph();
   if (!node || !graph) return undefined;
@@ -36,40 +63,90 @@ function toLineageNode(index: DbtProjectIndex, id: string, isRoot: boolean): Lin
     metaLabel: nodeMetaLabel(node.resource_type, node.config?.materialized),
     color: readNodeColor(node),
     isRoot,
-    parentCount: graph.getParents(id).length,
-    childCount: graph.getChildren(id).length,
+    // Counted after filtering, because the count is a promise: the expand button says how many
+    // nodes a click will reveal. Counting raw neighbours made it promise the hidden tests too.
+    parentCount: neighborsInScope(index, graph, id, 'up', scope).length,
+    childCount: neighborsInScope(index, graph, id, 'down', scope).length,
   };
 }
 
 /**
- * The initial one-hop neighborhood (direct parents + direct children) around `rootId` — what
- * the webview renders before the user expands anything further. Mirrors the one-hop scope of
- * the Parents/Children/Tests TreeView; the interactive graph is what lets the user go deeper
- * without dumping the whole transitive closure at once.
+ * Walks `limit` hops in one direction from the root, breadth-first, collecting nodes and edges.
+ *
+ * Edges are recorded even when they lead to an already-collected node, so a diamond in the DAG
+ * keeps both of its sides; nodes are only enqueued once, which is also what stops an unlimited
+ * walk from ever revisiting.
  */
-export function buildInitialSubgraph(index: DbtProjectIndex, rootId: string): LineageSubgraph {
+function walk(
+  index: DbtProjectIndex,
+  graph: DependencyGraph,
+  rootId: string,
+  direction: Direction,
+  limit: number,
+  scope: LineageScope,
+  nodes: Map<string, LineageNode>,
+  edges: Map<string, LineageEdge>
+): void {
+  const seen = new Set<string>([rootId]);
+  let frontier = [rootId];
+  let depth = 0;
+
+  while (frontier.length > 0 && canDescend(depth, limit)) {
+    const nextFrontier: string[] = [];
+
+    for (const id of frontier) {
+      for (const neighborId of neighborsInScope(index, graph, id, direction, scope)) {
+        const edge: LineageEdge =
+          direction === 'up' ? { source: neighborId, target: id } : { source: id, target: neighborId };
+        edges.set(`${edge.source}->${edge.target}`, edge);
+
+        if (seen.has(neighborId)) continue;
+        seen.add(neighborId);
+
+        const node = toLineageNode(index, neighborId, false, scope);
+        if (!node) continue;
+        if (!nodes.has(neighborId)) nodes.set(neighborId, node);
+        nextFrontier.push(neighborId);
+      }
+    }
+
+    frontier = nextFrontier;
+    depth += 1;
+  }
+}
+
+/**
+ * The subgraph around `rootId` described by `scope` — `N` hops of parents, `M` hops of children,
+ * minus whatever the scope filters out. This is the local answer to a selector like `3+model+1`,
+ * computed entirely from the manifest's `parent_map`/`child_map`.
+ *
+ * The root is always included, even when the scope would filter it out: it is the file the user
+ * has open, and answering "nothing to display" for a model you are looking at is never useful.
+ */
+export function buildScopedSubgraph(
+  index: DbtProjectIndex,
+  rootId: string,
+  scope: LineageScope = DEFAULT_SCOPE
+): LineageSubgraph {
   const graph = index.getGraph();
-  const root = toLineageNode(index, rootId, true);
+  const root = toLineageNode(index, rootId, true, scope);
   if (!graph || !root) return { nodes: [], edges: [] };
 
   const nodes = new Map<string, LineageNode>([[rootId, root]]);
-  const edges: LineageEdge[] = [];
+  const edges = new Map<string, LineageEdge>();
 
-  for (const parentId of graph.getParents(rootId)) {
-    const parentNode = toLineageNode(index, parentId, false);
-    if (!parentNode) continue;
-    nodes.set(parentId, parentNode);
-    edges.push({ source: parentId, target: rootId });
-  }
+  walk(index, graph, rootId, 'up', scope.upstreamDepth, scope, nodes, edges);
+  walk(index, graph, rootId, 'down', scope.downstreamDepth, scope, nodes, edges);
 
-  for (const childId of graph.getChildren(rootId)) {
-    const childNode = toLineageNode(index, childId, false);
-    if (!childNode) continue;
-    nodes.set(childId, childNode);
-    edges.push({ source: rootId, target: childId });
-  }
+  return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
 
-  return { nodes: [...nodes.values()], edges };
+/**
+ * What the view opens on: one hop each way, tests hidden. Mirrors the Parents/Children/Tests
+ * panel, and stays the starting point the graph expands out from rather than a whole DAG dump.
+ */
+export function buildInitialSubgraph(index: DbtProjectIndex, rootId: string): LineageSubgraph {
+  return buildScopedSubgraph(index, rootId, DEFAULT_SCOPE);
 }
 
 /**
@@ -81,17 +158,17 @@ export function buildInitialSubgraph(index: DbtProjectIndex, rootId: string): Li
 export function expandNode(
   index: DbtProjectIndex,
   nodeId: string,
-  direction: 'up' | 'down'
+  direction: Direction,
+  scope: LineageScope = DEFAULT_SCOPE
 ): LineageSubgraph {
   const graph = index.getGraph();
   if (!graph) return { nodes: [], edges: [] };
 
-  const neighborIds = direction === 'up' ? graph.getParents(nodeId) : graph.getChildren(nodeId);
   const nodes: LineageNode[] = [];
   const edges: LineageEdge[] = [];
 
-  for (const neighborId of neighborIds) {
-    const neighborNode = toLineageNode(index, neighborId, false);
+  for (const neighborId of neighborsInScope(index, graph, nodeId, direction, scope)) {
+    const neighborNode = toLineageNode(index, neighborId, false, scope);
     if (!neighborNode) continue;
     nodes.push(neighborNode);
     edges.push(

@@ -2,7 +2,7 @@
   "name": "dbtforge",
   "displayName": "dbt Forge",
   "description": "Local-only dbt tooling: column autocomplete, lineage, compiled SQL preview, build shortcuts. No telemetry, no external services.",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "publisher": "evolve-data",
   "icon": "resources/icon.png",
   "license": "MIT",
@@ -82,6 +82,20 @@
           "minimum": -1,
           "scope": "resource",
           "description": "Rows a data preview asks dbt for (passed to 'dbt show --limit'). Use -1 for every row. A preview runs a real query against the warehouse you are pointed at."
+        },
+        "dbtForge.lineageLocation": {
+          "type": "string",
+          "enum": [
+            "editor",
+            "panel"
+          ],
+          "enumDescriptions": [
+            "Open the lineage graph as an editor tab, beside the model.",
+            "Open the lineage graph in the bottom panel, as a tab beside Data Preview and Terminal."
+          ],
+          "default": "editor",
+          "scope": "resource",
+          "description": "Where the lineage graph opens. Takes effect the next time you open a lineage."
         }
       }
     },
@@ -133,7 +147,8 @@
       },
       {
         "command": "dbtForge.previewCompiledSql",
-        "title": "dbt Forge: Preview Compiled SQL"
+        "title": "dbt Forge: Preview Compiled SQL",
+        "icon": "$(eye)"
       },
       {
         "command": "dbtForge.previewData",
@@ -152,7 +167,8 @@
       },
       {
         "command": "dbtForge.showLineage",
-        "title": "dbt Forge: Show Lineage"
+        "title": "dbt Forge: Show Lineage",
+        "icon": "$(git-merge)"
       },
       {
         "command": "dbtForge.buildProject",
@@ -203,6 +219,21 @@
         "command": "dbtForge.refreshTags",
         "title": "dbt Forge: Refresh Tags",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "dbtForge.toggleLineageLocation",
+        "title": "dbt Forge: Switch Lineage Placement (Editor / Panel)",
+        "icon": "$(layout)"
+      }
+    ],
+    "submenus": [
+      {
+        "id": "dbtForge.editorTitle",
+        "label": "dbt Forge",
+        "icon": {
+          "light": "resources/icon-light.svg",
+          "dark": "resources/icon-dark.svg"
+        }
       }
     ],
     "menus": {
@@ -232,6 +263,47 @@
           "command": "dbtForge.showLineage",
           "when": "resourceExtname == .sql || resourceExtname == .csv",
           "group": "dbtForge"
+        }
+      ],
+      "editor/title": [
+        {
+          "submenu": "dbtForge.editorTitle",
+          "when": "dbtForge.activeFileCompilable",
+          "group": "navigation@1"
+        }
+      ],
+      "dbtForge.editorTitle": [
+        {
+          "command": "dbtForge.previewData",
+          "group": "1_preview@1"
+        },
+        {
+          "command": "dbtForge.previewCompiledSql",
+          "group": "1_preview@2"
+        },
+        {
+          "command": "dbtForge.showLineage",
+          "group": "1_preview@3"
+        },
+        {
+          "command": "dbtForge.buildModel",
+          "group": "2_build@1"
+        },
+        {
+          "command": "dbtForge.buildUpstream",
+          "group": "2_build@2"
+        },
+        {
+          "command": "dbtForge.buildDownstream",
+          "group": "2_build@3"
+        },
+        {
+          "command": "dbtForge.testModel",
+          "group": "2_build@4"
+        },
+        {
+          "command": "dbtForge.compileFile",
+          "group": "3_project@1"
         }
       ],
       "explorer/context": [
@@ -291,6 +363,11 @@
           "command": "dbtForge.rerunPreview",
           "when": "view == dbtForge.preview",
           "group": "navigation"
+        },
+        {
+          "command": "dbtForge.toggleLineageLocation",
+          "when": "view == dbtForge.lineage",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -349,6 +426,12 @@
           "name": "Data Preview",
           "type": "webview",
           "contextualTitle": "dbt Forge"
+        },
+        {
+          "id": "dbtForge.lineage",
+          "name": "Lineage",
+          "type": "webview",
+          "contextualTitle": "dbt Forge"
         }
       ]
     },
@@ -363,7 +446,7 @@
       "panel": [
         {
           "id": "dbtForgePreview",
-          "title": "dbt Preview",
+          "title": "dbt Forge",
           "icon": "resources/icon.svg"
         }
       ]
@@ -373,6 +456,36 @@
         "command": "dbtForge.previewData",
         "key": "ctrl+enter",
         "mac": "cmd+enter",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      },
+      {
+        "command": "dbtForge.buildModel",
+        "key": "ctrl+k b",
+        "mac": "cmd+k b",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      },
+      {
+        "command": "dbtForge.buildUpstream",
+        "key": "ctrl+k u",
+        "mac": "cmd+k u",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      },
+      {
+        "command": "dbtForge.buildDownstream",
+        "key": "ctrl+k d",
+        "mac": "cmd+k d",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      },
+      {
+        "command": "dbtForge.testModel",
+        "key": "ctrl+k t",
+        "mac": "cmd+k t",
+        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+      },
+      {
+        "command": "dbtForge.showLineage",
+        "key": "ctrl+k l",
+        "mac": "cmd+k l",
         "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
       }
     ]

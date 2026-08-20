@@ -1,81 +1,67 @@
 import * as vscode from 'vscode';
-import { buildInitialSubgraph, expandNode } from '../lineage/buildLineageGraph';
-import { WebviewToHostMessage } from '../lineage/messages';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { getNonce } from '../webview/nonce';
+import { lineageWebviewOptions, renderLineageHtml } from '../lineage/lineageHtml';
+import { configuredLineageLocation } from '../lineage/lineagePlacement';
+import { LineageSession } from '../lineage/lineageSession';
+import { LineageViewProvider } from '../lineage/lineageViewProvider';
+
+// One lineage tab, retargeted rather than duplicated. Every call used to create a new panel, so
+// looking at three models in a row left three "Lineage: x" tabs open.
+let editorPanel: vscode.WebviewPanel | undefined;
+let editorAttachment: vscode.Disposable | undefined;
 
 export function showLineage(
   context: vscode.ExtensionContext,
   index: DbtProjectIndex,
-  rootId: string
+  rootId: string,
+  panelView: LineageViewProvider
 ): void {
-  const node = index.getNode(rootId);
+  const session = new LineageSession(index, rootId);
 
-  const panel = vscode.window.createWebviewPanel(
-    'dbtForgeLineage',
-    `Lineage: ${node?.name ?? rootId}`,
-    vscode.ViewColumn.Beside,
-    {
-      enableScripts: true,
-      retainContextWhenHidden: true,
-      localResourceRoots: [vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview')],
-    }
-  );
+  if (configuredLineageLocation(vscode.window.activeTextEditor?.document.uri) === 'panel') {
+    void panelView.show(session);
+    return;
+  }
 
-  const scriptUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', 'lineage.js')
-  );
-  const styleUri = panel.webview.asWebviewUri(
-    vscode.Uri.joinPath(context.extensionUri, 'dist', 'webview', 'lineage.css')
-  );
-
-  const initialGraph = buildInitialSubgraph(index, rootId);
-  panel.webview.html = renderHtml(panel.webview, scriptUri, styleUri, rootId, initialGraph);
-
-  const messageListener = panel.webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
-    if (message.type === 'expand') {
-      const subgraph = expandNode(index, message.nodeId, message.direction);
-      panel.webview.postMessage({
-        type: 'expandResult',
-        nodeId: message.nodeId,
-        direction: message.direction,
-        subgraph,
-      });
-      return;
-    }
-
-    if (message.type === 'open') {
-      const targetNode = index.getNode(message.nodeId);
-      if (targetNode) {
-        vscode.window.showTextDocument(index.getFileUri(targetNode), { preview: true });
-      }
-    }
-  });
-  panel.onDidDispose(() => messageListener.dispose());
+  showInEditor(context, session);
 }
 
-function renderHtml(
-  webview: vscode.Webview,
-  scriptUri: vscode.Uri,
-  styleUri: vscode.Uri,
-  rootId: string,
-  initialGraph: ReturnType<typeof buildInitialSubgraph>
-): string {
-  const nonce = getNonce();
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${webview.cspSource} data:; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}';" />
-  <link nonce="${nonce}" rel="stylesheet" href="${styleUri}" />
-</head>
-<body>
-  <div id="root"></div>
-  <script nonce="${nonce}">
-    window.__DBT_FORGE_ROOT_ID__ = ${JSON.stringify(rootId)};
-    window.__DBT_FORGE_INITIAL_GRAPH__ = ${JSON.stringify(initialGraph)};
-  </script>
-  <script nonce="${nonce}" src="${scriptUri}"></script>
-</body>
-</html>`;
+function showInEditor(context: vscode.ExtensionContext, session: LineageSession): void {
+  if (!editorPanel) {
+    editorPanel = vscode.window.createWebviewPanel(
+      'dbtForgeLineage',
+      lineageTitle(session),
+      vscode.ViewColumn.Beside,
+      { ...lineageWebviewOptions(context.extensionUri), retainContextWhenHidden: true }
+    );
+    editorPanel.onDidDispose(() => {
+      editorAttachment?.dispose();
+      editorAttachment = undefined;
+      editorPanel = undefined;
+    });
+  } else {
+    editorPanel.reveal(editorPanel.viewColumn ?? vscode.ViewColumn.Beside, true);
+  }
+
+  editorPanel.title = lineageTitle(session);
+  // Replacing the html tears down the old document, so the listener bound to it goes with it.
+  editorAttachment?.dispose();
+  editorPanel.webview.html = renderLineageHtml(
+    editorPanel.webview,
+    context.extensionUri,
+    session.bootstrap()
+  );
+  editorAttachment = session.attach(editorPanel.webview);
+}
+
+function lineageTitle(session: LineageSession): string {
+  return `Lineage: ${session.rootName}`;
+}
+
+/** Closes the shared lineage tab — called when the extension shuts down. */
+export function disposeLineagePanel(): void {
+  editorAttachment?.dispose();
+  editorAttachment = undefined;
+  editorPanel?.dispose();
+  editorPanel = undefined;
 }

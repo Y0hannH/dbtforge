@@ -2,6 +2,35 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.12.0] - 2026-08-19
+
+Five issues from the same reporter, and three of them turned out to be things that were simply wrong.
+
+### Added
+- **The lineage graph has a scope, and you set it** ([#4](https://github.com/Y0hannH/dbtforge/issues/4)). A toolbar above the graph carries two depth controls — how many hops of parents, how many of children — plus what to leave out. `3+model+1` is now two dropdowns, and *All* in both draws the model's whole DAG in one go. Everything is answered from `manifest.json`'s `parent_map`/`child_map`, so the graph redraws instantly and no `dbt ls` is ever run; deliberately not a selector text field, which would have made the whole control as slow as its slowest case.
+  - **Tests** are a checkbox, off by default (see below).
+  - **Materializations** are chips: click `ephemeral` to drop every ephemeral node from the graph. A hidden node is not traversed through either, matching what dbt's own `--exclude` does. Excluded chips stay visible and struck through, so an empty graph is never mistaken for a broken one.
+  - The model you have open is always drawn, even when a filter would hide it.
+- **`{{ doc('...') }}` is resolved against the project** ([#7](https://github.com/Y0hannH/dbtforge/issues/7)) — the half of that issue that needs to know your dbt project.
+  - **Autocomplete** inside `{{ doc('` lists the `{% docs %}` blocks the project declares, each with a preview of its markdown read from the manifest. Offered in `.yml` as well as `.sql`, since that is where doc() is actually written.
+  - **Go to Definition** on a `doc('x')` lands on the `{% docs x %}` line, not the top of the file — a `.md` usually holds many blocks.
+  - **A diagnostic** when a `doc()` doesn't resolve, worded like the existing `ref()`/`source()` ones, and checked in `.yml` and `.sql` alike.
+  - **A `docs` snippet** in markdown files, expanding to a full `{% docs %} … {% enddocs %}` block.
+  - Doc names collide across packages the way macro names do (not the way model names do), so resolution is explicit: the root project wins, a `doc('package', 'block')` call is matched exactly with no fallback, and your own blocks lead the completion list.
+- **The lineage graph can live in the bottom panel** ([#15](https://github.com/Y0hannH/dbtforge/issues/15)). `dbtForge.lineageLocation` switches it between an editor tab (default, unchanged) and a tab in the bottom panel beside Data Preview and Terminal. The graph itself is identical in both — only the frame differs.
+  - **Switch Lineage Placement** — a button in the Lineage view's own title bar, which flips the setting and immediately draws the open model. The Lineage view is registered regardless of the setting, so it is possible to find it sitting empty in the panel while lineages keep opening in the editor; its empty state now says which of the two is happening instead of promising a graph that would never arrive.
+- **The build actions are in the editor title bar, and on keyboard shortcuts** ([#16](https://github.com/Y0hannH/dbtforge/issues/16)). A single dbt Forge icon in the editor's title bar opens a menu with all eight actions, grouped: preview (Data, Compiled SQL, Lineage), build (Model, Upstream, Downstream, Test), then Compile This File. One icon rather than several, because `editor/title` sorts every extension's contributions into one shared `navigation` group — separate icons get interleaved with whatever else is installed, and there is no way to pin them together. A submenu is the only grouping the API actually offers. The title bar doesn't scroll away, which the CodeLens row at line 1 does on a long model.
+  - New shortcuts, all scoped to a dbt model in the editor and the zero-click path: `Ctrl+K B` build, `Ctrl+K U` build upstream, `Ctrl+K D` build downstream, `Ctrl+K T` test, `Ctrl+K L` lineage.
+
+### Fixed
+- **Tests are no longer drawn as nodes in the lineage graph** ([#4](https://github.com/Y0hannH/dbtforge/issues/4)). `child_map` lists a model's tests among its children, and nothing filtered on resource type — so a model with six tests rendered as a model with six extra children, and the expand button counted them in its badge. Tests are now hidden by default and the counts only ever promise what a click will actually reveal. The checkbox brings them back.
+- **One lineage tab, not one per model** ([#15](https://github.com/Y0hannH/dbtforge/issues/15)). Every Show Lineage created a new webview panel, so looking at three models in a row left three `Lineage: …` tabs behind. The tab is now reused and retargeted.
+- **The lineage minimap follows your theme** ([#17](https://github.com/Y0hannH/dbtforge/issues/17)). It was rendering with React Flow's stock light-theme colours, which ignore VS Code entirely — hence a washed-out copy of the graph and a viewport box you could barely find. Node fills now come from the theme (and from the project's own `node_color` where one is declared), the dimming mask is derived from the editor background, and the viewport box is outlined in the focus colour. Colours are re-read when you switch theme.
+  - The minimap now only appears once the graph passes 10 nodes. Below that it was a smaller copy of something already fully on screen — which is exactly the state the initial one-hop view is in.
+
+### Changed
+- The bottom panel container is now titled **dbt Forge** rather than *dbt Preview*, since it holds both Data Preview and Lineage.
+
 ## [0.11.0] - 2026-08-14
 
 The first release driven by user reports: two bugs found in real projects, and the lineage graph starting to say more about what it draws.

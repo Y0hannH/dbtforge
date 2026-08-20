@@ -1,11 +1,11 @@
 import * as path from 'path';
-import { DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
+import { DbtDocNode, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
 
 // dbt's default `packages-install-path`. Installed packages are vendored here, and their
 // manifest entries carry an original_file_path relative to the *package* root, not the project.
 const PACKAGES_DIR = 'dbt_packages';
 
-export type ManifestEntity = DbtNode | DbtSourceNode | DbtMacroNode;
+export type ManifestEntity = DbtNode | DbtSourceNode | DbtMacroNode | DbtDocNode;
 
 /**
  * Absolute on-disk path for a manifest entity.

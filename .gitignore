@@ -2,3 +2,7 @@ node_modules/
 dist/
 out/
 *.vsix
+
+# Carte de reprise en main + notes locales — documents de travail personnels, pas de la doc publique
+carte-extension.html
+CLAUDE.local.md

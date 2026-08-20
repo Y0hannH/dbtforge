@@ -3,11 +3,12 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 import { DbtForgeConfig } from '../config';
 import { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
+import { buildDocIndex, DocIndex, DocRef } from './docIndex';
 import { isOneNodePerFilePath, ManifestEntity, resolveEntityPath } from './entityPaths';
 import { watchFile } from './fileWatcher';
 import { buildDependencyGraph, DependencyGraph } from './graph';
 import { buildMacroIndex, MacroIndex, MacroRef } from './macroIndex';
-import { DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
+import { DbtDocNode, DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
 import { buildRefIndex, ModelRef } from './refIndex';
 import { collectTags, TagRef } from './tags';
 
@@ -18,7 +19,7 @@ export interface SourceRef {
   node: DbtSourceNode;
 }
 
-export type { MacroRef, ModelRef };
+export type { DocRef, MacroRef, ModelRef };
 
 
 /**
@@ -37,6 +38,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private sourcesByKey = new Map<string, SourceRef>();
   // Macro names collide across packages, so this one needs real resolution rules — see macroIndex.
   private macros: MacroIndex | undefined;
+  // Doc block names collide the same way macros do — see docIndex.
+  private docs: DocIndex | undefined;
   // normalized absolute file path -> unique_id, to map the active editor to a manifest node.
   private uniqueIdByFilePath = new Map<string, string>();
   // Every tag declared in the project, for the Tags view and `--select tag:x` shortcuts.
@@ -82,6 +85,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.refsByName.clear();
       this.sourcesByKey.clear();
       this.macros = undefined;
+      this.docs = undefined;
       this.tags = [];
       this._onDidChange.fire();
       return;
@@ -121,6 +125,7 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.sourcesByKey.clear();
     this.refsByName = buildRefIndex(manifest);
     this.macros = buildMacroIndex(manifest);
+    this.docs = buildDocIndex(manifest);
     this.uniqueIdByFilePath.clear();
     this.tags = collectTags(manifest);
 
@@ -188,6 +193,20 @@ export class DbtProjectIndex implements vscode.Disposable {
     return this.tags;
   }
 
+  /**
+   * Every materialization declared on a node, alphabetically — the choices the lineage scope
+   * filter offers. Derived on demand rather than indexed: it is read once when a lineage view
+   * opens, not on every keystroke like the ref/source maps.
+   */
+  getAllMaterializations(): string[] {
+    const found = new Set<string>();
+    for (const node of Object.values(this.manifest?.nodes ?? {})) {
+      const materialized = node.config?.materialized;
+      if (materialized) found.add(materialized);
+    }
+    return [...found].sort();
+  }
+
   /** Resolves the argument of a `ref()` — a model, seed or snapshot name. */
   resolveRef(name: string): ModelRef | undefined {
     return this.refsByName.get(name);
@@ -195,6 +214,20 @@ export class DbtProjectIndex implements vscode.Disposable {
 
   resolveSource(sourceName: string, tableName: string): SourceRef | undefined {
     return this.sourcesByKey.get(sourceKey(sourceName, tableName));
+  }
+
+  /** Resolves the argument of a `doc()` — the name of a `{% docs %}` block. */
+  resolveDoc(name: string, packageName?: string): DocRef | undefined {
+    return this.docs?.resolve(name, packageName);
+  }
+
+  /** Every `{% docs %}` block in the project, the root project's first. */
+  getAllDocs(): DocRef[] {
+    return this.docs?.all() ?? [];
+  }
+
+  getDocNode(uniqueId: string): DbtDocNode | undefined {
+    return this.manifest?.docs?.[uniqueId];
   }
 
   /** `packageName` is the namespace of a `dbt_utils.star(...)`-style call, when there is one. */
