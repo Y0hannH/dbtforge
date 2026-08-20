@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [0.12.0] - 2026-08-19
+## [0.12.0] - 2026-08-20
 
 Five issues from the same reporter, and three of them turned out to be things that were simply wrong.
 
