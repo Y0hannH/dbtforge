@@ -30,6 +30,8 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization and wears the `node_color` your project declares |
+| 🎚️ | **Lineage scope controls** | Set how many hops of parents and children to draw (or *All* for the whole DAG), hide tests, and drop whole materializations from the graph — resolved from the manifest, so it redraws instantly |
+| 📚 | **Doc block support** | Autocomplete inside `{{ doc('...` from the `{% docs %}` blocks your project declares, Go to Definition onto the block itself, and a warning when a `doc()` doesn't resolve — in `.yml` as well as `.sql` |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
 | 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query |
@@ -150,7 +152,25 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.previewCte` | `dbt show` for one CTE of the open model — invoked from the CodeLens on the CTE itself |
 | `dbtForge.rerunPreview` | Re-run the last data preview |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model, seed or snapshot |
+| `dbtForge.toggleLineageLocation` | Switch the lineage between an editor tab and the bottom panel (also a button in the Lineage view's title bar) |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
+
+---
+
+## Keyboard shortcuts
+
+All of these apply while a dbt model is focused in the editor, and are inert everywhere else.
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl+Enter` / `Cmd+Enter` | Preview Data |
+| `Ctrl+K B` | Build Model |
+| `Ctrl+K U` | Build Upstream (`+model`) |
+| `Ctrl+K D` | Build Downstream (`model+`) |
+| `Ctrl+K T` | Test Model |
+| `Ctrl+K L` | Show Lineage |
+
+The same actions are also under the **dbt Forge** icon in the editor's title bar, which — unlike the CodeLens row at the top of the file — stays put when you scroll. They sit in one menu rather than as separate icons because VS Code sorts every extension's title-bar buttons into a single shared group, so loose icons end up interleaved with whatever else you have installed.
 
 ---
 
@@ -165,6 +185,7 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
 | `dbtForge.previewRowLimit` | `100` | Rows a data preview asks dbt for (`dbt show --limit`). `-1` fetches every row |
+| `dbtForge.lineageLocation` | `editor` | Where the lineage graph opens: `editor` (a tab beside the model) or `panel` (a tab in the bottom panel, beside Data Preview) |
 
 ---
 
@@ -210,8 +231,11 @@ Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Da
 ### ✅ v0.11
 `ref()` resolving to seeds and snapshots (not models only), lineage that opens on a seed, node boxes sized from their own name, and lineage nodes showing their materialization and `node_color`.
 
+### ✅ v0.12
+Lineage scope controls (depth up and down, hide tests, exclude materializations), doc block autocomplete / Go to Definition / diagnostics, lineage in the bottom panel, and build actions in the editor title bar with keyboard shortcuts.
+
 ### 🔲 Next
-- Configurable lineage depth / filtering for very large projects
+- Column count and model/YAML column reconciliation, from `catalog.json`
 - Multi-project workspace polish (multiple dbt projects in one workspace)
 
 ---
@@ -228,7 +252,7 @@ So these are deliberately **out of scope**, not "not yet":
 
 | Not in scope | Use instead |
 |---|---|
-| Jinja / SQL syntax highlighting | [Better Jinja](https://marketplace.visualstudio.com/items?itemName=samuelcolvin.jinjahtml) — mature, and it covers `.sql`, `.yml` and `.md` |
+| Jinja / SQL syntax highlighting | [Better Jinja](https://marketplace.visualstudio.com/items?itemName=samuelcolvin.jinjahtml) — mature, and it covers `.sql`, `.yml` and `.md`. Note that *resolving* Jinja against your project — `ref()`, `source()`, `doc()`, macros — is very much in scope; it is the colouring that isn't |
 | SQL formatting and linting | [sqlfmt](https://docs.sqlfmt.com/), [SQLFluff](https://sqlfluff.com/), or your editor's own formatter |
 | A warehouse browser or general SQL client | A warehouse-specific extension. Data preview here goes through `dbt show` and nothing else — dbt Forge opens no connection of its own |
 | dbt Cloud, remote execution, AI assistance | Not planned in any form. Everything runs locally through your own venv, and nothing leaves your machine (see *Local Data & Privacy*) |

@@ -1,8 +1,24 @@
 import * as vscode from 'vscode';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
+import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
 
 const VALIDATE_DEBOUNCE_MS = 400;
+
+/**
+ * Which calls are worth looking for in a file.
+ *
+ * ref()/source() only ever appear in models, so scanning YAML for them would be wasted work;
+ * doc() is the opposite — it is written almost exclusively in schema .yml descriptions, and is
+ * checked in .sql too only because the same call syntax is legal there.
+ */
+type ValidatableKind = 'sql' | 'yaml';
+
+function validatableKind(uri: vscode.Uri): ValidatableKind | undefined {
+  const path = uri.fsPath.toLowerCase();
+  if (path.endsWith('.sql')) return 'sql';
+  if (path.endsWith('.yml') || path.endsWith('.yaml')) return 'yaml';
+  return undefined;
+}
 
 /**
  * Flags ref()/source() calls that don't resolve against the loaded manifest, as warnings in the
@@ -19,7 +35,8 @@ export class DbtDiagnosticsController implements vscode.Disposable {
   constructor(private readonly getIndex: (uri: vscode.Uri) => DbtProjectIndex | undefined) {}
 
   validate(document: vscode.TextDocument): void {
-    if (!document.uri.fsPath.toLowerCase().endsWith('.sql')) return;
+    const kind = validatableKind(document.uri);
+    if (!kind) return;
 
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) {
@@ -30,6 +47,20 @@ export class DbtDiagnosticsController implements vscode.Disposable {
     const diagnostics: vscode.Diagnostic[] = [];
     for (let line = 0; line < document.lineCount; line++) {
       const lineText = document.lineAt(line).text;
+
+      for (const call of findAllDocCalls(lineText)) {
+        if (index.resolveDoc(call.name, call.packageName)) continue;
+        diagnostics.push(
+          this.makeDiagnostic(
+            line,
+            call.start,
+            call.end,
+            `No {% docs %} block named "${call.name}" in the manifest. Run dbt compile if it was just added.`
+          )
+        );
+      }
+
+      if (kind !== 'sql') continue;
 
       for (const call of findAllRefCalls(lineText)) {
         if (index.resolveRef(call.name)) continue;

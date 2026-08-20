@@ -1,6 +1,7 @@
 import { strict as assert } from 'assert';
 import { test } from 'node:test';
 import {
+  findAllDocCalls,
   findAllMacroCallLocations,
   findAllRefCalls,
   findAllRefCallLocations,
@@ -9,10 +10,13 @@ import {
   findCallAtPosition,
   findMacroCallAtPosition,
   findMacroDefinitionAtPosition,
+  findDocCallAtPosition,
+  findDocsBlockLine,
   findMacroDefinitionLine,
   isInsideJinjaExpression,
   isInsideJinjaTag,
   parseCompletionContext,
+  parseDocCompletionContext,
 } from '../../src/sql/jinjaRefParser';
 
 test('parseCompletionContext: ref single-quote prefix', () => {
@@ -315,4 +319,75 @@ test('findMacroDefinitionLine: finds the right macro in a multi-macro file', () 
   assert.equal(findMacroDefinitionLine(lines, 'first'), 0);
   assert.equal(findMacroDefinitionLine(lines, 'second'), 4);
   assert.equal(findMacroDefinitionLine(lines, 'missing'), undefined);
+});
+
+// --- doc() -----------------------------------------------------------------
+
+test('parseDocCompletionContext: reports the partial block name being typed', () => {
+  assert.deepEqual(parseDocCompletionContext("    description: \"{{ doc('cust"), {
+    partial: 'cust',
+  });
+});
+
+test('parseDocCompletionContext: fires on an empty argument, so the full list is offered', () => {
+  assert.deepEqual(parseDocCompletionContext('{{ doc("'), { partial: '' });
+});
+
+test('parseDocCompletionContext: a closed call is not a completion context', () => {
+  assert.equal(parseDocCompletionContext("{{ doc('customer_id') }}"), undefined);
+});
+
+test('parseDocCompletionContext: ref() is not mistaken for doc()', () => {
+  assert.equal(parseDocCompletionContext("{{ ref('cust"), undefined);
+});
+
+test('findAllDocCalls: finds every call on a line, with the span on the block name', () => {
+  const line = "desc: \"{{ doc('a') }} and {{ doc('b') }}\"";
+  const calls = findAllDocCalls(line);
+  assert.deepEqual(
+    calls.map((c) => c.name),
+    ['a', 'b']
+  );
+  assert.equal(line.slice(calls[0].start, calls[0].end), 'a');
+  assert.equal(line.slice(calls[1].start, calls[1].end), 'b');
+});
+
+test('findAllDocCalls: reads the package out of the two-argument form', () => {
+  const calls = findAllDocCalls("{{ doc('other_package', 'shared') }}");
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].name, 'shared');
+  assert.equal(calls[0].packageName, 'other_package');
+});
+
+test('findAllDocCalls: a plain call reports no package', () => {
+  assert.equal(findAllDocCalls("{{ doc('shared') }}")[0].packageName, undefined);
+});
+
+test('findDocCallAtPosition: only matches when the cursor is on the block name', () => {
+  const line = "description: \"{{ doc('customer_id') }}\"";
+  const nameStart = line.indexOf('customer_id');
+  assert.equal(findDocCallAtPosition(line, nameStart + 3)?.name, 'customer_id');
+  assert.equal(findDocCallAtPosition(line, 0), undefined);
+});
+
+test('findDocsBlockLine: locates a block among several in one file', () => {
+  const lines = [
+    '{% docs first %}',
+    'text',
+    '{% enddocs %}',
+    '',
+    '{% docs second %}',
+    'more text',
+    '{% enddocs %}',
+  ];
+  assert.equal(findDocsBlockLine(lines, 'first'), 0);
+  assert.equal(findDocsBlockLine(lines, 'second'), 4);
+});
+
+test('findDocsBlockLine: tolerates whitespace-control tags', () => {
+  assert.equal(findDocsBlockLine(['{%- docs trimmed -%}'], 'trimmed'), 0);
+});
+
+test('findDocsBlockLine: a block that is not there returns undefined, not line 0', () => {
+  assert.equal(findDocsBlockLine(['{% docs first %}'], 'missing'), undefined);
 });

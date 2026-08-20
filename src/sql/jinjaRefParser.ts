@@ -281,3 +281,63 @@ export function findMacroDefinitionLine(lines: string[], macroName: string): num
   }
   return undefined;
 }
+
+// --- doc() -----------------------------------------------------------------
+// `{{ doc('block') }}` substitutes a `{% docs block %}` written in a .md file. It appears mostly
+// in schema .yml descriptions rather than in SQL, but the call syntax is the same everywhere, so
+// the parsing lives here beside ref() and source().
+
+const DOC_PREFIX = /\{\{\s*doc\(\s*['"]([^'"]*)$/;
+
+/** The partial block name being typed inside `{{ doc('`, if the cursor is there. */
+export function parseDocCompletionContext(
+  lineTextBeforeCursor: string
+): { partial: string } | undefined {
+  const match = DOC_PREFIX.exec(lineTextBeforeCursor);
+  return match ? { partial: match[1] } : undefined;
+}
+
+export interface DocCallMatch extends CallLocation {
+  name: string;
+  /** Package named explicitly in `doc('package', 'block')`, absent for a plain `doc('block')`. */
+  packageName?: string;
+}
+
+// Same two shapes dbt accepts for ref(): doc('block') and the cross-package doc('package', 'block').
+// Group 1 is the package (absent for the one-argument form), group 2 is always the block name.
+const DOC_CALL = /\bdoc\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*\)/gd;
+
+/** Every doc() call on a line; the span always covers the block-name argument. */
+export function findAllDocCalls(lineText: string): DocCallMatch[] {
+  const results: DocCallMatch[] = [];
+  for (const match of lineText.matchAll(DOC_CALL) as IterableIterator<RegExpMatchWithIndices>) {
+    const [start, end] = match.indices[2]!;
+    results.push({ name: match[2], packageName: match[1], start, end });
+  }
+  return results;
+}
+
+/** The doc() call whose block-name argument contains `character` — for Go to Definition. */
+export function findDocCallAtPosition(
+  lineText: string,
+  character: number
+): DocCallMatch | undefined {
+  return findAllDocCalls(lineText).find(
+    (call) => character >= call.start && character <= call.end
+  );
+}
+
+const DOCS_BLOCK = /\{%-?\s*docs\s+([A-Za-z_][A-Za-z0-9_]*)\s*-?%\}/d;
+
+/**
+ * Line index of `{% docs name %}` in a file's lines, if present. One .md file usually holds many
+ * blocks, so navigating to a block means navigating to its line, not to the top of the file —
+ * the same reason macros are located by line rather than by file.
+ */
+export function findDocsBlockLine(lines: string[], name: string): number | undefined {
+  for (let line = 0; line < lines.length; line++) {
+    const match = DOCS_BLOCK.exec(lines[line]);
+    if (match?.[1] === name) return line;
+  }
+  return undefined;
+}

@@ -89,3 +89,118 @@ body,
 .lineage-expand-right {
   right: -34px;
 }
+
+/* The minimap ships with React Flow's own light-theme chrome, which reads as a bleached copy of
+   the graph on any VS Code theme. Node fills and the dimming mask are set from the theme in
+   lineageFlowWebview.tsx (React Flow writes those as SVG attributes); the frame is set here. */
+.react-flow__minimap {
+  background: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-panel-border, #454545);
+  border-radius: 4px;
+}
+
+.react-flow__minimap-mask {
+  stroke: var(--vscode-focusBorder, #007acc);
+  stroke-width: 2px;
+}
+
+/* The toolbar is a fixed strip above the canvas rather than a floating overlay: React Flow needs
+   its container to be explicitly sized, and an overlay would sit on top of the top-left node at
+   exactly the zoom level where the graph is densest. */
+.lineage-layout {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+}
+
+.lineage-canvas {
+  position: relative;
+  flex: 1;
+  /* Without this a flex child refuses to shrink below its content, and the canvas overflows. */
+  min-height: 0;
+}
+
+.lineage-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #454545);
+  background: var(--vscode-editorWidget-background, #252526);
+  font-size: 12px;
+}
+
+.lineage-field,
+.lineage-check {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lineage-field-label {
+  text-transform: uppercase;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+}
+
+.lineage-toolbar select {
+  background: var(--vscode-dropdown-background, #3c3c3c);
+  color: var(--vscode-dropdown-foreground, #cccccc);
+  border: 1px solid var(--vscode-dropdown-border, #3c3c3c);
+  border-radius: 3px;
+  padding: 2px 4px;
+  font-size: 12px;
+  font-family: inherit;
+}
+
+.lineage-toolbar select:disabled,
+.lineage-toolbar input:disabled,
+.lineage-chip:disabled {
+  opacity: 0.55;
+}
+
+.lineage-toolbar select:focus-visible,
+.lineage-toolbar input:focus-visible,
+.lineage-chip:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.lineage-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.lineage-chip {
+  background: transparent;
+  color: var(--vscode-foreground, #cccccc);
+  border: 1px solid var(--vscode-panel-border, #454545);
+  border-radius: 9px;
+  padding: 1px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lineage-chip:hover {
+  border-color: var(--vscode-focusBorder, #007acc);
+}
+
+/* An excluded materialization stays legible rather than disappearing: the point of the chip row
+   is to show what was hidden, so the user can tell an empty graph from an over-filtered one. */
+.lineage-chip.is-excluded {
+  text-decoration: line-through;
+  opacity: 0.55;
+  border-style: dashed;
+}
+
+.lineage-empty {
+  padding: 16px;
+  color: var(--vscode-descriptionForeground, #999999);
+  font-size: 13px;
+}

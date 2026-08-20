@@ -1,11 +1,13 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { previewCompiledSql, compiledSqlContentProvider, COMPILED_SQL_SCHEME } from './commands/compiledSqlPreview';
-import { showLineage } from './commands/lineageFlow';
+import { disposeLineagePanel, showLineage } from './commands/lineageFlow';
 import { disposeSharedTerminal, handleTerminalClosed, runDbtCommand } from './commands/runDbtCommand';
 import { selectProfile } from './commands/selectProfile';
 import { DbtForgeConfig, resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
+import { toggleLineageLocation } from './lineage/lineagePlacement';
+import { LineageViewProvider } from './lineage/lineageViewProvider';
 import { DbtNode } from './index/manifestTypes';
 import { isReferenceable } from './index/refIndex';
 import { PreviewController } from './preview/previewController';
@@ -13,6 +15,9 @@ import { PreviewViewProvider } from './preview/previewViewProvider';
 import { ProfileStore } from './profiles/profileStore';
 import { BuildCodeLensProvider } from './providers/buildCodeLens';
 import { ColumnCompletionProvider } from './providers/columnCompletion';
+import { DocBlockSnippetProvider } from './providers/docBlockSnippet';
+import { DocCompletionProvider } from './providers/docCompletion';
+import { DocDefinitionProvider } from './providers/docDefinitionProvider';
 import { RefSourceDefinitionProvider } from './providers/definitionProvider';
 import { DbtDiagnosticsController } from './providers/diagnostics';
 import { DbtHoverProvider } from './providers/hoverProvider';
@@ -36,6 +41,16 @@ const DBT_NODE_SELECTOR: vscode.DocumentSelector = [
   { scheme: 'file', pattern: '**/*.sql' },
   { scheme: 'file', pattern: '**/*.csv' },
 ];
+
+// doc() is written in schema .yml descriptions far more than in SQL, so the doc block features
+// are scoped to both rather than to models only. The blocks themselves are declared in .md.
+const DBT_DOC_SELECTOR: vscode.DocumentSelector = [
+  { scheme: 'file', pattern: '**/*.sql' },
+  { scheme: 'file', pattern: '**/*.yml' },
+  { scheme: 'file', pattern: '**/*.yaml' },
+];
+
+const DBT_MARKDOWN_SELECTOR: vscode.DocumentSelector = { scheme: 'file', pattern: '**/*.md' };
 
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = vscode.window.createOutputChannel('dbt Forge');
@@ -64,6 +79,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const profileStore = new ProfileStore(context.workspaceState);
   const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
   context.subscriptions.push(profileStore, profileStatusBar);
+
+  // The lineage can be hosted in an editor tab or in the bottom panel (dbtForge.lineageLocation).
+  // The view is registered either way: registration only declares where it *could* render, and a
+  // user flipping the setting shouldn't have to reload the window for the panel to exist.
+  const lineageView = new LineageViewProvider(context.extensionUri);
+  context.subscriptions.push(
+    lineageView,
+    vscode.window.registerWebviewViewProvider(LineageViewProvider.viewType, lineageView, {
+      webviewOptions: { retainContextWhenHidden: true },
+    })
+  );
 
   const previewView = new PreviewViewProvider();
   const previewController = new PreviewController(previewView, profileStore, output);
@@ -125,6 +151,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       '.'
     ),
     vscode.languages.registerCompletionItemProvider(DBT_SQL_SELECTOR, new JinjaSnippetCompletionProvider()),
+    vscode.languages.registerCompletionItemProvider(
+      DBT_DOC_SELECTOR,
+      new DocCompletionProvider(getIndexForResource),
+      "'",
+      '"'
+    ),
+    vscode.languages.registerCompletionItemProvider(
+      DBT_MARKDOWN_SELECTOR,
+      new DocBlockSnippetProvider()
+    ),
+    vscode.languages.registerDefinitionProvider(
+      DBT_DOC_SELECTOR,
+      new DocDefinitionProvider(getIndexForResource)
+    ),
     vscode.languages.registerDefinitionProvider(
       DBT_SQL_SELECTOR,
       new RefSourceDefinitionProvider(getIndexForResource)
@@ -159,7 +199,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node))
     ),
     vscode.commands.registerCommand('dbtForge.showLineage', (uri?: vscode.Uri) =>
-      withRefTargetNode(uri, (index, node) => showLineage(context, index, node.unique_id))
+      withRefTargetNode(uri, (index, node) =>
+        showLineage(context, index, node.unique_id, lineageView)
+      )
     ),
     vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => void previewController.previewModel(index, node))
@@ -232,7 +274,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('dbtForge.testTag', (item?: TagItem) =>
       withTag(item, (index, tag) => runDbt(index, ['test', '--select', `tag:${tag}`]))
     ),
-    vscode.commands.registerCommand('dbtForge.refreshTags', () => tagsTree.refresh())
+    vscode.commands.registerCommand('dbtForge.refreshTags', () => tagsTree.refresh()),
+    // Flipping the setting is only half the job: the button lives in an empty Lineage view, so it
+    // has to leave a graph behind rather than the same empty view with different placeholder text.
+    vscode.commands.registerCommand('dbtForge.toggleLineageLocation', async () => {
+      const location = await toggleLineageLocation();
+      if (location === 'editor') {
+        vscode.window.showInformationMessage('dbt Forge: lineage now opens in an editor tab.');
+        return;
+      }
+
+      const uri = vscode.window.activeTextEditor?.document.uri;
+      const index = uri ? getIndexForResource(uri) : undefined;
+      const node = index?.getNodeByFileUri(uri!);
+      if (index && node && isReferenceable(node)) {
+        showLineage(context, index, node.unique_id, lineageView);
+        return;
+      }
+      vscode.window.showInformationMessage(
+        'dbt Forge: lineage now opens in the bottom panel. Run Show Lineage on a model to draw one.'
+      );
+    })
   );
 
   context.subscriptions.push(
@@ -499,4 +561,5 @@ export function getIndexForResource(uri: vscode.Uri): DbtProjectIndex | undefine
 export function deactivate(): void {
   disposeAllIndexes();
   disposeSharedTerminal();
+  disposeLineagePanel();
 }

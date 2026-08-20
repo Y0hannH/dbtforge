@@ -11,3 +11,6 @@ tsconfig.json
 node_modules/**
 resources/marketplace-icon.svg
 *.vsix
+CLAUDE.md
+CLAUDE.local.md
+carte-extension.html

@@ -10,6 +10,9 @@ export interface DbtManifest {
   nodes: Record<string, DbtNode>;
   sources: Record<string, DbtSourceNode>;
   macros?: Record<string, DbtMacroNode>;
+  // `{% docs %}` blocks, keyed by unique_id. Present since the manifest schema versions dbt Forge
+  // targets; optional here for the same reason macros are — a partial manifest may omit it.
+  docs?: Record<string, DbtDocNode>;
   child_map?: Record<string, string[]>;
   parent_map?: Record<string, string[]>;
 }
@@ -60,6 +63,18 @@ export interface DbtMacroNode {
   depends_on?: {
     macros?: string[];
   };
+}
+
+/** A `{% docs name %} ... {% enddocs %}` block, declared in a .md file. */
+export interface DbtDocNode {
+  unique_id: string;
+  resource_type: 'doc';
+  name: string;
+  package_name: string;
+  path: string;
+  original_file_path: string;
+  /** The markdown between the tags — what dbt substitutes wherever `doc('name')` appears. */
+  block_contents?: string;
 }
 
 export interface DbtSourceNode {
