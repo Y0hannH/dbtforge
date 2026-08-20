@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.13.0] - 2026-08-20
 
 ### Added
 - **`Ctrl+Enter` previews the CTE the cursor is in** ([#16](https://github.com/Y0hannH/dbtforge/issues/16)). Put the cursor anywhere inside a CTE and the shortcut previews that CTE; leave it in the final SELECT, above the WITH clause, or in a model with no CTEs, and it previews the whole model as before. It is the keyboard equivalent of the Preview CTE button that was already on each CTE — the point of a shortcut being that you don't have to go and find the button.
