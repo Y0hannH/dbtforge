@@ -34,7 +34,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 📚 | **Doc block support** | Autocomplete inside `{{ doc('...` from the `{% docs %}` blocks your project declares, Go to Definition onto the block itself, and a warning when a `doc()` doesn't resolve — in `.yml` as well as `.sql` |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
-| 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query |
+| 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query — and `Ctrl+Enter` with the cursor inside a CTE previews that CTE rather than the whole model |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
 | 📄 | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
@@ -148,8 +148,8 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.testTag` | `dbt test --select tag:<tag>` |
 | `dbtForge.refreshTags` | Re-read the tag list from the loaded manifest |
 | `dbtForge.previewCompiledSql` | Open the compiled SQL for the open model, read-only |
-| `dbtForge.previewData` | `dbt show` for the open model — rows land in the Data Preview panel (`Ctrl+Enter` / `Cmd+Enter`) |
-| `dbtForge.previewCte` | `dbt show` for one CTE of the open model — invoked from the CodeLens on the CTE itself |
+| `dbtForge.previewData` | `dbt show` for the open model, or for the CTE the cursor is in — rows land in the Data Preview panel (`Ctrl+Enter` / `Cmd+Enter`) |
+| `dbtForge.previewCte` | `dbt show` for one named CTE of the open model — invoked from the CodeLens on the CTE itself |
 | `dbtForge.rerunPreview` | Re-run the last data preview |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model, seed or snapshot |
 | `dbtForge.toggleLineageLocation` | Switch the lineage between an editor tab and the bottom panel (also a button in the Lineage view's title bar) |
@@ -163,12 +163,17 @@ All of these apply while a dbt model is focused in the editor, and are inert eve
 
 | Shortcut | Action |
 |---|---|
-| `Ctrl+Enter` / `Cmd+Enter` | Preview Data |
+| `Ctrl+Enter` / `Cmd+Enter` | Preview Data — the CTE the cursor is in, or the whole model when it is anywhere else |
 | `Ctrl+K B` | Build Model |
 | `Ctrl+K U` | Build Upstream (`+model`) |
 | `Ctrl+K D` | Build Downstream (`model+`) |
 | `Ctrl+K T` | Test Model |
 | `Ctrl+K L` | Show Lineage |
+
+`Ctrl+Enter` follows the cursor: inside a CTE it previews that CTE, anywhere else it previews the
+whole model. Only the shortcut (and the command palette) work this way — the buttons say which
+scope they mean, so **Preview Data** in a menu or in the CodeLens row is always the whole model,
+and **Preview CTE** is always that CTE. Whichever ran, the panel's header names it.
 
 The same actions are also under the **dbt Forge** icon in the editor's title bar, which — unlike the CodeLens row at the top of the file — stays put when you scroll. They sit in one menu rather than as separate icons because VS Code sorts every extension's title-bar buttons into a single shared group, so loose icons end up interleaved with whatever else you have installed.
 

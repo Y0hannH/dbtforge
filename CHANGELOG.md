@@ -2,6 +2,13 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **`Ctrl+Enter` previews the CTE the cursor is in** ([#16](https://github.com/Y0hannH/dbtforge/issues/16)). Put the cursor anywhere inside a CTE and the shortcut previews that CTE; leave it in the final SELECT, above the WITH clause, or in a model with no CTEs, and it previews the whole model as before. It is the keyboard equivalent of the Preview CTE button that was already on each CTE — the point of a shortcut being that you don't have to go and find the button.
+  - Only the shortcut and the command palette follow the cursor. Every menu item and CodeLens passes the file it was drawn on, and that is what tells them apart: a button says which scope it means, so **Preview Data** in the title-bar menu or the CodeLens row stays the whole model. The panel header names what actually ran (`model › cte`), so the two are never confused after the fact.
+  - A cursor in a nested CTE resolves to the top-level CTE containing it, which is the innermost thing dbt can actually be asked to run. A model whose SQL can't be parsed previews whole rather than guessing.
+
 ## [0.12.0] - 2026-08-20
 
 Five issues from the same reporter, and three of them turned out to be things that were simply wrong.
