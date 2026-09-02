@@ -2,6 +2,17 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Column autocomplete without an alias, in a model that reads a single table** ([#14](https://github.com/Y0hannH/dbtforge/issues/14)). A style guide that forbids a redundant alias on a one-table query no longer costs you column suggestions: type nothing before the column and the table's columns are offered directly. The rule stays all-or-nothing, because the point is that there is nothing to resolve — the file must hold exactly one `ref()`/`source()` call, written as an unaliased `FROM`/`JOIN`, and no CTEs. Add a second table and the suggestions stop; that is the alias requirement returning, not a gap.
+  - Any second `ref()`/`source()` anywhere in the file counts, including a comma join and a call in a subquery — shapes the FROM-clause parser doesn't read. Counting calls rather than parsed tables means an unreadable shape makes the file ambiguous, which is the safe direction.
+  - A CTE also stands the feature down, since the final SELECT may read from the CTE rather than from the table.
+  - Suggestions are held back where a column isn't what is being typed: inside a `{{ … }}` tag, inside a string or a comment, and directly after `FROM`/`JOIN`.
+
+### Fixed
+- **A SQL keyword after an unaliased `ref()` was read as an alias.** `from {{ ref('orders') }}` followed by `where`, `group`, `order`, `limit` or a set operator registered an alias by that name — so `where.` offered the model's columns, and the extension believed an alias existed where the author had written none. Keywords are now excluded from alias detection, which is also what lets the unaliased path above tell "no alias" from "an alias I misread".
+
 ## [0.13.0] - 2026-08-20
 
 ### Added

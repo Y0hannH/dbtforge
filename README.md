@@ -27,7 +27,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
 | 💬 | **Hover documentation** | Hover a `ref()`/`source()`/macro call to see its description (and a macro's argument signature) straight from the manifest |
 | ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
-| 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs |
+| 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs — and unqualified, with no alias to type, in a model that reads a single table |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization and wears the `node_color` your project declares |
 | 🎚️ | **Lineage scope controls** | Set how many hops of parents and children to draw (or *All* for the whole DAG), hide tests, and drop whole materializations from the graph — resolved from the manifest, so it redraws instantly |
@@ -102,11 +102,14 @@ Column suggestions come from two independent paths, which explains why they some
 |---|---|---|
 | `my_cte.` | The CTE's own `SELECT` list, parsed from the open file | Nothing — works offline, on an unbuilt model |
 | `m.` where `m` aliases a model/source | `catalog.json` | **`dbt docs generate`**, and the model must have been built |
+| nothing, in a model that reads one unaliased table | `catalog.json` | The same, plus the conditions below |
 
 Two things trip people up:
 
 - **`catalog.json` is only written by `dbt docs generate`.** Neither `dbt compile`, nor `dbt run`, nor `dbt build` produces or refreshes it. A model can be perfectly compiled and still have no column suggestions. Use the **Generate Docs** button, then re-run it whenever columns change.
-- **The alias is mandatory.** `from {{ ref('orders') }} o` gives you `o.`; `from {{ ref('orders') }}` with no alias gives you nothing to type before the dot.
+- **The alias is mandatory as soon as the model reads more than one table.** `from {{ ref('orders') }} o` gives you `o.`; a second table with no alias gives you nothing to type before the dot, because a bare column could then have come from either.
+
+**The single-table exception.** A model whose whole file holds exactly one `ref()`/`source()` call, written as an unaliased `FROM`/`JOIN`, and no CTEs, suggests that table's columns with nothing typed before them — there is no other place they could have come from, so nothing is being guessed. Add a second table and the suggestions stop, which is the alias requirement coming back rather than a fault. Suggestions are also held back where a column isn't what you're typing: inside a `{{ … }}` tag, inside a string or a comment, and directly after `FROM`/`JOIN`.
 
 Also note that the alias must sit right after a single-argument `ref()`/`source()` call — `ref('package', 'model')`, `ref('model', version=2)`, and calls split across lines aren't detected yet.
 
