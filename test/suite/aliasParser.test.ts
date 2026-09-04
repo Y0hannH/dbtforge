@@ -1,6 +1,6 @@
 import { strict as assert } from 'assert';
 import { test } from 'node:test';
-import { parseAliases } from '../../src/sql/aliasParser';
+import { parseAliases, parseTableReferences } from '../../src/sql/aliasParser';
 
 test('parseAliases: ref with explicit AS', () => {
   const sql = "select * from {{ ref('dim_customers') }} AS c";
@@ -30,4 +30,29 @@ test('parseAliases: JOIN clause is also matched', () => {
 
 test('parseAliases: no alias present yields no results', () => {
   assert.deepEqual(parseAliases('select 1'), []);
+});
+
+test('parseAliases: a keyword after the ref is not an alias', () => {
+  // `from {{ ref('orders') }} where ...` used to report an alias named "where".
+  for (const tail of ['where status = 1', 'group by 1', 'order by id', 'limit 10', 'union all']) {
+    assert.deepEqual(parseAliases(`select * from {{ ref('orders') }}\n${tail}`), []);
+  }
+});
+
+test('parseAliases: a keyword after a source is not an alias either', () => {
+  assert.deepEqual(parseAliases("select * from {{ source('raw', 'orders') }}\nwhere id > 0"), []);
+});
+
+test('parseTableReferences: unaliased ref is reported without an alias', () => {
+  assert.deepEqual(parseTableReferences("select * from {{ ref('orders') }}\nwhere id > 0"), [
+    { kind: 'ref', modelName: 'orders' },
+  ]);
+});
+
+test('parseTableReferences: aliased and unaliased references, in document order', () => {
+  const sql = "select * from {{ source('raw', 'orders') }}\njoin {{ ref('customers') }} c on 1=1";
+  assert.deepEqual(parseTableReferences(sql), [
+    { kind: 'source', sourceName: 'raw', tableName: 'orders' },
+    { kind: 'ref', modelName: 'customers', alias: 'c' },
+  ]);
 });
