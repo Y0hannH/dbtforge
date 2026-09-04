@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.14.0] - 2026-09-04
 
 ### Added
 - **Column autocomplete without an alias, in a model that reads a single table** ([#14](https://github.com/Y0hannH/dbtforge/issues/14)). A style guide that forbids a redundant alias on a one-table query no longer costs you column suggestions: type nothing before the column and the table's columns are offered directly. The rule stays all-or-nothing, because the point is that there is nothing to resolve — the file must hold exactly one `ref()`/`source()` call, written as an unaliased `FROM`/`JOIN`, and no CTEs. Add a second table and the suggestions stop; that is the alias requirement returning, not a gap.
