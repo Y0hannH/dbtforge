@@ -26,7 +26,8 @@ const NAME_CHAR_WIDTH = 7.2;
 
 // The meta row above the name is 10px, uppercased — narrower per character than the name, but
 // wider per letter than lowercase, and long enough to decide the box on its own once the
-// materialization joins the resource type ("SNAPSHOT · MATERIALIZED_VIEW").
+// materialization, a target lag and a column count join the resource type
+// ("MODEL · DYNAMIC_TABLE (3 MINUTES) · 42 COLS").
 const META_CHAR_WIDTH = 6.6;
 
 /**

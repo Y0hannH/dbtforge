@@ -29,7 +29,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs — and unqualified, with no alias to type, in a model that reads a single table |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
-| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization and wears the `node_color` your project declares |
+| 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization, its `target_lag` if it is a dynamic table, its column count once `catalog.json` exists, and wears the `node_color` your project declares |
 | 🎚️ | **Lineage scope controls** | Set how many hops of parents and children to draw (or *All* for the whole DAG), hide tests, and drop whole materializations from the graph — resolved from the manifest, so it redraws instantly |
 | 📚 | **Doc block support** | Autocomplete inside `{{ doc('...` from the `{% docs %}` blocks your project declares, Go to Definition onto the block itself, and a warning when a `doc()` doesn't resolve — in `.yml` as well as `.sql` |
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
@@ -243,7 +243,7 @@ Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Da
 Lineage scope controls (depth up and down, hide tests, exclude materializations), doc block autocomplete / Go to Definition / diagnostics, lineage in the bottom panel, and build actions in the editor title bar with keyboard shortcuts.
 
 ### 🔲 Next
-- Column count and model/YAML column reconciliation, from `catalog.json`
+- Model/YAML column reconciliation, from `catalog.json`
 - Multi-project workspace polish (multiple dbt projects in one workspace)
 
 ---

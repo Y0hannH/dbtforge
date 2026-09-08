@@ -33,6 +33,10 @@ export interface DbtNode {
     tags?: string[];
     /** 'table' | 'view' | 'incremental' | 'ephemeral' | adapter-specific ones. */
     materialized?: string;
+    // Adapter-specific, and read as the free text it is: Snowflake dynamic tables carry either a
+    // duration ('3 minutes') or the literal 'downstream', which means "inherit from whatever reads
+    // me". dbt records the word, not the inherited value, so the word is what gets shown.
+    target_lag?: string;
     // `docs` appears both here and at the top level of the node; which one carries node_color
     // depends on where it was declared, so both are read — see nodeDisplay.
     docs?: DbtDocsConfig;

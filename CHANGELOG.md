@@ -2,6 +2,15 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Lineage nodes show their target lag and their column count** ([#5](https://github.com/Y0hannH/dbtforge/issues/5)). The row above each node's name, which already carried the resource type and the materialization, now also carries what else the project can answer for itself:
+  - **`target_lag`**, in parentheses after the materialization: `model · dynamic_table (3 minutes)`. Adapter-specific and shown verbatim, `downstream` included — Snowflake resolves an inherited lag at runtime, dbt records only the word, and walking the DAG to compute the inherited value would be this extension inventing a number no file states.
+  - **The column count**, read from `catalog.json`: `model · table · 42 cols`. The manifest is deliberately not used for this — it only holds the columns someone documented in a `.yml`, so counting those would report 4 on a 60-column model.
+  - Both are silent when unknown. A project with no dynamic tables, or one that has never run `dbt docs generate`, sees exactly the row it saw before. There is no `0 cols` and no "unknown" placeholder: an absent count means the catalog cannot say, not that the model has no columns.
+  - The meta row is ellipsized at the node's width ceiling like the name already was, and now carries the same hover tooltip, so nothing becomes unreadable on a long materialization name.
+
 ## [0.14.0] - 2026-09-04
 
 ### Added
