@@ -4,16 +4,24 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ## [Unreleased]
 
-### Changed
-- **The panel holds two named tabs instead of one** ([#24](https://github.com/Y0hannH/dbtforge/issues/24)). The bottom panel used to carry a single **dbt Forge** tab holding both views, so dragging the lineage out gave you a second tab called *dbt Forge* too — two tabs, one name, no way to tell them apart. There are now two: **dbt Forge Preview** and **dbt Forge Lineage**, each holding its own view. Nothing about either view changes, and the `dbtForge.lineageLocation` setting works exactly as before.
-  - VS Code remembers panel layout per container, so the Lineage arrives in its default spot the first time after updating, wherever you had dragged the old shared tab.
-
 ### Added
+- **A schema `.yml` is checked against the columns the table really has** ([#13](https://github.com/Y0hannH/dbtforge/issues/13)). Two warnings in the Problems panel, on the offending line of the `.yml`:
+  - **A documented column the table doesn't have** — a typo, a renamed column, or a description that outlived the model. dbt says nothing about these, and the description silently applies to nothing.
+  - **The same column documented twice** — invisible everywhere else, because dbt reads the columns into a mapping keyed by name: the second entry wins and the first description is dropped without a word.
+  - Column names are compared case-insensitively, since warehouses report their own case (Snowflake upper, others lower) while a `.yml` is written however the author types.
+  - The first check reads `catalog.json` and is therefore silent until `dbt docs generate` has run, and silent on models never built — the manifest is deliberately not used as a fallback, since its `columns` are the very ones the file under inspection declares. The duplicate check needs no catalog: the mistake is inside the file.
+  - **`dbtForge.flagUndocumentedColumns`** (off by default) adds the opposite direction: one warning per entity naming the real columns the file leaves out. Off by default because documenting only the columns that need explaining is a legitimate house style, and the other reading turns a 60-column model into 55 warnings.
+  - Not included: duplicate output columns in a model's SQL, also asked for on the issue. Nothing about that needs to know your dbt project — it is true of any SQL file — so it belongs to a SQL linter.
+
 - **Lineage nodes show their target lag and their column count** ([#5](https://github.com/Y0hannH/dbtforge/issues/5)). The row above each node's name, which already carried the resource type and the materialization, now also carries what else the project can answer for itself:
   - **`target_lag`**, in parentheses after the materialization: `model · dynamic_table (3 minutes)`. Adapter-specific and shown verbatim, `downstream` included — Snowflake resolves an inherited lag at runtime, dbt records only the word, and walking the DAG to compute the inherited value would be this extension inventing a number no file states.
   - **The column count**, read from `catalog.json`: `model · table · 42 cols`. The manifest is deliberately not used for this — it only holds the columns someone documented in a `.yml`, so counting those would report 4 on a 60-column model.
   - Both are silent when unknown. A project with no dynamic tables, or one that has never run `dbt docs generate`, sees exactly the row it saw before. There is no `0 cols` and no "unknown" placeholder: an absent count means the catalog cannot say, not that the model has no columns.
   - The meta row is ellipsized at the node's width ceiling like the name already was, and now carries the same hover tooltip, so nothing becomes unreadable on a long materialization name.
+
+### Changed
+- **The panel holds two named tabs instead of one** ([#24](https://github.com/Y0hannH/dbtforge/issues/24)). The bottom panel used to carry a single **dbt Forge** tab holding both views, so dragging the lineage out gave you a second tab called *dbt Forge* too — two tabs, one name, no way to tell them apart. There are now two: **dbt Forge Preview** and **dbt Forge Lineage**, each holding its own view. Nothing about either view changes, and the `dbtForge.lineageLocation` setting works exactly as before.
+  - VS Code remembers panel layout per container, so the Lineage arrives in its default spot the first time after updating, wherever you had dragged the old shared tab.
 
 ## [0.14.0] - 2026-09-04
 

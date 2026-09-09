@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 import { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
+import { reconcileColumns } from '../yaml/columnReconciliation';
+import { DocumentedEntity, parseSchemaEntities } from '../yaml/schemaColumns';
 
 const VALIDATE_DEBOUNCE_MS = 400;
 
@@ -27,6 +29,10 @@ function validatableKind(uri: vscode.Uri): ValidatableKind | undefined {
  * is_incremental(), a plain SQL function...) — flagging those would produce too many false
  * positives. A model/source not resolving can also mean "just added, not yet compiled", not
  * necessarily a real error, hence Warning rather than Error severity.
+ *
+ * Schema .yml files are checked for a second thing: the columns they document against the columns
+ * the warehouse reports. That half is the only part of this controller that reads catalog.json,
+ * and it is silent whenever the catalog cannot answer — see columnDiagnostics.
  */
 export class DbtDiagnosticsController implements vscode.Disposable {
   private readonly collection = vscode.languages.createDiagnosticCollection('dbtForge');
@@ -87,7 +93,60 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       }
     }
 
+    if (kind === 'yaml') diagnostics.push(...this.columnDiagnostics(document, index));
+
     this.collection.set(document.uri, diagnostics);
+  }
+
+  /**
+   * Warnings about the columns a schema .yml documents: one that the table doesn't have, one
+   * documented twice, and — only when asked for — the real columns the file leaves out.
+   *
+   * Everything here needs catalog.json, which exists only after `dbt docs generate` and only for
+   * entities that have been built. Absent, this says nothing at all rather than falling back to
+   * the manifest's `columns`, which holds what this very file documents and would agree with
+   * itself every time.
+   */
+  private columnDiagnostics(
+    document: vscode.TextDocument,
+    index: DbtProjectIndex
+  ): vscode.Diagnostic[] {
+    const entities = parseSchemaEntities(document.getText());
+    if (entities.length === 0) return [];
+
+    const flagUndocumented = vscode.workspace
+      .getConfiguration('dbtForge', document.uri)
+      .get<boolean>('flagUndocumentedColumns', false);
+
+    const findings = reconcileColumns(
+      entities,
+      (entity) => this.catalogColumnNames(index, entity),
+      { flagUndocumented }
+    );
+
+    return findings.map((finding) => {
+      const range = new vscode.Range(
+        document.positionAt(finding.offset),
+        document.positionAt(finding.offset + finding.length)
+      );
+      const diagnostic = new vscode.Diagnostic(range, finding.message, vscode.DiagnosticSeverity.Warning);
+      diagnostic.source = 'dbt Forge';
+      return diagnostic;
+    });
+  }
+
+  /** The entity's real columns, or undefined when neither the manifest nor the catalog can say. */
+  private catalogColumnNames(
+    index: DbtProjectIndex,
+    entity: DocumentedEntity
+  ): string[] | undefined {
+    const uniqueId =
+      entity.kind === 'source'
+        ? index.resolveSource(entity.sourceName ?? '', entity.name)?.uniqueId
+        : index.resolveRef(entity.name)?.uniqueId;
+    if (!uniqueId) return undefined;
+
+    return index.getCatalogColumns(uniqueId)?.map((column) => column.name);
   }
 
   /** Debounced re-validation while typing, so a call mid-edit doesn't flash a warning. */

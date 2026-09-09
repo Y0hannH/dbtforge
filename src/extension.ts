@@ -77,6 +77,17 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   await setupWorkspaceFolders(context, output, onIndexChanged);
 
+  // The only setting worth watching here: it decides what the .yml column diagnostics say, and a
+  // user who turns it on is looking at the file while doing so. Everything else in dbtForge.* is
+  // read at call time or would need a re-index, which is a window reload's job, not a listener's.
+  context.subscriptions.push(
+    vscode.workspace.onDidChangeConfiguration((event) => {
+      if (event.affectsConfiguration('dbtForge.flagUndocumentedColumns')) {
+        diagnostics.revalidateOpenDocuments();
+      }
+    })
+  );
+
   const profileStore = new ProfileStore(context.workspaceState);
   const profileStatusBar = new ProfileStatusBar(profileStore, activeProjectConfig);
   context.subscriptions.push(profileStore, profileStatusBar);

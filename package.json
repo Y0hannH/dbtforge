@@ -83,6 +83,12 @@
           "scope": "resource",
           "description": "Rows a data preview asks dbt for (passed to 'dbt show --limit'). Use -1 for every row. A preview runs a real query against the warehouse you are pointed at."
         },
+        "dbtForge.flagUndocumentedColumns": {
+          "type": "boolean",
+          "default": false,
+          "scope": "resource",
+          "description": "Warn in a schema .yml when the table has columns the file does not document. Off by default: documenting only the columns that need explaining is a legitimate house style. Requires catalog.json (dbt docs generate)."
+        },
         "dbtForge.lineageLocation": {
           "type": "string",
           "enum": [

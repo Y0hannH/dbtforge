@@ -27,6 +27,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 🔍 | **Find All References** | Shift+F12 (or right-click) on a model, source, or macro to list every call site across the project |
 | 💬 | **Hover documentation** | Hover a `ref()`/`source()`/macro call to see its description (and a macro's argument signature) straight from the manifest |
 | ⚠️ | **Broken ref()/source() diagnostics** | Warns in the Problems panel (and inline) when a `ref()`/`source()` call doesn't resolve against the manifest — e.g. a typo or a renamed/deleted model |
+| 🧾 | **Column reconciliation** | Warns in a schema `.yml` when a documented column doesn't exist in the table, and when the same column is documented twice — the second one silently overwrites the first in dbt. Reads `catalog.json`, so it stays quiet until `dbt docs generate` has run |
 | 🔤 | **Column autocomplete** | Suggests column names after `alias.`, resolved from `catalog.json` (**requires `dbt docs generate`** — see below) and from same-file CTEs — and unqualified, with no alias to type, in a model that reads a single table |
 | 🌳 | **Parents / Children / Tests panel** | Sidebar view of the current model's direct dependencies and dependents, from the manifest's dependency graph |
 | 🕸️ | **Interactive lineage graph** | Click-to-expand upstream/downstream graph (React Flow) — starts at the current model, seed or snapshot, no giant unreadable diagram dumped on you. Each node shows its materialization, its `target_lag` if it is a dynamic table, its column count once `catalog.json` exists, and wears the `node_color` your project declares |
@@ -193,6 +194,7 @@ The same actions are also under the **dbt Forge** icon in the editor's title bar
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
 | `dbtForge.previewRowLimit` | `100` | Rows a data preview asks dbt for (`dbt show --limit`). `-1` fetches every row |
+| `dbtForge.flagUndocumentedColumns` | `false` | Also warn when the table has columns the `.yml` doesn't document. Off by default — documenting only the columns that need explaining is a legitimate house style |
 | `dbtForge.lineageLocation` | `editor` | Where the lineage graph opens: `editor` (a tab beside the model) or `panel` (its own **dbt Forge Lineage** tab in the bottom panel, beside **dbt Forge Preview** and Terminal) |
 
 ---
@@ -243,7 +245,6 @@ Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Da
 Lineage scope controls (depth up and down, hide tests, exclude materializations), doc block autocomplete / Go to Definition / diagnostics, lineage in the bottom panel, and build actions in the editor title bar with keyboard shortcuts.
 
 ### 🔲 Next
-- Model/YAML column reconciliation, from `catalog.json`
 - Multi-project workspace polish (multiple dbt projects in one workspace)
 
 ---
