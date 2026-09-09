@@ -25,9 +25,12 @@ function makeNode(uniqueId: string, name: string): DbtNode {
 // and two children (c, d); a itself has a further parent (z), two hops from root.
 const nodes: Record<string, DbtNode> = {
   'model.pkg.z': makeNode('model.pkg.z', 'z'),
-  'model.pkg.a': makeNode('model.pkg.a', 'a'),
+  'model.pkg.a': { ...makeNode('model.pkg.a', 'a'), config: { materialized: 'view' } },
   'model.pkg.b': makeNode('model.pkg.b', 'b'),
-  'model.pkg.c': makeNode('model.pkg.c', 'c'),
+  'model.pkg.c': {
+    ...makeNode('model.pkg.c', 'c'),
+    config: { materialized: 'dynamic_table', target_lag: '3 minutes' },
+  },
   'model.pkg.d': makeNode('model.pkg.d', 'd'),
 };
 
@@ -48,9 +51,19 @@ const fakeGraph: DependencyGraph = {
   getMacroCallers: () => [],
 };
 
+// Only c has been built, so it is the only node the catalog can count columns for; every other
+// node stands for the common case of a catalog that has nothing to say about it.
+const catalogColumns: Record<string, Array<{ name: string; type: string; index: number }>> = {
+  'model.pkg.c': [
+    { name: 'id', type: 'number', index: 0 },
+    { name: 'created_at', type: 'timestamp', index: 1 },
+  ],
+};
+
 const fakeIndex = {
   getGraph: () => fakeGraph,
   getNode: (id: string) => nodes[id],
+  getCatalogColumns: (id: string) => catalogColumns[id],
 } as unknown as DbtProjectIndex;
 
 test('buildInitialSubgraph: includes root, direct parents and direct children only', () => {
@@ -81,6 +94,7 @@ test('buildInitialSubgraph: carries the materialization and colour the project d
   const index = {
     getGraph: () => fakeGraph,
     getNode: (id: string) => decorated[id],
+    getCatalogColumns: () => undefined,
   } as unknown as DbtProjectIndex;
 
   const root = buildInitialSubgraph(index, 'model.pkg.b').nodes.find((n) => n.id === 'model.pkg.b');
@@ -163,6 +177,7 @@ const scopedIndex = {
     getMacroCallers: () => [],
   }),
   getNode: (id: string) => scopedNodes[id],
+  getCatalogColumns: () => undefined,
 } as unknown as DbtProjectIndex;
 
 const scope = (overrides: Partial<LineageScope> = {}): LineageScope => ({
@@ -269,4 +284,15 @@ test('expandNode: honours the scope it is given rather than the raw child list',
   const withoutTests = expandNode(scopedIndex, 'model.pkg.b', 'down', scope());
   assert.equal(idsOf(withTests).includes('test.pkg.t'), true);
   assert.equal(idsOf(withoutTests).includes('test.pkg.t'), false);
+});
+
+test('buildInitialSubgraph: the meta row carries what the manifest and catalog know', () => {
+  const { nodes: resultNodes } = buildInitialSubgraph(fakeIndex, 'model.pkg.b');
+  // c is a dynamic table, built and in the catalog: everything shows.
+  assert.equal(
+    resultNodes.find((n) => n.id === 'model.pkg.c')?.metaLabel,
+    'model · dynamic_table (3 minutes) · 2 cols'
+  );
+  // a materializes as a view and is not in the catalog: no count invented for it.
+  assert.equal(resultNodes.find((n) => n.id === 'model.pkg.a')?.metaLabel, 'model · view');
 });

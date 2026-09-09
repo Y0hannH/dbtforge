@@ -7,7 +7,8 @@ export interface LineageNode {
   id: string;
   name: string;
   resourceType: string;
-  /** Resource type and materialization, already formatted for the row above the name. */
+  /** Resource type, materialization, target lag and column count — formatted for the row above
+   * the name; see nodeDisplay for what is included and when. */
   metaLabel: string;
   /** The project's own `node_color`, validated — see nodeDisplay. */
   color?: string;
@@ -60,7 +61,15 @@ function toLineageNode(
     id,
     name: node.name,
     resourceType: node.resource_type,
-    metaLabel: nodeMetaLabel(node.resource_type, node.config?.materialized),
+    metaLabel: nodeMetaLabel(node.resource_type, {
+      materialization: node.config?.materialized,
+      targetLag: node.config?.target_lag,
+      // The catalog, not the manifest: the manifest only carries the columns someone documented
+      // in a .yml, so counting those would confidently report 4 on a 60-column model. Absent
+      // until `dbt docs generate` has run, and absent for anything never built — in both cases
+      // the label simply says nothing rather than guessing a number.
+      columnCount: index.getCatalogColumns(id)?.length,
+    }),
     color: readNodeColor(node),
     isRoot,
     // Counted after filtering, because the count is a promise: the expand button says how many

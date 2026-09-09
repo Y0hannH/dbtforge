@@ -71,7 +71,11 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
         </button>
       )}
       <Handle type="target" position={Position.Left} />
-      <span className="lineage-node-type">{data.metaLabel}</span>
+      {/* Clipped by the width ceiling once it carries a lag and a column count, so — like the
+          name below it — the full text has to stay reachable on hover. */}
+      <span className="lineage-node-type" title={data.metaLabel}>
+        {data.metaLabel}
+      </span>
       {/* A name past MAX_NODE_WIDTH is ellipsized, so it has to stay readable on hover. */}
       <span className="lineage-node-name" title={data.name}>
         {data.name}
