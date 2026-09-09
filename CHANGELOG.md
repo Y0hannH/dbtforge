@@ -4,6 +4,10 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ## [Unreleased]
 
+### Changed
+- **The panel holds two named tabs instead of one** ([#24](https://github.com/Y0hannH/dbtforge/issues/24)). The bottom panel used to carry a single **dbt Forge** tab holding both views, so dragging the lineage out gave you a second tab called *dbt Forge* too — two tabs, one name, no way to tell them apart. There are now two: **dbt Forge Preview** and **dbt Forge Lineage**, each holding its own view. Nothing about either view changes, and the `dbtForge.lineageLocation` setting works exactly as before.
+  - VS Code remembers panel layout per container, so the Lineage arrives in its default spot the first time after updating, wherever you had dragged the old shared tab.
+
 ### Added
 - **Lineage nodes show their target lag and their column count** ([#5](https://github.com/Y0hannH/dbtforge/issues/5)). The row above each node's name, which already carried the resource type and the materialization, now also carries what else the project can answer for itself:
   - **`target_lag`**, in parentheses after the materialization: `model · dynamic_table (3 minutes)`. Adapter-specific and shown verbatim, `downstream` included — Snowflake resolves an inherited lag at runtime, dbt records only the word, and walking the DAG to compute the inherited value would be this extension inventing a number no file states.

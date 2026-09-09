@@ -91,7 +91,7 @@
           ],
           "enumDescriptions": [
             "Open the lineage graph as an editor tab, beside the model.",
-            "Open the lineage graph in the bottom panel, as a tab beside Data Preview and Terminal."
+            "Open the lineage graph in the bottom panel, in its own dbt Forge Lineage tab beside Data Preview and Terminal."
           ],
           "default": "editor",
           "scope": "resource",
@@ -425,13 +425,15 @@
           "id": "dbtForge.preview",
           "name": "Data Preview",
           "type": "webview",
-          "contextualTitle": "dbt Forge"
-        },
+          "contextualTitle": "dbt Forge Preview"
+        }
+      ],
+      "dbtForgeLineage": [
         {
           "id": "dbtForge.lineage",
           "name": "Lineage",
           "type": "webview",
-          "contextualTitle": "dbt Forge"
+          "contextualTitle": "dbt Forge Lineage"
         }
       ]
     },
@@ -446,7 +448,12 @@
       "panel": [
         {
           "id": "dbtForgePreview",
-          "title": "dbt Forge",
+          "title": "dbt Forge Preview",
+          "icon": "resources/icon.svg"
+        },
+        {
+          "id": "dbtForgeLineage",
+          "title": "dbt Forge Lineage",
           "icon": "resources/icon.svg"
         }
       ]
