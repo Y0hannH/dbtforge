@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.15.0] - 2026-09-09
 
 ### Added
 - **A schema `.yml` is checked against the columns the table really has** ([#13](https://github.com/Y0hannH/dbtforge/issues/13)). Two warnings in the Problems panel, on the offending line of the `.yml`:
