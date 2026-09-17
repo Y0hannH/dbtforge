@@ -4,13 +4,18 @@ A VS Code extension for dbt projects. Reads `manifest.json` / `catalog.json` / c
 produced by the user's own dbt, and runs dbt through the project's own venv. Nothing leaves the
 machine — no backend, no telemetry, no CDN.
 
+Part of the Pulse Suite. Build layout, tsconfig and ESLint config are shared across all four
+extensions — see `HARMONISATION.md` in the parent folder before changing any of them.
+
 ## Commands
 
 ```bash
 npm run compile     # esbuild: dist/extension.js + dist/webview/lineage.js
+npm run watch       # esbuild in watch mode
+npm run typecheck   # tsc --noEmit (tsc never emits here; esbuild does)
 npm test            # unit suite (parsers + indexing, no VS Code host needed)
 npm run lint
-npx vsce package    # installable .vsix
+npm run vsix        # installable .vsix
 ```
 
 `F5` in VS Code launches an Extension Development Host with the extension loaded.

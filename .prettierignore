@@ -1,0 +1,20 @@
+# Sorties de build et dépendances
+dist/
+out/
+node_modules/
+*.vsix
+
+# Verrous et données générées
+package-lock.json
+
+# Documentation : prose et tableaux mis en forme à la main
+*.md
+
+# Assets de webview écrits à la main (CSS aligné en colonnes, gabarits HTML à
+# placeholders) — le script `format` ne les vise pas non plus.
+src/webview/*.css
+src/webview/*.html
+src/webview/*.js
+media/
+provisioning/
+resources/

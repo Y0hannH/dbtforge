@@ -1,16 +1,29 @@
+# Sources (bundled by esbuild into dist/)
+src/**
+test/**
+
+# Stale output from the pre-phase-1 layout — never ship it
+out/**
+
+# Config & dev files
 .vscode/**
 .claude/**
 .gitignore
-src/**
-test/**
-out/**
-esbuild.js
 tsconfig.json
+esbuild.js
+eslint.config.js
 **/.eslintrc*
-**/*.map
-node_modules/**
-resources/marketplace-icon.svg
-*.vsix
 CLAUDE.md
 CLAUDE.local.md
 carte-extension.html
+
+# Dependencies (bundled by esbuild)
+node_modules/**
+
+# Maps (not needed in production)
+**/*.map
+
+# Misc
+resources/marketplace-icon.svg
+**/.DS_Store
+*.vsix

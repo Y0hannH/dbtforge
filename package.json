@@ -508,9 +508,13 @@
     "compile": "node esbuild.js",
     "watch": "node esbuild.js --watch",
     "package": "node esbuild.js --production",
-    "pretest": "npm run compile && tsc -p . --noEmit",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write --no-error-on-unmatched-pattern \"src/**/*.{ts,tsx}\" \"test/**/*.ts\" \"*.js\"",
+    "format:check": "prettier --check --no-error-on-unmatched-pattern \"src/**/*.{ts,tsx}\" \"test/**/*.ts\" \"*.js\"",
+    "pretest": "npm run compile && npm run typecheck",
     "test": "node --test --import tsx test/suite/*.test.ts",
-    "lint": "eslint src test"
+    "vsix": "vsce package --no-dependencies"
   },
   "devDependencies": {
     "@types/dagre": "^0.7.54",
@@ -518,8 +522,12 @@
     "@types/react": "^18.3.31",
     "@types/react-dom": "^18.3.7",
     "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.20.0",
+    "eslint": "^10.0.3",
+    "prettier": "^3.9.7",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
   },

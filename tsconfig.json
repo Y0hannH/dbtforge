@@ -1,16 +1,19 @@
 {
+  // Base commune à toutes les extensions Pulse Suite — garder ce fichier identique d'un repo à
+  // l'autre. tsc ne sert qu'au typecheck (`npm run typecheck`) : c'est esbuild qui émet le bundle,
+  // d'où le noEmit. Voir HARMONISATION.md, phase 1.
+  // Spécifique à dbt Forge : DOM + jsx, pour la webview lineage écrite en React/TSX.
   "compilerOptions": {
-    "module": "commonjs",
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
-    "outDir": "out",
-    "rootDir": ".",
+    "module": "commonjs",
+    "moduleResolution": "node",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "sourceMap": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
     "jsx": "react-jsx"
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "test/**/*.ts"],
