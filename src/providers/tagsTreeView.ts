@@ -14,7 +14,7 @@ export class TagItem extends vscode.TreeItem {
     public readonly tag: string,
     public readonly uniqueIds: string[],
     modelCount: number,
-    public readonly index: DbtProjectIndex
+    public readonly index: DbtProjectIndex,
   ) {
     super(tag, vscode.TreeItemCollapsibleState.Collapsed);
     // Resources carrying a tag aren't only models — tests and sources can be tagged too, and
@@ -70,9 +70,7 @@ export class TagsTreeProvider implements vscode.TreeDataProvider<TreeElement> {
     if (!index) return [];
 
     if (!element) {
-      return index
-        .getAllTags()
-        .map((t) => new TagItem(t.tag, t.uniqueIds, t.modelCount, index));
+      return index.getAllTags().map((t) => new TagItem(t.tag, t.uniqueIds, t.modelCount, index));
     }
 
     if (element instanceof TagItem) {

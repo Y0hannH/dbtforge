@@ -74,7 +74,10 @@ test('sanitizeScope: keeps a well-formed scope as it is', () => {
 });
 
 test('sanitizeScope: rejects depths that are not whole numbers ≥ 0', () => {
-  const result = sanitizeScope({ upstreamDepth: -5, downstreamDepth: 1.5 } as Partial<LineageScope>);
+  const result = sanitizeScope({
+    upstreamDepth: -5,
+    downstreamDepth: 1.5,
+  } as Partial<LineageScope>);
   assert.equal(result.upstreamDepth, DEFAULT_SCOPE.upstreamDepth);
   assert.equal(result.downstreamDepth, DEFAULT_SCOPE.downstreamDepth);
 });

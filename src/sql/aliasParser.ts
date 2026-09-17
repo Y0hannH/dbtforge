@@ -4,8 +4,7 @@
 // ref()/source() calls.
 
 export type SourceRef =
-  | { kind: 'ref'; modelName: string }
-  | { kind: 'source'; sourceName: string; tableName: string };
+  { kind: 'ref'; modelName: string } | { kind: 'source'; sourceName: string; tableName: string };
 
 /** A table reference that carries an alias, which is what `alias.` completion resolves against. */
 export type AliasSource = SourceRef & { alias: string };
@@ -24,12 +23,47 @@ const SOURCE_TABLE_RE =
 // which invents an alias nobody typed, and hides the one fact the unaliased completion path
 // depends on: that this model has none.
 const NOT_AN_ALIAS = new Set([
-  'where', 'group', 'order', 'having', 'limit', 'offset', 'fetch', 'qualify', 'window',
-  'union', 'intersect', 'except', 'minus',
-  'join', 'inner', 'left', 'right', 'full', 'outer', 'cross', 'natural', 'lateral', 'straight_join',
-  'on', 'using', 'as', 'select', 'from', 'with', 'when',
-  'pivot', 'unpivot', 'tablesample', 'sample', 'partition', 'settings', 'prewhere',
-  'cluster', 'distribute', 'sort', 'for',
+  'where',
+  'group',
+  'order',
+  'having',
+  'limit',
+  'offset',
+  'fetch',
+  'qualify',
+  'window',
+  'union',
+  'intersect',
+  'except',
+  'minus',
+  'join',
+  'inner',
+  'left',
+  'right',
+  'full',
+  'outer',
+  'cross',
+  'natural',
+  'lateral',
+  'straight_join',
+  'on',
+  'using',
+  'as',
+  'select',
+  'from',
+  'with',
+  'when',
+  'pivot',
+  'unpivot',
+  'tablesample',
+  'sample',
+  'partition',
+  'settings',
+  'prewhere',
+  'cluster',
+  'distribute',
+  'sort',
+  'for',
 ]);
 
 function aliasOf(candidate: string | undefined): string | undefined {
@@ -68,6 +102,6 @@ export function parseTableReferences(documentText: string): TableReference[] {
 /** The subset that named an alias — `FROM {{ ref('X') }} x` and friends. */
 export function parseAliases(documentText: string): AliasSource[] {
   return parseTableReferences(documentText).filter(
-    (reference): reference is AliasSource => reference.alias !== undefined
+    (reference): reference is AliasSource => reference.alias !== undefined,
   );
 }

@@ -14,7 +14,7 @@ export class ProfileStatusBar implements vscode.Disposable {
   constructor(
     private readonly store: ProfileStore,
     /** The project the status bar speaks for: the active editor's, or the only one indexed. */
-    private readonly getActiveConfig: () => DbtForgeConfig | undefined
+    private readonly getActiveConfig: () => DbtForgeConfig | undefined,
   ) {
     // Just left of the git branch indicator, which is the sibling piece of "where am I" context.
     this.item = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -22,7 +22,7 @@ export class ProfileStatusBar implements vscode.Disposable {
     this.disposables.push(
       this.item,
       store.onDidChange(() => this.refresh()),
-      vscode.window.onDidChangeActiveTextEditor(() => this.refresh())
+      vscode.window.onDidChangeActiveTextEditor(() => this.refresh()),
     );
     this.refresh();
   }

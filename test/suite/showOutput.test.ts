@@ -71,7 +71,10 @@ test('parseShowOutput: a zero-row result has no columns to show', () => {
 });
 
 test('parseShowOutput: output with no JSON at all is rejected', () => {
-  assert.throws(() => parseShowOutput('Database Error in model m\n  syntax error'), ShowOutputError);
+  assert.throws(
+    () => parseShowOutput('Database Error in model m\n  syntax error'),
+    ShowOutputError,
+  );
 });
 
 test('parseShowOutput: truncated JSON is rejected rather than half-read', () => {
@@ -79,12 +82,18 @@ test('parseShowOutput: truncated JSON is rejected rather than half-read', () => 
 });
 
 test('extractDbtError: prefers stderr, where a broken venv reports itself', () => {
-  const message = extractDbtError('some stdout', 'ModuleNotFoundError: No module named "dbt.adapters"');
+  const message = extractDbtError(
+    'some stdout',
+    'ModuleNotFoundError: No module named "dbt.adapters"',
+  );
   assert.ok(message.includes('ModuleNotFoundError'));
 });
 
 test('extractDbtError: falls back to the tail of stdout', () => {
-  const message = extractDbtError('compiling...\n\nDatabase Error in model m\n  invalid column\n', '');
+  const message = extractDbtError(
+    'compiling...\n\nDatabase Error in model m\n  invalid column\n',
+    '',
+  );
   assert.ok(message.includes('Database Error in model m'));
   assert.ok(message.includes('invalid column'));
 });

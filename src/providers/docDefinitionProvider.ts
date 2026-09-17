@@ -14,7 +14,7 @@ export class DocDefinitionProvider implements vscode.DefinitionProvider {
 
   async provideDefinition(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): Promise<vscode.Location | undefined> {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;

@@ -28,7 +28,7 @@ test('execDbt: a successful run reports code 0 and its stdout', async () => {
 
 test('execDbt: a non-zero exit keeps both streams instead of discarding them', async () => {
   const result = await runScript(
-    'console.log("compiling"); console.error("Database Error"); process.exit(2)'
+    'console.log("compiling"); console.error("Database Error"); process.exit(2)',
   );
 
   assert.equal(result.code, 2);

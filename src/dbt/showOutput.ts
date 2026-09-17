@@ -75,7 +75,8 @@ function collectColumns(rows: unknown[]): string[] {
 function normalizeCell(value: unknown): PreviewCell {
   if (value === undefined || value === null) return null;
   if (typeof value === 'object') return JSON.stringify(value);
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean')
+    return value;
   return String(value);
 }
 

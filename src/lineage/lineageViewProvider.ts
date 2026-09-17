@@ -68,7 +68,11 @@ export class LineageViewProvider implements vscode.WebviewViewProvider, vscode.D
       return;
     }
 
-    view.webview.html = renderLineageHtml(view.webview, this.extensionUri, this.session.bootstrap());
+    view.webview.html = renderLineageHtml(
+      view.webview,
+      this.extensionUri,
+      this.session.bootstrap(),
+    );
     this.attached = this.session.attach(view.webview);
   }
 

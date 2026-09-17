@@ -8,11 +8,11 @@ import * as vscode from 'vscode';
 export function watchFile(
   absolutePath: string,
   onChange: () => void,
-  debounceMs = 300
+  debounceMs = 300,
 ): vscode.Disposable {
   const pattern = new vscode.RelativePattern(
     vscode.Uri.file(path.dirname(absolutePath)),
-    path.basename(absolutePath)
+    path.basename(absolutePath),
   );
   const watcher = vscode.workspace.createFileSystemWatcher(pattern);
 

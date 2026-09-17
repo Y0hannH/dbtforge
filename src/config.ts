@@ -25,7 +25,7 @@ const NESTED_PROJECT_SEARCH_EXCLUDE = '**/{node_modules,target,dbt_packages,.ven
  */
 export async function resolveConfig(
   workspaceFolder: vscode.WorkspaceFolder,
-  output: vscode.OutputChannel
+  output: vscode.OutputChannel,
 ): Promise<DbtForgeConfig | undefined> {
   const projectDir = await resolveProjectDir(workspaceFolder, output);
   if (!projectDir) return undefined;
@@ -54,7 +54,7 @@ export async function resolveConfig(
 
 async function resolveProjectDir(
   workspaceFolder: vscode.WorkspaceFolder,
-  output: vscode.OutputChannel
+  output: vscode.OutputChannel,
 ): Promise<string | undefined> {
   const configured = vscode.workspace
     .getConfiguration('dbtForge', workspaceFolder.uri)
@@ -68,20 +68,20 @@ async function resolveProjectDir(
   const rootMatch = await vscode.workspace.findFiles(
     new vscode.RelativePattern(workspaceFolder, 'dbt_project.yml'),
     null,
-    1
+    1,
   );
   if (rootMatch.length > 0) return workspaceFolder.uri.fsPath;
 
   const nestedMatches = await vscode.workspace.findFiles(
     new vscode.RelativePattern(workspaceFolder, '**/dbt_project.yml'),
     NESTED_PROJECT_SEARCH_EXCLUDE,
-    5
+    5,
   );
   if (nestedMatches.length === 0) return undefined;
   if (nestedMatches.length > 1) {
     output.appendLine(
       `dbt Forge: found multiple dbt_project.yml under ${workspaceFolder.uri.fsPath}; using ` +
-        `${nestedMatches[0].fsPath}. Set "dbtForge.projectDir" to pick a specific one.`
+        `${nestedMatches[0].fsPath}. Set "dbtForge.projectDir" to pick a specific one.`,
     );
   }
   return path.dirname(nestedMatches[0].fsPath);

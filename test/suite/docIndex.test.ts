@@ -40,14 +40,17 @@ test('buildDocIndex: the root project wins a name collision with a package', () 
   // Manifest order deliberately puts the package first, so a naive last-write-wins map would
   // resolve to the wrong block.
   const index = buildDocIndex(
-    makeManifest([makeDoc('dbt_utils', 'shared', 'from the package'), makeDoc('my_project', 'shared', 'mine')])
+    makeManifest([
+      makeDoc('dbt_utils', 'shared', 'from the package'),
+      makeDoc('my_project', 'shared', 'mine'),
+    ]),
   );
   assert.equal(index.resolve('shared')?.packageName, 'my_project');
 });
 
 test('buildDocIndex: a namespaced call resolves exactly, with no fallback', () => {
   const index = buildDocIndex(
-    makeManifest([makeDoc('my_project', 'shared'), makeDoc('dbt_utils', 'shared')])
+    makeManifest([makeDoc('my_project', 'shared'), makeDoc('dbt_utils', 'shared')]),
   );
   assert.equal(index.resolve('shared', 'dbt_utils')?.packageName, 'dbt_utils');
   // Naming a package that doesn't declare the block must not silently fall back to another one.
@@ -60,11 +63,11 @@ test('buildDocIndex: all() lists the project blocks first, then packages, each a
       makeDoc('dbt_utils', 'a_package_block'),
       makeDoc('my_project', 'zebra'),
       makeDoc('my_project', 'apple'),
-    ])
+    ]),
   );
   assert.deepEqual(
     index.all().map((block) => block.name),
-    ['apple', 'zebra', 'a_package_block']
+    ['apple', 'zebra', 'a_package_block'],
   );
 });
 

@@ -7,7 +7,7 @@ type TreeElement = CategoryItem | NodeItem;
 class CategoryItem extends vscode.TreeItem {
   constructor(
     public readonly label: string,
-    public readonly nodeIds: string[]
+    public readonly nodeIds: string[],
   ) {
     super(label, vscode.TreeItemCollapsibleState.Expanded);
     this.contextValue = 'dbtForge.category';
@@ -15,7 +15,10 @@ class CategoryItem extends vscode.TreeItem {
 }
 
 class NodeItem extends vscode.TreeItem {
-  constructor(public readonly node: DbtNode, uri: vscode.Uri) {
+  constructor(
+    public readonly node: DbtNode,
+    uri: vscode.Uri,
+  ) {
     super(node.name, vscode.TreeItemCollapsibleState.None);
     this.description = node.resource_type === 'model' ? node.package_name : node.resource_type;
     this.iconPath = new vscode.ThemeIcon(node.resource_type === 'test' ? 'beaker' : 'symbol-file');
@@ -73,7 +76,7 @@ export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElemen
         new CategoryItem('Children', graph.getChildren(node.unique_id)),
         new CategoryItem(
           'Tests',
-          graph.getTests(node.unique_id).map((t) => t.unique_id)
+          graph.getTests(node.unique_id).map((t) => t.unique_id),
         ),
       ];
     }

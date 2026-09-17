@@ -20,7 +20,7 @@ function macro(packageName: string, originalFilePath: string): DbtMacroNode {
 test('resolveEntityPath: root-project entity resolves under the project dir', () => {
   assert.equal(
     resolveEntityPath(PROJECT_DIR, 'analytics', macro('analytics', 'macros/m.sql')),
-    path.join(PROJECT_DIR, 'macros', 'm.sql')
+    path.join(PROJECT_DIR, 'macros', 'm.sql'),
   );
 });
 
@@ -29,7 +29,7 @@ test('resolveEntityPath: package entity resolves under dbt_packages/<package>', 
   // against the project dir is what produced paths that don't exist.
   assert.equal(
     resolveEntityPath(PROJECT_DIR, 'analytics', macro('dbt_utils', 'macros/sql/star.sql')),
-    path.join(PROJECT_DIR, 'dbt_packages', 'dbt_utils', 'macros', 'sql', 'star.sql')
+    path.join(PROJECT_DIR, 'dbt_packages', 'dbt_utils', 'macros', 'sql', 'star.sql'),
   );
 });
 

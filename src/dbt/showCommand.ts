@@ -67,7 +67,7 @@ const COMMAND_LINE_HEADROOM = 768; // quoting and inter-argument spaces the call
 export function checkCommandLineLength(
   executable: string,
   args: string[],
-  platform: NodeJS.Platform = process.platform
+  platform: NodeJS.Platform = process.platform,
 ): string | undefined {
   if (platform !== 'win32') return undefined;
 

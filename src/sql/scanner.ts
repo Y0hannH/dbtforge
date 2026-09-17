@@ -90,7 +90,7 @@ export function findTopLevelKeyword(
   text: string,
   word: string,
   fromIndex: number,
-  toIndex: number = text.length
+  toIndex: number = text.length,
 ): number {
   let depth = 0;
   let i = fromIndex;

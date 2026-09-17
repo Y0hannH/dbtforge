@@ -54,7 +54,11 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
       className={`lineage-node${data.isRoot ? ' is-root' : ''}`}
       // The project's node_color paints a stripe rather than the border: the border already
       // carries the root highlight, and overriding it would make the two indistinguishable.
-      style={{ width: data.width, borderLeftColor: data.color, borderLeftWidth: data.color ? 5 : undefined }}
+      style={{
+        width: data.width,
+        borderLeftColor: data.color,
+        borderLeftWidth: data.color ? 5 : undefined,
+      }}
       onClick={() => data.onOpen(id)}
     >
       {showUpButton && (
@@ -253,7 +257,7 @@ function layoutGraph(
   expandedDown: Set<string>,
   pending: Set<string>,
   onExpand: (nodeId: string, direction: ExpandDirection) => void,
-  onOpen: (nodeId: string) => void
+  onOpen: (nodeId: string) => void,
 ): { nodes: Node<LineageNodeViewData>[]; edges: Edge[] } {
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: 'LR', nodesep: 32, ranksep: 90 });
@@ -263,7 +267,7 @@ function layoutGraph(
   // while the box itself grew to fit its text, so a long-named model overflowed the slot dagre
   // had reserved and landed on top of the next rank.
   const widths = new Map(
-    [...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name, n.metaLabel)])
+    [...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name, n.metaLabel)]),
   );
 
   for (const id of rawNodes.keys()) g.setNode(id, { width: widths.get(id), height: NODE_HEIGHT });
@@ -292,7 +296,10 @@ function layoutGraph(
       id: n.id,
       type: 'lineageNode',
       // dagre reports a node's centre; React Flow positions by its top-left corner.
-      position: { x: rankLeft.get(Math.round(pos.x)) ?? pos.x - width / 2, y: pos.y - NODE_HEIGHT / 2 },
+      position: {
+        x: rankLeft.get(Math.round(pos.x)) ?? pos.x - width / 2,
+        y: pos.y - NODE_HEIGHT / 2,
+      },
       data: {
         ...n,
         width,
@@ -328,7 +335,7 @@ function Flow({ nodes, edges }: { nodes: Node<LineageNodeViewData>[]; edges: Edg
       root: readThemeColor('--vscode-focusBorder', '#007acc'),
       mask: withAlpha(readThemeColor('--vscode-editor-background', '#1f1f1f'), 0.62),
     }),
-    [themeRevision]
+    [themeRevision],
   );
 
   useEffect(() => {
@@ -370,7 +377,12 @@ function Flow({ nodes, edges }: { nodes: Node<LineageNodeViewData>[]; edges: Edg
 const EMPTY_BOOTSTRAP: LineageBootstrap = {
   rootId: '',
   rootName: '',
-  scope: { upstreamDepth: 1, downstreamDepth: 1, includeTests: false, excludedMaterializations: [] },
+  scope: {
+    upstreamDepth: 1,
+    downstreamDepth: 1,
+    includeTests: false,
+    excludedMaterializations: [],
+  },
   subgraph: { nodes: [], edges: [] },
   materializations: [],
 };
@@ -379,10 +391,10 @@ function App() {
   const bootstrap = window.__DBT_FORGE_LINEAGE__ ?? EMPTY_BOOTSTRAP;
 
   const [rawNodes, setRawNodes] = useState<Map<string, LineageNode>>(
-    () => new Map(bootstrap.subgraph.nodes.map((n) => [n.id, n]))
+    () => new Map(bootstrap.subgraph.nodes.map((n) => [n.id, n])),
   );
   const [rawEdges, setRawEdges] = useState<Map<string, LineageEdge>>(
-    () => new Map(bootstrap.subgraph.edges.map((e) => [`${e.source}->${e.target}`, e]))
+    () => new Map(bootstrap.subgraph.edges.map((e) => [`${e.source}->${e.target}`, e])),
   );
   const [scope, setScope] = useState<LineageScope>(bootstrap.scope);
   const [scopePending, setScopePending] = useState(false);
@@ -458,8 +470,9 @@ function App() {
   }, []);
 
   const { nodes, edges } = useMemo(
-    () => layoutGraph(rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen),
-    [rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen]
+    () =>
+      layoutGraph(rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen),
+    [rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen],
   );
 
   if (!bootstrap.rootId) {

@@ -17,7 +17,13 @@ import {
 
 type ReferenceTarget =
   | { kind: 'model'; uniqueId: string; name: string; packageName: string; entity: DbtNode }
-  | { kind: 'source'; uniqueId: string; sourceName: string; tableName: string; entity: DbtSourceNode }
+  | {
+      kind: 'source';
+      uniqueId: string;
+      sourceName: string;
+      tableName: string;
+      entity: DbtSourceNode;
+    }
   | { kind: 'macro'; uniqueId: string; name: string; packageName: string; entity: DbtMacroNode };
 
 // Caller files are read concurrently, but in batches: a widely-used source can have hundreds of
@@ -36,7 +42,7 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
     document: vscode.TextDocument,
     position: vscode.Position,
     context: vscode.ReferenceContext,
-    token: vscode.CancellationToken
+    token: vscode.CancellationToken,
   ): Promise<vscode.Location[] | undefined> {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;
@@ -58,7 +64,9 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
     for (let i = 0; i < callers.length; i += READ_BATCH_SIZE) {
       if (token.isCancellationRequested) return locations;
       const batch = await Promise.all(
-        callers.slice(i, i + READ_BATCH_SIZE).map((entity) => this.findCallSites(index, target, entity))
+        callers
+          .slice(i, i + READ_BATCH_SIZE)
+          .map((entity) => this.findCallSites(index, target, entity)),
       );
       for (const found of batch) locations.push(...found);
     }
@@ -74,7 +82,7 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
   private async findCallSites(
     index: DbtProjectIndex,
     target: ReferenceTarget,
-    caller: ManifestEntity
+    caller: ManifestEntity,
   ): Promise<vscode.Location[]> {
     const uri = index.getFileUri(caller);
     const lines = await readFileLines(uri);
@@ -83,7 +91,9 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
     const locations: vscode.Location[] = [];
     for (let line = 0; line < lines.length; line++) {
       for (const span of this.findSpans(target, lines[line])) {
-        locations.push(new vscode.Location(uri, new vscode.Range(line, span.start, line, span.end)));
+        locations.push(
+          new vscode.Location(uri, new vscode.Range(line, span.start, line, span.end)),
+        );
       }
     }
 
@@ -102,7 +112,7 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
 
   private async findDeclaration(
     index: DbtProjectIndex,
-    target: ReferenceTarget
+    target: ReferenceTarget,
   ): Promise<vscode.Location | undefined> {
     const uri = await index.getExistingFileUri(target.entity);
     if (!uri) return undefined;
@@ -117,7 +127,7 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
   private resolveTarget(
     index: DbtProjectIndex,
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): ReferenceTarget | undefined {
     const lineText = document.lineAt(position.line).text;
 

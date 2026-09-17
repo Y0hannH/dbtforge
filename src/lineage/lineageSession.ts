@@ -18,7 +18,7 @@ export class LineageSession {
 
   constructor(
     private readonly index: DbtProjectIndex,
-    readonly rootId: string
+    readonly rootId: string,
   ) {}
 
   get rootName(): string {

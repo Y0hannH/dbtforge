@@ -31,7 +31,7 @@ export class PreviewController implements vscode.Disposable {
   constructor(
     private readonly view: PreviewViewProvider,
     private readonly profileStore: ProfileStore,
-    private readonly output: vscode.OutputChannel
+    private readonly output: vscode.OutputChannel,
   ) {}
 
   async previewModel(index: DbtProjectIndex, node: DbtNode): Promise<void> {
@@ -110,18 +110,21 @@ export class PreviewController implements vscode.Disposable {
     index: DbtProjectIndex,
     node: DbtNode,
     rowLimit: number,
-    cteName?: string
+    cteName?: string,
   ): Promise<PreviewPlan> {
     if (cteName) return this.planCtePreview(index, node, rowLimit, cteName);
 
-    const ordinary: PreviewPlan = { target: { kind: 'node', name: node.name }, dbtRowLimit: rowLimit };
+    const ordinary: PreviewPlan = {
+      target: { kind: 'node', name: node.name },
+      dbtRowLimit: rowLimit,
+    };
     if (rowLimit < 1) return ordinary; // no limit requested: dbt appends nothing to collide with
 
     const config = index.getConfig();
     const adapterType = await resolveAdapterType(
       config.projectDir,
       config.profilesDir,
-      this.profileStore.get(config.projectDir)
+      this.profileStore.get(config.projectDir),
     );
     if (!adapterType || !isTsqlAdapter(adapterType)) return ordinary;
 
@@ -134,14 +137,14 @@ export class PreviewController implements vscode.Disposable {
       // ordinary path surfaces dbt's real error instead of a query we can't vouch for.
       this.output.appendLine(
         `dbt Forge: ${node.name} uses SELECT DISTINCT, which dbt's limit clause breaks on ` +
-          `${adapterType}, but its SQL could not be rewritten safely. Running it unchanged.`
+          `${adapterType}, but its SQL could not be rewritten safely. Running it unchanged.`,
       );
       return ordinary;
     }
 
     this.output.appendLine(
       `dbt Forge: previewing ${node.name} with an inline TOP ${rowLimit}, because dbt's ` +
-        `${adapterType} limit clause is invalid on SELECT DISTINCT.`
+        `${adapterType} limit clause is invalid on SELECT DISTINCT.`,
     );
     return { target: { kind: 'inline', sql: rewritten }, dbtRowLimit: -1 };
   }
@@ -156,7 +159,7 @@ export class PreviewController implements vscode.Disposable {
     index: DbtProjectIndex,
     node: DbtNode,
     rowLimit: number,
-    cteName: string
+    cteName: string,
   ): Promise<PreviewPlan> {
     const modelSql = await readModelSql(index, node);
     if (!modelSql) {
@@ -167,7 +170,7 @@ export class PreviewController implements vscode.Disposable {
     if (!sql) {
       throw new DbtShowError(
         `could not build a preview for CTE "${cteName}" — it is no longer in ${node.name}, or the ` +
-          'query changed shape since the button was drawn. Save the file and try again.'
+          'query changed shape since the button was drawn. Save the file and try again.',
       );
     }
 

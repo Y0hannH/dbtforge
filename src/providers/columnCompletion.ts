@@ -22,7 +22,7 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
 
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;
@@ -44,7 +44,7 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
     const cte = parseCtes(documentText).find((c) => c.name === alias && c.columns.length > 0);
     if (cte) {
       return cte.columns.map(
-        (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Field)
+        (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Field),
       );
     }
 
@@ -57,7 +57,7 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
   /** Columns of a model or source as catalog.json knows them, or nothing when it doesn't. */
   private catalogColumns(
     index: DbtProjectIndex,
-    source: SourceRef
+    source: SourceRef,
   ): vscode.CompletionItem[] | undefined {
     const uniqueId =
       source.kind === 'ref'

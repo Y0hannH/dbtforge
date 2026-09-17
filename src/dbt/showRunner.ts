@@ -27,7 +27,7 @@ export interface DbtShowRequest {
 export class DbtShowError extends Error {
   constructor(
     message: string,
-    readonly details?: string
+    readonly details?: string,
   ) {
     super(message);
     this.name = 'DbtShowError';
@@ -54,7 +54,7 @@ export async function runDbtShow(request: DbtShowRequest): Promise<PreviewTable>
   if (!executable) {
     throw new DbtShowError(
       `no "dbt" executable found next to the configured pythonPath (${request.pythonPath}). ` +
-        'Make sure dbt-core is installed in that venv.'
+        'Make sure dbt-core is installed in that venv.',
     );
   }
 
@@ -79,7 +79,7 @@ export async function runDbtShow(request: DbtShowRequest): Promise<PreviewTable>
     throw new DbtShowError(
       `dbt show did not finish within ${Math.round((request.timeoutMs ?? DEFAULT_TIMEOUT_MS) / 1000)}s ` +
         'and was stopped. The query may still be running on the warehouse.',
-      extractDbtError(result.stdout, result.stderr)
+      extractDbtError(result.stdout, result.stderr),
     );
   }
 
@@ -93,7 +93,7 @@ export async function runDbtShow(request: DbtShowRequest): Promise<PreviewTable>
   if (result.code !== 0) {
     throw new DbtShowError(
       'dbt show failed. See the dbt Forge output channel for the full error.',
-      extractDbtError(result.stdout, result.stderr)
+      extractDbtError(result.stdout, result.stderr),
     );
   }
 
@@ -126,7 +126,7 @@ interface ExecDbtOptions {
 export function execDbt(
   executable: string,
   args: string[],
-  options: ExecDbtOptions
+  options: ExecDbtOptions,
 ): Promise<DbtExecution> {
   return new Promise((resolve) => {
     execFile(
@@ -158,7 +158,7 @@ export function execDbt(
           timedOut: !cancelled && killed,
           spawnFailed: isSpawnFailure(error) ? error.message : undefined,
         });
-      }
+      },
     );
   });
 }

@@ -34,13 +34,13 @@ test('nodeMetaLabel: an unbuilt or partial manifest entry still labels itself', 
 test('nodeMetaLabel: a dynamic table carries its target lag, verbatim', () => {
   assert.equal(
     nodeMetaLabel('model', { materialization: 'dynamic_table', targetLag: '3 minutes' }),
-    'model · dynamic_table (3 minutes)'
+    'model · dynamic_table (3 minutes)',
   );
   // 'downstream' means "inherit from whoever reads me"; dbt never records the inherited value,
   // so the word is shown as declared rather than resolved by walking the DAG.
   assert.equal(
     nodeMetaLabel('model', { materialization: 'dynamic_table', targetLag: 'downstream' }),
-    'model · dynamic_table (downstream)'
+    'model · dynamic_table (downstream)',
   );
 });
 
@@ -52,7 +52,7 @@ test('nodeMetaLabel: no materialization to qualify means no lag either', () => {
 test('nodeMetaLabel: the column count is appended when the catalog knows it', () => {
   assert.equal(
     nodeMetaLabel('model', { materialization: 'table', columnCount: 42 }),
-    'model · table · 42 cols'
+    'model · table · 42 cols',
   );
   assert.equal(nodeMetaLabel('model', { columnCount: 1 }), 'model · 1 col');
 });
@@ -61,7 +61,7 @@ test('nodeMetaLabel: an unknown column count says nothing at all', () => {
   assert.equal(nodeMetaLabel('model', { materialization: 'view' }), 'model · view');
   assert.equal(
     nodeMetaLabel('model', { materialization: 'view', columnCount: undefined }),
-    'model · view'
+    'model · view',
   );
   // Zero is a malformed catalog entry, not a model without columns — never stated as fact.
   assert.equal(nodeMetaLabel('model', { materialization: 'view', columnCount: 0 }), 'model · view');
@@ -74,7 +74,7 @@ test('nodeMetaLabel: everything known at once, in one row', () => {
       targetLag: '3 minutes',
       columnCount: 12,
     }),
-    'model · dynamic_table (3 minutes) · 12 cols'
+    'model · dynamic_table (3 minutes) · 12 cols',
   );
 });
 
@@ -103,8 +103,11 @@ test('readNodeColor: reads node_color from either place dbt writes it', () => {
   assert.equal(readNodeColor(node({ config: { docs: { node_color: 'teal' } } })), 'teal');
 });
 
-test('readNodeColor: the node\'s own docs wins over the one nested in config', () => {
-  const both = node({ docs: { node_color: '#111111' }, config: { docs: { node_color: '#222222' } } });
+test("readNodeColor: the node's own docs wins over the one nested in config", () => {
+  const both = node({
+    docs: { node_color: '#111111' },
+    config: { docs: { node_color: '#222222' } },
+  });
   assert.equal(readNodeColor(both), '#111111');
 });
 

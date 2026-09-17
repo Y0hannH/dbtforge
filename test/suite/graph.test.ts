@@ -6,7 +6,7 @@ import { buildDependencyGraph } from '../../src/index/graph';
 import { DbtManifest } from '../../src/index/manifestTypes';
 
 const manifest: DbtManifest = JSON.parse(
-  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8')
+  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8'),
 );
 
 test('getParents returns direct upstream nodes', () => {

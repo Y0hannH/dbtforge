@@ -42,7 +42,7 @@ export function listCteNames(modelSql: string): string[] {
  */
 export function cteNameAtOffset(modelSql: string, offset: number): string | undefined {
   const containing = parseCtes(modelSql).find(
-    (cte) => offset >= cte.nameStart && offset <= cte.bodyEnd
+    (cte) => offset >= cte.nameStart && offset <= cte.bodyEnd,
   );
   return containing?.name;
 }

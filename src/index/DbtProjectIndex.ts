@@ -21,7 +21,6 @@ export interface SourceRef {
 
 export type { DocRef, MacroRef, ModelRef };
 
-
 /**
  * Central, per-workspace-folder index over manifest.json / catalog.json.
  * Loads once, then reloads on file change. Every feature provider reads from this
@@ -55,7 +54,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   constructor(private readonly config: DbtForgeConfig) {
     this.disposables.push(
       watchFile(this.config.manifestPath, () => this.reloadManifest()),
-      watchFile(this.config.catalogPath, () => this.reloadCatalog())
+      watchFile(this.config.catalogPath, () => this.reloadCatalog()),
     );
   }
 
@@ -77,7 +76,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       if (!this.manifestMissingWarned) {
         this.manifestMissingWarned = true;
         vscode.window.showWarningMessage(
-          `dbt Forge: no manifest.json found at ${this.config.manifestPath}. Run "dbt compile" or "dbt build" to generate it.`
+          `dbt Forge: no manifest.json found at ${this.config.manifestPath}. Run "dbt compile" or "dbt build" to generate it.`,
         );
       }
       this.manifest = undefined;
@@ -112,7 +111,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       // Not an error: catalog.json only exists after `dbt docs generate`, and column
       // completion degrading gracefully without it is expected behavior, not a bug.
       vscode.window.showInformationMessage(
-        `dbt Forge: no catalog.json found at ${this.config.catalogPath}. Column autocomplete will be limited until "dbt docs generate" is run.`
+        `dbt Forge: no catalog.json found at ${this.config.catalogPath}. Column autocomplete will be limited until "dbt docs generate" is run.`,
       );
     } else if (parsed) {
       this.catalogMissingWarned = false;
@@ -135,8 +134,10 @@ export class DbtProjectIndex implements vscode.Disposable {
       // an arbitrary one of the tests declared in it.
       if (isOneNodePerFilePath(node.original_file_path)) {
         this.uniqueIdByFilePath.set(
-          this.normalizeFilePath(resolveEntityPath(this.config.projectDir, manifest.metadata.project_name, node)),
-          node.unique_id
+          this.normalizeFilePath(
+            resolveEntityPath(this.config.projectDir, manifest.metadata.project_name, node),
+          ),
+          node.unique_id,
         );
       }
     }
@@ -282,7 +283,7 @@ export class DbtProjectIndex implements vscode.Disposable {
    */
   getFileUri(node: ManifestEntity): vscode.Uri {
     return vscode.Uri.file(
-      resolveEntityPath(this.config.projectDir, this.manifest?.metadata.project_name ?? '', node)
+      resolveEntityPath(this.config.projectDir, this.manifest?.metadata.project_name ?? '', node),
     );
   }
 

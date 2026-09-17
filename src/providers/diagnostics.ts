@@ -61,8 +61,8 @@ export class DbtDiagnosticsController implements vscode.Disposable {
             line,
             call.start,
             call.end,
-            `No {% docs %} block named "${call.name}" in the manifest. Run dbt compile if it was just added.`
-          )
+            `No {% docs %} block named "${call.name}" in the manifest. Run dbt compile if it was just added.`,
+          ),
         );
       }
 
@@ -75,8 +75,8 @@ export class DbtDiagnosticsController implements vscode.Disposable {
             line,
             call.start,
             call.end,
-            `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`
-          )
+            `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`,
+          ),
         );
       }
 
@@ -87,8 +87,8 @@ export class DbtDiagnosticsController implements vscode.Disposable {
             line,
             call.start,
             call.end,
-            `Source "${call.sourceName}.${call.tableName}" not found in the manifest. Run dbt compile if it was just added.`
-          )
+            `Source "${call.sourceName}.${call.tableName}" not found in the manifest. Run dbt compile if it was just added.`,
+          ),
         );
       }
     }
@@ -109,7 +109,7 @@ export class DbtDiagnosticsController implements vscode.Disposable {
    */
   private columnDiagnostics(
     document: vscode.TextDocument,
-    index: DbtProjectIndex
+    index: DbtProjectIndex,
   ): vscode.Diagnostic[] {
     const entities = parseSchemaEntities(document.getText());
     if (entities.length === 0) return [];
@@ -121,15 +121,19 @@ export class DbtDiagnosticsController implements vscode.Disposable {
     const findings = reconcileColumns(
       entities,
       (entity) => this.catalogColumnNames(index, entity),
-      { flagUndocumented }
+      { flagUndocumented },
     );
 
     return findings.map((finding) => {
       const range = new vscode.Range(
         document.positionAt(finding.offset),
-        document.positionAt(finding.offset + finding.length)
+        document.positionAt(finding.offset + finding.length),
       );
-      const diagnostic = new vscode.Diagnostic(range, finding.message, vscode.DiagnosticSeverity.Warning);
+      const diagnostic = new vscode.Diagnostic(
+        range,
+        finding.message,
+        vscode.DiagnosticSeverity.Warning,
+      );
       diagnostic.source = 'dbt Forge';
       return diagnostic;
     });
@@ -138,7 +142,7 @@ export class DbtDiagnosticsController implements vscode.Disposable {
   /** The entity's real columns, or undefined when neither the manifest nor the catalog can say. */
   private catalogColumnNames(
     index: DbtProjectIndex,
-    entity: DocumentedEntity
+    entity: DocumentedEntity,
   ): string[] | undefined {
     const uniqueId =
       entity.kind === 'source'
@@ -159,7 +163,7 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       setTimeout(() => {
         this.timers.delete(key);
         this.validate(document);
-      }, VALIDATE_DEBOUNCE_MS)
+      }, VALIDATE_DEBOUNCE_MS),
     );
   }
 
@@ -184,11 +188,16 @@ export class DbtDiagnosticsController implements vscode.Disposable {
     this.collection.dispose();
   }
 
-  private makeDiagnostic(line: number, start: number, end: number, message: string): vscode.Diagnostic {
+  private makeDiagnostic(
+    line: number,
+    start: number,
+    end: number,
+    message: string,
+  ): vscode.Diagnostic {
     const diagnostic = new vscode.Diagnostic(
       new vscode.Range(line, start, line, end),
       message,
-      vscode.DiagnosticSeverity.Warning
+      vscode.DiagnosticSeverity.Warning,
     );
     diagnostic.source = 'dbt Forge';
     return diagnostic;

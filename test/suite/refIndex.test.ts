@@ -6,7 +6,7 @@ import { DbtManifest } from '../../src/index/manifestTypes';
 import { buildRefIndex, isReferenceable } from '../../src/index/refIndex';
 
 const manifest: DbtManifest = JSON.parse(
-  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8')
+  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8'),
 );
 
 test('buildRefIndex resolves models by name', () => {

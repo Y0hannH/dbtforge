@@ -103,7 +103,9 @@ test('buildInitialSubgraph: carries the materialization and colour the project d
 });
 
 test('buildInitialSubgraph: a node declaring neither still gets a usable label', () => {
-  const root = buildInitialSubgraph(fakeIndex, 'model.pkg.b').nodes.find((n) => n.id === 'model.pkg.b');
+  const root = buildInitialSubgraph(fakeIndex, 'model.pkg.b').nodes.find(
+    (n) => n.id === 'model.pkg.b',
+  );
   assert.equal(root?.metaLabel, 'model');
   assert.equal(root?.color, undefined);
 });
@@ -112,7 +114,7 @@ test('expandNode: "up" returns the next hop of parents with correctly directed e
   const { nodes: resultNodes, edges } = expandNode(fakeIndex, 'model.pkg.a', 'up');
   assert.deepEqual(
     resultNodes.map((n) => n.id),
-    ['model.pkg.z']
+    ['model.pkg.z'],
   );
   assert.deepEqual(edges, [{ source: 'model.pkg.z', target: 'model.pkg.a' }]);
 });
@@ -126,7 +128,7 @@ test('expandNode: "down" returns the next hop of children with correctly directe
     [
       { source: 'model.pkg.b', target: 'model.pkg.c' },
       { source: 'model.pkg.b', target: 'model.pkg.d' },
-    ]
+    ],
   );
 });
 
@@ -211,7 +213,7 @@ test('buildScopedSubgraph: an excluded materialization drops that node', () => {
   const result = buildScopedSubgraph(
     scopedIndex,
     'model.pkg.b',
-    scope({ excludedMaterializations: ['ephemeral'] })
+    scope({ excludedMaterializations: ['ephemeral'] }),
   );
   assert.equal(idsOf(result).includes('model.pkg.e'), false);
   assert.equal(result.nodes.find((n) => n.id === 'model.pkg.b')?.childCount, 2);
@@ -219,16 +221,30 @@ test('buildScopedSubgraph: an excluded materialization drops that node', () => {
 
 test('buildScopedSubgraph: upstream depth 2 reaches the grandparent', () => {
   const ids = idsOf(
-    buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope({ upstreamDepth: 2, downstreamDepth: 0 }))
+    buildScopedSubgraph(
+      scopedIndex,
+      'model.pkg.b',
+      scope({ upstreamDepth: 2, downstreamDepth: 0 }),
+    ),
   );
   assert.deepEqual(ids, ['model.pkg.a', 'model.pkg.b', 'model.pkg.z']);
 });
 
 test('buildScopedSubgraph: downstream depth 2 reaches the grandchild', () => {
   const ids = idsOf(
-    buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope({ upstreamDepth: 0, downstreamDepth: 2 }))
+    buildScopedSubgraph(
+      scopedIndex,
+      'model.pkg.b',
+      scope({ upstreamDepth: 0, downstreamDepth: 2 }),
+    ),
   );
-  assert.deepEqual(ids, ['model.pkg.b', 'model.pkg.c', 'model.pkg.d', 'model.pkg.e', 'model.pkg.f']);
+  assert.deepEqual(ids, [
+    'model.pkg.b',
+    'model.pkg.c',
+    'model.pkg.d',
+    'model.pkg.e',
+    'model.pkg.f',
+  ]);
 });
 
 test('buildScopedSubgraph: unlimited depth walks the whole DAG both ways', () => {
@@ -236,8 +252,8 @@ test('buildScopedSubgraph: unlimited depth walks the whole DAG both ways', () =>
     buildScopedSubgraph(
       scopedIndex,
       'model.pkg.b',
-      scope({ upstreamDepth: UNLIMITED_DEPTH, downstreamDepth: UNLIMITED_DEPTH })
-    )
+      scope({ upstreamDepth: UNLIMITED_DEPTH, downstreamDepth: UNLIMITED_DEPTH }),
+    ),
   );
   assert.deepEqual(ids, [
     'model.pkg.a',
@@ -254,7 +270,7 @@ test('buildScopedSubgraph: depth 0 both ways leaves the root on its own', () => 
   const result = buildScopedSubgraph(
     scopedIndex,
     'model.pkg.b',
-    scope({ upstreamDepth: 0, downstreamDepth: 0 })
+    scope({ upstreamDepth: 0, downstreamDepth: 0 }),
   );
   assert.deepEqual(idsOf(result), ['model.pkg.b']);
   assert.deepEqual(result.edges, []);
@@ -265,7 +281,7 @@ test('buildScopedSubgraph: the root survives a filter that would otherwise hide 
   const result = buildScopedSubgraph(
     scopedIndex,
     'model.pkg.e',
-    scope({ excludedMaterializations: ['ephemeral'] })
+    scope({ excludedMaterializations: ['ephemeral'] }),
   );
   assert.equal(result.nodes.find((n) => n.id === 'model.pkg.e')?.isRoot, true);
 });
@@ -291,7 +307,7 @@ test('buildInitialSubgraph: the meta row carries what the manifest and catalog k
   // c is a dynamic table, built and in the catalog: everything shows.
   assert.equal(
     resultNodes.find((n) => n.id === 'model.pkg.c')?.metaLabel,
-    'model · dynamic_table (3 minutes) · 2 cols'
+    'model · dynamic_table (3 minutes) · 2 cols',
   );
   // a materializes as a view and is not in the catalog: no count invented for it.
   assert.equal(resultNodes.find((n) => n.id === 'model.pkg.a')?.metaLabel, 'model · view');

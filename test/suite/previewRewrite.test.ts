@@ -75,7 +75,7 @@ test('rewriteWithTopLimit: refuses a query ending in ORDER BY rather than tradin
   assert.equal(rewriteWithTopLimit('select distinct a from t order by a', 10), undefined);
 });
 
-test('rewriteWithTopLimit: an ORDER BY inside a window function is not the statement\'s own', () => {
+test("rewriteWithTopLimit: an ORDER BY inside a window function is not the statement's own", () => {
   const sql = 'select distinct row_number() over (order by a) as rn from t';
   assert.ok(rewriteWithTopLimit(sql, 10));
 });

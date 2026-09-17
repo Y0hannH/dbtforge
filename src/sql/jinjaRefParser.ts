@@ -26,8 +26,14 @@ export function isInsideJinjaTag(lineTextBeforeCursor: string): boolean {
  * detection: without it, any SQL function call would be treated as a candidate macro call.
  */
 export function isInsideJinjaExpression(lineTextBeforeIndex: string): boolean {
-  const lastOpen = Math.max(lineTextBeforeIndex.lastIndexOf('{{'), lineTextBeforeIndex.lastIndexOf('{%'));
-  const lastClose = Math.max(lineTextBeforeIndex.lastIndexOf('}}'), lineTextBeforeIndex.lastIndexOf('%}'));
+  const lastOpen = Math.max(
+    lineTextBeforeIndex.lastIndexOf('{{'),
+    lineTextBeforeIndex.lastIndexOf('{%'),
+  );
+  const lastClose = Math.max(
+    lineTextBeforeIndex.lastIndexOf('}}'),
+    lineTextBeforeIndex.lastIndexOf('%}'),
+  );
   return lastOpen > lastClose;
 }
 
@@ -40,7 +46,9 @@ const SOURCE_TABLE_PREFIX = /\{\{\s*source\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]
  * line text up to (not including) the cursor. Used to drive completion — prefix-only, no
  * awareness of what follows the cursor on the line.
  */
-export function parseCompletionContext(lineTextBeforeCursor: string): CompletionContext | undefined {
+export function parseCompletionContext(
+  lineTextBeforeCursor: string,
+): CompletionContext | undefined {
   const sourceTableMatch = SOURCE_TABLE_PREFIX.exec(lineTextBeforeCursor);
   if (sourceTableMatch) {
     return { kind: 'source-table', sourceName: sourceTableMatch[1], partial: sourceTableMatch[2] };
@@ -69,8 +77,8 @@ export type CallMatch =
 // ref() is matched in all the shapes dbt accepts: ref('model'), the cross-package
 // ref('package', 'model'), and either of those with a trailing kwarg (ref('model', version=2)).
 // Group 1 is the package (absent for the one-arg form), group 2 is always the model name.
-const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,[^)]*)?\)/gd;
-const SOURCE_CALL = /\bsource\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/gd;
+const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,[^)]*)?\)/dg;
+const SOURCE_CALL = /\bsource\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/dg;
 
 // `indices` entries are undefined for optional groups that didn't participate in the match.
 type RegExpMatchWithIndices = RegExpExecArray & { indices: Array<[number, number] | undefined> };
@@ -93,7 +101,13 @@ export function findCallAtPosition(lineText: string, character: number): CallMat
           ? ([nameStart, nameEnd] as [number, number])
           : undefined;
     if (span) {
-      return { kind: 'ref', name: match[2], packageName: match[1], argStart: span[0], argEnd: span[1] };
+      return {
+        kind: 'ref',
+        name: match[2],
+        packageName: match[1],
+        argStart: span[0],
+        argEnd: span[1],
+      };
     }
   }
 
@@ -171,7 +185,7 @@ export function findAllSourceCalls(lineText: string): SourceCallMatch[] {
 export function findAllRefCallLocations(
   lineText: string,
   modelName: string,
-  packageName?: string
+  packageName?: string,
 ): CallLocation[] {
   return findAllRefCalls(lineText)
     .filter((call) => call.name === modelName)
@@ -183,7 +197,7 @@ export function findAllRefCallLocations(
 export function findAllSourceCallLocations(
   lineText: string,
   sourceName: string,
-  tableName: string
+  tableName: string,
 ): CallLocation[] {
   return findAllSourceCalls(lineText)
     .filter((call) => call.sourceName === sourceName && call.tableName === tableName)
@@ -205,12 +219,12 @@ function escapeRegExp(literal: string): string {
 export function findAllMacroCallLocations(
   lineText: string,
   macroName: string,
-  packageName?: string
+  packageName?: string,
 ): CallLocation[] {
   const results: CallLocation[] = [];
   const pattern = new RegExp(
     `(?:([A-Za-z_][A-Za-z0-9_]*)\\s*\\.\\s*)?\\b(${escapeRegExp(macroName)})\\s*\\(`,
-    'gd'
+    'gd',
   );
   for (const match of lineText.matchAll(pattern) as IterableIterator<RegExpMatchWithIndices>) {
     if (match[1] && packageName && match[1] !== packageName) continue;
@@ -221,7 +235,7 @@ export function findAllMacroCallLocations(
   return results;
 }
 
-const MACRO_CALL = /(?:([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/gd;
+const MACRO_CALL = /(?:([A-Za-z_][A-Za-z0-9_]*)\s*\.\s*)?([A-Za-z_][A-Za-z0-9_]*)\s*\(/dg;
 
 export interface MacroCallMatch {
   name: string;
@@ -241,7 +255,7 @@ export interface MacroCallMatch {
  */
 export function findMacroCallAtPosition(
   lineText: string,
-  character: number
+  character: number,
 ): MacroCallMatch | undefined {
   for (const match of lineText.matchAll(MACRO_CALL) as IterableIterator<RegExpMatchWithIndices>) {
     const [start, end] = match.indices[2]!;
@@ -261,7 +275,7 @@ const MACRO_DEFINITION = /\{%-?\s*macro\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/d;
  */
 export function findMacroDefinitionAtPosition(
   lineText: string,
-  character: number
+  character: number,
 ): { name: string; start: number; end: number } | undefined {
   const match = MACRO_DEFINITION.exec(lineText) as RegExpMatchWithIndices | null;
   if (!match) return undefined;
@@ -291,7 +305,7 @@ const DOC_PREFIX = /\{\{\s*doc\(\s*['"]([^'"]*)$/;
 
 /** The partial block name being typed inside `{{ doc('`, if the cursor is there. */
 export function parseDocCompletionContext(
-  lineTextBeforeCursor: string
+  lineTextBeforeCursor: string,
 ): { partial: string } | undefined {
   const match = DOC_PREFIX.exec(lineTextBeforeCursor);
   return match ? { partial: match[1] } : undefined;
@@ -305,7 +319,7 @@ export interface DocCallMatch extends CallLocation {
 
 // Same two shapes dbt accepts for ref(): doc('block') and the cross-package doc('package', 'block').
 // Group 1 is the package (absent for the one-argument form), group 2 is always the block name.
-const DOC_CALL = /\bdoc\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*\)/gd;
+const DOC_CALL = /\bdoc\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*\)/dg;
 
 /** Every doc() call on a line; the span always covers the block-name argument. */
 export function findAllDocCalls(lineText: string): DocCallMatch[] {
@@ -320,11 +334,9 @@ export function findAllDocCalls(lineText: string): DocCallMatch[] {
 /** The doc() call whose block-name argument contains `character` — for Go to Definition. */
 export function findDocCallAtPosition(
   lineText: string,
-  character: number
+  character: number,
 ): DocCallMatch | undefined {
-  return findAllDocCalls(lineText).find(
-    (call) => character >= call.start && character <= call.end
-  );
+  return findAllDocCalls(lineText).find((call) => character >= call.start && character <= call.end);
 }
 
 const DOCS_BLOCK = /\{%-?\s*docs\s+([A-Za-z_][A-Za-z0-9_]*)\s*-?%\}/d;

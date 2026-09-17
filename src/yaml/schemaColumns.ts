@@ -96,7 +96,8 @@ function readEntity(map: YAMLMap, kind: DocumentedEntity['kind']): DocumentedEnt
     for (const item of columnsNode.items) {
       if (!isMap(item)) continue;
       const column = readName(item);
-      if (column) columns.push({ name: column.value, offset: column.offset, length: column.length });
+      if (column)
+        columns.push({ name: column.value, offset: column.offset, length: column.length });
     }
   }
 

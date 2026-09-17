@@ -35,7 +35,7 @@ test('buildCtePreviewSql: keeps earlier CTEs, which the target may depend on', (
   assert.ok(sql?.includes('orders as ('));
 });
 
-test('buildCtePreviewSql: drops later CTEs and the model\'s own final select', () => {
+test("buildCtePreviewSql: drops later CTEs and the model's own final select", () => {
   const sql = buildCtePreviewSql(MODEL, 'customers');
 
   assert.ok(sql);
@@ -47,7 +47,9 @@ test('buildCtePreviewSql: drops later CTEs and the model\'s own final select', (
 
 test('buildCtePreviewSql: keeps what precedes the WITH clause', () => {
   // A `{{ config() }}` is harmless, but a `{% set %}` the query depends on would not be.
-  assert.ok(buildCtePreviewSql(MODEL, 'customers')?.startsWith("{{ config(materialized='table') }}"));
+  assert.ok(
+    buildCtePreviewSql(MODEL, 'customers')?.startsWith("{{ config(materialized='table') }}"),
+  );
 });
 
 test('buildCtePreviewSql: Jinja inside the kept CTEs survives, since --inline compiles it', () => {
@@ -124,7 +126,8 @@ test('cteNameAtOffset: unparseable SQL names nothing, rather than a guess', () =
 
 test('cteNameAtOffset: a nested CTE resolves to the top-level one containing it', () => {
   // Only top-level CTEs can be previewed, so the enclosing one is the closest true answer.
-  const sql = 'with outer_cte as (with inner_cte as (select 1 as x) select * from inner_cte) select * from outer_cte';
+  const sql =
+    'with outer_cte as (with inner_cte as (select 1 as x) select * from inner_cte) select * from outer_cte';
   assert.equal(cteNameAtOffset(sql, sql.indexOf('inner_cte')), 'outer_cte');
 });
 

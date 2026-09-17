@@ -134,7 +134,7 @@ test('findAllRefCalls: finds every ref() call on a line regardless of model name
   const calls = findAllRefCalls(line);
   assert.deepEqual(
     calls.map((c) => c.name),
-    ['a', 'b']
+    ['a', 'b'],
   );
 });
 
@@ -150,7 +150,7 @@ test('findAllSourceCalls: finds every source() call on a line regardless of name
     [
       ['raw', 'a'],
       ['raw', 'b'],
-    ]
+    ],
   );
 });
 
@@ -217,7 +217,7 @@ test('findMacroCallAtPosition: identifier not followed by "(" is not a call', ()
 });
 
 test('findMacroDefinitionAtPosition: cursor on the macro name in a definition line', () => {
-  const line = "{% macro generate_surrogate_key(field_list) %}";
+  const line = '{% macro generate_surrogate_key(field_list) %}';
   const idx = line.indexOf('generate_surrogate_key') + 2;
   assert.deepEqual(findMacroDefinitionAtPosition(line, idx), {
     name: 'generate_surrogate_key',
@@ -270,8 +270,14 @@ test('findAllRefCallLocations: an explicit package that differs is not a call si
 
 test('findAllMacroCallLocations: a SQL function of the same name outside a Jinja tag is not a call site', () => {
   // dbt-core ships macros named after SQL functions, so this is the common false positive.
-  assert.deepEqual(findAllMacroCallLocations("select replace(name, 'a', 'b') from t", 'replace'), []);
-  assert.equal(findAllMacroCallLocations("select {{ replace(x, 'a', 'b') }} from t", 'replace').length, 1);
+  assert.deepEqual(
+    findAllMacroCallLocations("select replace(name, 'a', 'b') from t", 'replace'),
+    [],
+  );
+  assert.equal(
+    findAllMacroCallLocations("select {{ replace(x, 'a', 'b') }} from t", 'replace').length,
+    1,
+  );
 });
 
 test('findAllMacroCallLocations: a namespaced call from another package is not a call site', () => {
@@ -324,7 +330,7 @@ test('findMacroDefinitionLine: finds the right macro in a multi-macro file', () 
 // --- doc() -----------------------------------------------------------------
 
 test('parseDocCompletionContext: reports the partial block name being typed', () => {
-  assert.deepEqual(parseDocCompletionContext("    description: \"{{ doc('cust"), {
+  assert.deepEqual(parseDocCompletionContext('    description: "{{ doc(\'cust'), {
     partial: 'cust',
   });
 });
@@ -346,7 +352,7 @@ test('findAllDocCalls: finds every call on a line, with the span on the block na
   const calls = findAllDocCalls(line);
   assert.deepEqual(
     calls.map((c) => c.name),
-    ['a', 'b']
+    ['a', 'b'],
   );
   assert.equal(line.slice(calls[0].start, calls[0].end), 'a');
   assert.equal(line.slice(calls[1].start, calls[1].end), 'b');
@@ -364,7 +370,7 @@ test('findAllDocCalls: a plain call reports no package', () => {
 });
 
 test('findDocCallAtPosition: only matches when the cursor is on the block name', () => {
-  const line = "description: \"{{ doc('customer_id') }}\"";
+  const line = 'description: "{{ doc(\'customer_id\') }}"';
   const nameStart = line.indexOf('customer_id');
   assert.equal(findDocCallAtPosition(line, nameStart + 3)?.name, 'customer_id');
   assert.equal(findDocCallAtPosition(line, 0), undefined);

@@ -30,7 +30,7 @@ export async function selectProfile(config: DbtForgeConfig, store: ProfileStore)
   if (!location) {
     vscode.window.showErrorMessage(
       `dbt Forge: no profiles.yml found. Looked in: ${describeSearchedLocations(config.projectDir, config.profilesDir)}. ` +
-        'Set "dbtForge.profilesDir" if it lives somewhere else.'
+        'Set "dbtForge.profilesDir" if it lives somewhere else.',
     );
     return false;
   }
@@ -39,7 +39,9 @@ export async function selectProfile(config: DbtForgeConfig, store: ProfileStore)
   try {
     profiles = parseProfiles(await fs.readFile(location.filePath, 'utf8'));
   } catch (err) {
-    vscode.window.showErrorMessage(`dbt Forge: could not read ${location.filePath} — ${describeError(err)}`);
+    vscode.window.showErrorMessage(
+      `dbt Forge: could not read ${location.filePath} — ${describeError(err)}`,
+    );
     return false;
   }
   if (profiles.length === 0) {
@@ -52,7 +54,7 @@ export async function selectProfile(config: DbtForgeConfig, store: ProfileStore)
 
   const pickedProfile = await vscode.window.showQuickPick(
     buildProfileItems(profiles, current, defaultProfile),
-    { placeHolder: `Select the dbt profile to run against (${location.filePath})` }
+    { placeHolder: `Select the dbt profile to run against (${location.filePath})` },
   );
   if (!pickedProfile) return false;
 
@@ -66,7 +68,10 @@ export async function selectProfile(config: DbtForgeConfig, store: ProfileStore)
   const target = await pickTarget(pickedProfile.profile, current);
   if (target === undefined) return false;
 
-  await store.set(config.projectDir, { profile: pickedProfile.profile.name, target: target || undefined });
+  await store.set(config.projectDir, {
+    profile: pickedProfile.profile.name,
+    target: target || undefined,
+  });
   return true;
 }
 
@@ -76,7 +81,7 @@ export async function selectProfile(config: DbtForgeConfig, store: ProfileStore)
  */
 async function pickTarget(
   profile: DbtProfileSummary,
-  current: ProfileSelection
+  current: ProfileSelection,
 ): Promise<string | undefined> {
   if (profile.targets.length <= 1) return '';
 
@@ -104,7 +109,7 @@ async function pickTarget(
 function buildProfileItems(
   profiles: DbtProfileSummary[],
   current: ProfileSelection,
-  defaultProfile: string | undefined
+  defaultProfile: string | undefined,
 ): ProfileQuickPickItem[] {
   return [
     {
@@ -140,7 +145,9 @@ function describeTarget(target: DbtTargetSummary): string | undefined {
 
 async function readProjectProfileName(projectDir: string): Promise<string | undefined> {
   try {
-    return parseProjectProfileName(await fs.readFile(path.join(projectDir, 'dbt_project.yml'), 'utf8'));
+    return parseProjectProfileName(
+      await fs.readFile(path.join(projectDir, 'dbt_project.yml'), 'utf8'),
+    );
   } catch {
     return undefined;
   }

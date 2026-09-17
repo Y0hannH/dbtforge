@@ -46,15 +46,21 @@ test('parseSchemaEntities: reads models, seeds, snapshots and source tables', ()
       'snapshot:orders_snapshot',
       'source:jaffle.raw_orders',
       'source:jaffle.raw_customers',
-    ]
+    ],
   );
 });
 
 test('parseSchemaEntities: columns belong to the entity that declares them', () => {
   const entities = parseSchemaEntities(SCHEMA);
   const byName = (name: string) => entities.find((e) => e.name === name);
-  assert.deepEqual(byName('orders')?.columns.map((c) => c.name), ['order_id', 'customer_id']);
-  assert.deepEqual(byName('raw_orders')?.columns.map((c) => c.name), ['id', 'placed_at']);
+  assert.deepEqual(
+    byName('orders')?.columns.map((c) => c.name),
+    ['order_id', 'customer_id'],
+  );
+  assert.deepEqual(
+    byName('raw_orders')?.columns.map((c) => c.name),
+    ['id', 'placed_at'],
+  );
   // A table with no columns block is still an entity — it just documents nothing.
   assert.deepEqual(byName('raw_customers')?.columns, []);
 });
@@ -92,6 +98,6 @@ test('parseSchemaEntities: an entry without a usable name is skipped, the rest s
   const text = 'models:\n  - description: nameless\n  - name: orders\n';
   assert.deepEqual(
     parseSchemaEntities(text).map((e) => e.name),
-    ['orders']
+    ['orders'],
   );
 });

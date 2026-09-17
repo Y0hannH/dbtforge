@@ -20,8 +20,7 @@ test('parseAliases: source with alias', () => {
 });
 
 test('parseAliases: JOIN clause is also matched', () => {
-  const sql =
-    "select * from {{ ref('a') }} a join {{ ref('b') }} b on a.id = b.id";
+  const sql = "select * from {{ ref('a') }} a join {{ ref('b') }} b on a.id = b.id";
   assert.deepEqual(parseAliases(sql), [
     { kind: 'ref', modelName: 'a', alias: 'a' },
     { kind: 'ref', modelName: 'b', alias: 'b' },

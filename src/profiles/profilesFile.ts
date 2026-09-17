@@ -74,7 +74,7 @@ export function parseProjectProfileName(yamlText: string): string | undefined {
  */
 export async function resolveProfilesLocation(
   projectDir: string,
-  configuredDir: string
+  configuredDir: string,
 ): Promise<ProfilesLocation | undefined> {
   const candidates: Array<{ dir: string; source: ProfilesSource }> = [];
   if (configuredDir) {
@@ -98,7 +98,12 @@ export async function resolveProfilesLocation(
 
 /** Every directory searched by resolveProfilesLocation, for error messages. */
 export function describeSearchedLocations(projectDir: string, configuredDir: string): string {
-  const dirs = [configuredDir, process.env.DBT_PROFILES_DIR, projectDir, path.join(os.homedir(), '.dbt')];
+  const dirs = [
+    configuredDir,
+    process.env.DBT_PROFILES_DIR,
+    projectDir,
+    path.join(os.homedir(), '.dbt'),
+  ];
   return dirs.filter((dir): dir is string => Boolean(dir)).join(', ');
 }
 

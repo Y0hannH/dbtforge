@@ -38,7 +38,7 @@ function neighborsInScope(
   graph: DependencyGraph,
   id: string,
   direction: Direction,
-  scope: LineageScope
+  scope: LineageScope,
 ): string[] {
   const neighbors = direction === 'up' ? graph.getParents(id) : graph.getChildren(id);
   return neighbors.filter((neighborId) => {
@@ -51,7 +51,7 @@ function toLineageNode(
   index: DbtProjectIndex,
   id: string,
   isRoot: boolean,
-  scope: LineageScope
+  scope: LineageScope,
 ): LineageNode | undefined {
   const node = index.getNode(id);
   const graph = index.getGraph();
@@ -94,7 +94,7 @@ function walk(
   limit: number,
   scope: LineageScope,
   nodes: Map<string, LineageNode>,
-  edges: Map<string, LineageEdge>
+  edges: Map<string, LineageEdge>,
 ): void {
   const seen = new Set<string>([rootId]);
   let frontier = [rootId];
@@ -106,7 +106,9 @@ function walk(
     for (const id of frontier) {
       for (const neighborId of neighborsInScope(index, graph, id, direction, scope)) {
         const edge: LineageEdge =
-          direction === 'up' ? { source: neighborId, target: id } : { source: id, target: neighborId };
+          direction === 'up'
+            ? { source: neighborId, target: id }
+            : { source: id, target: neighborId };
         edges.set(`${edge.source}->${edge.target}`, edge);
 
         if (seen.has(neighborId)) continue;
@@ -135,7 +137,7 @@ function walk(
 export function buildScopedSubgraph(
   index: DbtProjectIndex,
   rootId: string,
-  scope: LineageScope = DEFAULT_SCOPE
+  scope: LineageScope = DEFAULT_SCOPE,
 ): LineageSubgraph {
   const graph = index.getGraph();
   const root = toLineageNode(index, rootId, true, scope);
@@ -168,7 +170,7 @@ export function expandNode(
   index: DbtProjectIndex,
   nodeId: string,
   direction: Direction,
-  scope: LineageScope = DEFAULT_SCOPE
+  scope: LineageScope = DEFAULT_SCOPE,
 ): LineageSubgraph {
   const graph = index.getGraph();
   if (!graph) return { nodes: [], edges: [] };
@@ -181,7 +183,9 @@ export function expandNode(
     if (!neighborNode) continue;
     nodes.push(neighborNode);
     edges.push(
-      direction === 'up' ? { source: neighborId, target: nodeId } : { source: nodeId, target: neighborId }
+      direction === 'up'
+        ? { source: neighborId, target: nodeId }
+        : { source: nodeId, target: neighborId },
     );
   }
 

@@ -15,7 +15,7 @@ const SNIPPETS: Array<{ label: string; detail: string; snippet: string }> = [
 export class JinjaSnippetCompletionProvider implements vscode.CompletionItemProvider {
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
     const lineTextBeforeCursor = document.lineAt(position.line).text.slice(0, position.character);
     if (isInsideJinjaTag(lineTextBeforeCursor)) return undefined;

@@ -1,6 +1,10 @@
 import * as vscode from 'vscode';
 import { DbtProjectIndex, MacroRef, ModelRef, SourceRef } from '../index/DbtProjectIndex';
-import { findCallAtPosition, findMacroCallAtPosition, findMacroDefinitionAtPosition } from '../sql/jinjaRefParser';
+import {
+  findCallAtPosition,
+  findMacroCallAtPosition,
+  findMacroDefinitionAtPosition,
+} from '../sql/jinjaRefParser';
 
 /**
  * Hover for ref()/source()/macro calls (and macro definition lines), showing whatever
@@ -22,7 +26,7 @@ export class DbtHoverProvider implements vscode.HoverProvider {
       if (!model) return undefined;
       return new vscode.Hover(
         modelMarkdown(model),
-        new vscode.Range(position.line, call.argStart, position.line, call.argEnd)
+        new vscode.Range(position.line, call.argStart, position.line, call.argEnd),
       );
     }
     if (call?.kind === 'source') {
@@ -30,17 +34,19 @@ export class DbtHoverProvider implements vscode.HoverProvider {
       if (!source) return undefined;
       return new vscode.Hover(
         sourceMarkdown(source),
-        new vscode.Range(position.line, call.argStart, position.line, call.argEnd)
+        new vscode.Range(position.line, call.argStart, position.line, call.argEnd),
       );
     }
 
-    const macroMatch = findMacroDefinitionAtPosition(lineText, position.character) ?? findMacroCallAtPosition(lineText, position.character);
+    const macroMatch =
+      findMacroDefinitionAtPosition(lineText, position.character) ??
+      findMacroCallAtPosition(lineText, position.character);
     if (macroMatch) {
       const macro = index.resolveMacro(macroMatch.name);
       if (!macro) return undefined;
       return new vscode.Hover(
         macroMarkdown(macro),
-        new vscode.Range(position.line, macroMatch.start, position.line, macroMatch.end)
+        new vscode.Range(position.line, macroMatch.start, position.line, macroMatch.end),
       );
     }
 
@@ -68,7 +74,8 @@ function sourceMarkdown(source: SourceRef): vscode.MarkdownString {
 
 function macroMarkdown(macro: MacroRef): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
-  const args = macro.node.arguments?.map((a) => (a.type ? `${a.name}: ${a.type}` : a.name)).join(', ') ?? '';
+  const args =
+    macro.node.arguments?.map((a) => (a.type ? `${a.name}: ${a.type}` : a.name)).join(', ') ?? '';
   md.appendCodeblock(`${macro.name}(${args})`, 'jinja');
   if (macro.node.description) {
     md.appendMarkdown(`${macro.node.description}\n\n`);

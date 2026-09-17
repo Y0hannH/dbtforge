@@ -17,7 +17,7 @@ import { findAllRefCalls, findAllSourceCalls, isInsideJinjaExpression } from './
  */
 export function resolveUnqualifiedSource(
   documentText: string,
-  offset: number
+  offset: number,
 ): SourceRef | undefined {
   // Cheapest checks first: this runs on every keystroke that opens the suggest widget, and the
   // cursor guards reject the common cases (mid-tag, mid-string) without scanning the document.

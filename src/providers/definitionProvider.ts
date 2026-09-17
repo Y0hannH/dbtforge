@@ -13,7 +13,7 @@ export class RefSourceDefinitionProvider implements vscode.DefinitionProvider {
 
   async provideDefinition(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): Promise<vscode.Location | undefined> {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;
@@ -46,7 +46,7 @@ export class RefSourceDefinitionProvider implements vscode.DefinitionProvider {
    */
   private async locateFile(
     index: DbtProjectIndex,
-    node: ManifestEntity
+    node: ManifestEntity,
   ): Promise<vscode.Location | undefined> {
     const uri = await index.getExistingFileUri(node);
     return uri ? new vscode.Location(uri, new vscode.Position(0, 0)) : undefined;
@@ -56,13 +56,16 @@ export class RefSourceDefinitionProvider implements vscode.DefinitionProvider {
   private async locateMacro(
     index: DbtProjectIndex,
     node: ManifestEntity,
-    macroName: string
+    macroName: string,
   ): Promise<vscode.Location | undefined> {
     const uri = index.getFileUri(node);
     // Missing file: a dbt-core built-in macro, which ships with the Python package rather than
     // living under the project. Nothing to navigate to.
     const lines = await readFileLines(uri);
     if (!lines) return undefined;
-    return new vscode.Location(uri, new vscode.Position(findMacroDefinitionLine(lines, macroName) ?? 0, 0));
+    return new vscode.Location(
+      uri,
+      new vscode.Position(findMacroDefinitionLine(lines, macroName) ?? 0, 0),
+    );
   }
 }

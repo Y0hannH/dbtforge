@@ -18,7 +18,7 @@ export class DocCompletionProvider implements vscode.CompletionItemProvider {
 
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;

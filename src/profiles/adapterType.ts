@@ -15,7 +15,7 @@ import { parseProfiles, parseProjectProfileName, resolveProfilesLocation } from 
 export async function resolveAdapterType(
   projectDir: string,
   configuredProfilesDir: string,
-  selection: ProfileSelection
+  selection: ProfileSelection,
 ): Promise<string | undefined> {
   const location = await resolveProfilesLocation(projectDir, configuredProfilesDir);
   if (!location) return undefined;
@@ -37,7 +37,9 @@ export async function resolveAdapterType(
   return target?.type;
 }
 
-async function readProfiles(filePath: string): Promise<ReturnType<typeof parseProfiles> | undefined> {
+async function readProfiles(
+  filePath: string,
+): Promise<ReturnType<typeof parseProfiles> | undefined> {
   try {
     return parseProfiles(await fs.readFile(filePath, 'utf8'));
   } catch {
@@ -47,7 +49,9 @@ async function readProfiles(filePath: string): Promise<ReturnType<typeof parsePr
 
 async function readProjectProfileName(projectDir: string): Promise<string | undefined> {
   try {
-    return parseProjectProfileName(await fs.readFile(path.join(projectDir, 'dbt_project.yml'), 'utf8'));
+    return parseProjectProfileName(
+      await fs.readFile(path.join(projectDir, 'dbt_project.yml'), 'utf8'),
+    );
   } catch {
     return undefined;
   }

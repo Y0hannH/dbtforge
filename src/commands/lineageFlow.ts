@@ -14,7 +14,7 @@ export function showLineage(
   context: vscode.ExtensionContext,
   index: DbtProjectIndex,
   rootId: string,
-  panelView: LineageViewProvider
+  panelView: LineageViewProvider,
 ): void {
   const session = new LineageSession(index, rootId);
 
@@ -32,7 +32,7 @@ function showInEditor(context: vscode.ExtensionContext, session: LineageSession)
       'dbtForgeLineage',
       lineageTitle(session),
       vscode.ViewColumn.Beside,
-      { ...lineageWebviewOptions(context.extensionUri), retainContextWhenHidden: true }
+      { ...lineageWebviewOptions(context.extensionUri), retainContextWhenHidden: true },
     );
     editorPanel.onDidDispose(() => {
       editorAttachment?.dispose();
@@ -49,7 +49,7 @@ function showInEditor(context: vscode.ExtensionContext, session: LineageSession)
   editorPanel.webview.html = renderLineageHtml(
     editorPanel.webview,
     context.extensionUri,
-    session.bootstrap()
+    session.bootstrap(),
   );
   editorAttachment = session.attach(editorPanel.webview);
 }

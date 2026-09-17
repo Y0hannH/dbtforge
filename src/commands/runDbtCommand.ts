@@ -25,7 +25,7 @@ export function runDbtCommand(config: DbtForgeConfig, args: string[]): void {
   const dbtExecutable = resolveDbtExecutable(config.pythonPath);
   if (!dbtExecutable) {
     vscode.window.showErrorMessage(
-      `dbt Forge: no "dbt" executable found next to the configured pythonPath (${config.pythonPath}). Make sure dbt-core is installed in that venv.`
+      `dbt Forge: no "dbt" executable found next to the configured pythonPath (${config.pythonPath}). Make sure dbt-core is installed in that venv.`,
     );
     return;
   }
@@ -33,7 +33,9 @@ export function runDbtCommand(config: DbtForgeConfig, args: string[]): void {
   const terminal = getTerminal();
   terminal.show();
   terminal.sendText(`cd ${quotePath(config.projectDir)}`);
-  terminal.sendText(`${quoteExecutable(dbtExecutable)} ${[...args, ...profilesDirArgs(config)].join(' ')}`);
+  terminal.sendText(
+    `${quoteExecutable(dbtExecutable)} ${[...args, ...profilesDirArgs(config)].join(' ')}`,
+  );
 }
 
 // Only passed when the location is configured: dbt already looks in DBT_PROFILES_DIR, in the

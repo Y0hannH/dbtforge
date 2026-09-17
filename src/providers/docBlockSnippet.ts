@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
 export class DocBlockSnippetProvider implements vscode.CompletionItemProvider {
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
     const lineTextBeforeCursor = document.lineAt(position.line).text.slice(0, position.character);
     // Inside an already-open tag the user is past the point this helps.
@@ -21,7 +21,7 @@ export class DocBlockSnippetProvider implements vscode.CompletionItemProvider {
     item.insertText = new vscode.SnippetString('{% docs ${1:block_name} %}\n$0\n{% enddocs %}');
     item.detail = '{% docs %} … {% enddocs %}';
     item.documentation = new vscode.MarkdownString(
-      'A dbt doc block. Reference it from a schema .yml with `{{ doc("block_name") }}`.'
+      'A dbt doc block. Reference it from a schema .yml with `{{ doc("block_name") }}`.',
     );
     item.filterText = 'docs';
     return [item];

@@ -26,7 +26,7 @@ test('a documented column the table does not have is flagged', () => {
   const findings = reconcileColumns(
     [model('orders', ['order_id', 'custmer_id'])],
     ALL_KNOWN(['order_id', 'customer_id']),
-    OFF
+    OFF,
   );
   assert.equal(findings.length, 1);
   assert.match(findings[0].message, /has no column "custmer_id"/);
@@ -37,7 +37,7 @@ test('case is not a difference: warehouses report it their own way', () => {
   const findings = reconcileColumns(
     [model('orders', ['order_id', 'customer_id'])],
     ALL_KNOWN(['ORDER_ID', 'CUSTOMER_ID']),
-    OFF
+    OFF,
   );
   assert.deepEqual(findings, []);
 });
@@ -46,7 +46,7 @@ test('an unknown catalog silences every comparison', () => {
   const findings = reconcileColumns(
     [model('orders', ['nothing_like_a_real_column'])],
     NOTHING_KNOWN,
-    ON
+    ON,
   );
   assert.deepEqual(findings, []);
 });
@@ -104,6 +104,6 @@ test('findings come back in source order, whichever entity they belong to', () =
   const findings = reconcileColumns([first, second], ALL_KNOWN([]), OFF);
   assert.deepEqual(
     findings.map((f) => f.offset),
-    [5, 100]
+    [5, 100],
   );
 });

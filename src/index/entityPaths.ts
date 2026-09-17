@@ -22,7 +22,7 @@ export type ManifestEntity = DbtNode | DbtSourceNode | DbtMacroNode | DbtDocNode
 export function resolveEntityPath(
   projectDir: string,
   projectName: string,
-  entity: ManifestEntity
+  entity: ManifestEntity,
 ): string {
   if (entity.package_name === projectName) {
     return path.join(projectDir, entity.original_file_path);

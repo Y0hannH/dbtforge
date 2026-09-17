@@ -43,7 +43,7 @@ test('buildShowArgs: inline SQL is passed as one argument, never as --select', (
 test('buildShowArgs: carries the selected environment and profiles dir', () => {
   const args = buildShowArgs(
     { kind: 'node', name: 'm' },
-    { rowLimit: 10, profileArgs: ['--target', 'dev'], profilesDir: 'C:/dbt profiles' }
+    { rowLimit: 10, profileArgs: ['--target', 'dev'], profilesDir: 'C:/dbt profiles' },
   );
 
   assert.deepEqual(args.slice(-4), ['--target', 'dev', '--profiles-dir', 'C:/dbt profiles']);
@@ -54,7 +54,7 @@ test('buildShowArgs: an unset profiles dir is omitted rather than passed empty',
   assert.ok(!args.includes('--profiles-dir'));
 });
 
-test('normalizeRowLimit: keeps positive integers and dbt\'s -1 sentinel', () => {
+test("normalizeRowLimit: keeps positive integers and dbt's -1 sentinel", () => {
   assert.equal(normalizeRowLimit(50), 50);
   assert.equal(normalizeRowLimit(NO_ROW_LIMIT), NO_ROW_LIMIT);
 });

@@ -7,7 +7,7 @@ export class RefSourceCompletionProvider implements vscode.CompletionItemProvide
 
   provideCompletionItems(
     document: vscode.TextDocument,
-    position: vscode.Position
+    position: vscode.Position,
   ): vscode.CompletionItem[] | undefined {
     const index = this.getIndex(document.uri);
     if (!index || !index.isManifestLoaded()) return undefined;
@@ -27,7 +27,7 @@ export class RefSourceCompletionProvider implements vscode.CompletionItemProvide
       case 'source-name': {
         const sourceNames = new Set(index.getAllSources().map((s) => s.sourceName));
         return [...sourceNames].map(
-          (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Module)
+          (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Module),
         );
       }
 

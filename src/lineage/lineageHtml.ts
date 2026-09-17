@@ -9,13 +9,13 @@ import { LineageBootstrap } from './messages';
 export function renderLineageHtml(
   webview: vscode.Webview,
   extensionUri: vscode.Uri,
-  bootstrap: LineageBootstrap
+  bootstrap: LineageBootstrap,
 ): string {
   const scriptUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'lineage.js')
+    vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'lineage.js'),
   );
   const styleUri = webview.asWebviewUri(
-    vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'lineage.css')
+    vscode.Uri.joinPath(extensionUri, 'dist', 'webview', 'lineage.css'),
   );
   const nonce = getNonce();
 

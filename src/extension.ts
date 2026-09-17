@@ -1,8 +1,16 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { previewCompiledSql, compiledSqlContentProvider, COMPILED_SQL_SCHEME } from './commands/compiledSqlPreview';
+import {
+  previewCompiledSql,
+  compiledSqlContentProvider,
+  COMPILED_SQL_SCHEME,
+} from './commands/compiledSqlPreview';
 import { disposeLineagePanel, showLineage } from './commands/lineageFlow';
-import { disposeSharedTerminal, handleTerminalClosed, runDbtCommand } from './commands/runDbtCommand';
+import {
+  disposeSharedTerminal,
+  handleTerminalClosed,
+  runDbtCommand,
+} from './commands/runDbtCommand';
 import { selectProfile } from './commands/selectProfile';
 import { DbtForgeConfig, resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
@@ -85,7 +93,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       if (event.affectsConfiguration('dbtForge.flagUndocumentedColumns')) {
         diagnostics.revalidateOpenDocuments();
       }
-    })
+    }),
   );
 
   const profileStore = new ProfileStore(context.workspaceState);
@@ -100,7 +108,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     lineageView,
     vscode.window.registerWebviewViewProvider(LineageViewProvider.viewType, lineageView, {
       webviewOptions: { retainContextWhenHidden: true },
-    })
+    }),
   );
 
   const previewView = new PreviewViewProvider();
@@ -113,7 +121,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     // to the Terminal tab and back — the panel is shared real estate, so that happens constantly.
     vscode.window.registerWebviewViewProvider(PreviewViewProvider.viewType, previewView, {
       webviewOptions: { retainContextWhenHidden: true },
-    })
+    }),
   );
 
   context.subscriptions.push(
@@ -125,7 +133,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     }),
     vscode.workspace.onDidOpenTextDocument((doc) => diagnostics.validate(doc)),
     vscode.workspace.onDidChangeTextDocument((e) => diagnostics.validateDebounced(e.document)),
-    vscode.workspace.onDidCloseTextDocument((doc) => diagnostics.clear(doc.uri))
+    vscode.workspace.onDidCloseTextDocument((doc) => diagnostics.clear(doc.uri)),
   );
   for (const doc of vscode.workspace.textDocuments) diagnostics.validate(doc);
 
@@ -136,7 +144,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     runDbtCommand(config, [...args, ...profileStore.toCliArgs(config.projectDir)]);
   };
 
-
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('dbtForge.relatives', relativesTree),
     vscode.window.registerTreeDataProvider('dbtForge.tags', tagsTree),
@@ -145,7 +152,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Which project the tags view describes follows the active editor in a multi-root
       // workspace, so it has to re-read on editor change too, not just on manifest reload.
       tagsTree.refresh();
-    })
+    }),
   );
   refreshActiveEditorViews(relativesTree);
 
@@ -155,36 +162,48 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       new RefSourceCompletionProvider(getIndexForResource),
       "'",
       '"',
-      ','
+      ',',
     ),
     vscode.languages.registerCompletionItemProvider(
       DBT_SQL_SELECTOR,
       new ColumnCompletionProvider(getIndexForResource),
-      '.'
+      '.',
     ),
-    vscode.languages.registerCompletionItemProvider(DBT_SQL_SELECTOR, new JinjaSnippetCompletionProvider()),
+    vscode.languages.registerCompletionItemProvider(
+      DBT_SQL_SELECTOR,
+      new JinjaSnippetCompletionProvider(),
+    ),
     vscode.languages.registerCompletionItemProvider(
       DBT_DOC_SELECTOR,
       new DocCompletionProvider(getIndexForResource),
       "'",
-      '"'
+      '"',
     ),
     vscode.languages.registerCompletionItemProvider(
       DBT_MARKDOWN_SELECTOR,
-      new DocBlockSnippetProvider()
+      new DocBlockSnippetProvider(),
     ),
     vscode.languages.registerDefinitionProvider(
       DBT_DOC_SELECTOR,
-      new DocDefinitionProvider(getIndexForResource)
+      new DocDefinitionProvider(getIndexForResource),
     ),
     vscode.languages.registerDefinitionProvider(
       DBT_SQL_SELECTOR,
-      new RefSourceDefinitionProvider(getIndexForResource)
+      new RefSourceDefinitionProvider(getIndexForResource),
     ),
-    vscode.languages.registerReferenceProvider(DBT_SQL_SELECTOR, new DbtReferenceProvider(getIndexForResource)),
-    vscode.languages.registerHoverProvider(DBT_SQL_SELECTOR, new DbtHoverProvider(getIndexForResource)),
+    vscode.languages.registerReferenceProvider(
+      DBT_SQL_SELECTOR,
+      new DbtReferenceProvider(getIndexForResource),
+    ),
+    vscode.languages.registerHoverProvider(
+      DBT_SQL_SELECTOR,
+      new DbtHoverProvider(getIndexForResource),
+    ),
     vscode.languages.registerCodeLensProvider(DBT_NODE_SELECTOR, codeLensProvider),
-    vscode.workspace.registerTextDocumentContentProvider(COMPILED_SQL_SCHEME, compiledSqlContentProvider)
+    vscode.workspace.registerTextDocumentContentProvider(
+      COMPILED_SQL_SCHEME,
+      compiledSqlContentProvider,
+    ),
   );
 
   context.subscriptions.push(
@@ -196,24 +215,24 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.showInformationMessage('dbt Forge: index refreshed.');
     }),
     vscode.commands.registerCommand('dbtForge.buildModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', node.name]))
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', node.name])),
     ),
     vscode.commands.registerCommand('dbtForge.buildUpstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `+${node.name}`]))
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `+${node.name}`])),
     ),
     vscode.commands.registerCommand('dbtForge.buildDownstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `${node.name}+`]))
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `${node.name}+`])),
     ),
     vscode.commands.registerCommand('dbtForge.testModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['test', '--select', node.name]))
+      withModelNode(uri, (index, node) => runDbt(index, ['test', '--select', node.name])),
     ),
     vscode.commands.registerCommand('dbtForge.previewCompiledSql', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node))
+      withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node)),
     ),
     vscode.commands.registerCommand('dbtForge.showLineage', (uri?: vscode.Uri) =>
       withRefTargetNode(uri, (index, node) =>
-        showLineage(context, index, node.unique_id, lineageView)
-      )
+        showLineage(context, index, node.unique_id, lineageView),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) => {
       // Called with no file, this is the keyboard shortcut or the palette — the two entry points
@@ -221,14 +240,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // says it. Every menu item and CodeLens passes the file it was drawn on, and the one at the
       // top of the file means the whole model, so those keep previewing the whole model.
       const cteName = uri ? undefined : cteUnderCursor();
-      withModelNode(uri, (index, node) =>
-        void (cteName
-          ? previewController.previewCte(index, node, cteName)
-          : previewController.previewModel(index, node))
+      withModelNode(
+        uri,
+        (index, node) =>
+          void (cteName
+            ? previewController.previewCte(index, node, cteName)
+            : previewController.previewModel(index, node)),
       );
     }),
     vscode.commands.registerCommand('dbtForge.previewCte', (uri: vscode.Uri, cteName: string) =>
-      withModelNode(uri, (index, node) => void previewController.previewCte(index, node, cteName))
+      withModelNode(uri, (index, node) => void previewController.previewCte(index, node, cteName)),
     ),
     vscode.commands.registerCommand('dbtForge.rerunPreview', () => previewController.rerun()),
     vscode.commands.registerCommand('dbtForge.buildProject', async () => {
@@ -237,13 +258,19 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       runDbt(index, ['build']);
     }),
     vscode.commands.registerCommand('dbtForge.buildFolder', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `path:${selectorPath}`]))
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbt(index, ['build', '--select', `path:${selectorPath}`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.buildFolderUpstream', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `+path:${selectorPath}`]))
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbt(index, ['build', '--select', `+path:${selectorPath}`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.buildFolderDownstream', (uri?: vscode.Uri) =>
-      withProjectFolder(uri, (index, selectorPath) => runDbt(index, ['build', '--select', `path:${selectorPath}+`]))
+      withProjectFolder(uri, (index, selectorPath) =>
+        runDbt(index, ['build', '--select', `path:${selectorPath}+`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.compileProject', async () => {
       const index = await resolveAnyIndex();
@@ -269,14 +296,14 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const action = await vscode.window.showInformationMessage(
         `dbt Forge: dbt commands now run with ${describeSelection(profileStore, index)}. ` +
           'The indexed manifest still reflects the previous environment.',
-        'Compile project'
+        'Compile project',
       );
       if (action) runDbt(index, ['compile']);
     }),
     vscode.commands.registerCommand('dbtForge.compileFile', (uri?: vscode.Uri) =>
       withSqlFileSelector(uri, (index, selectorPath) =>
-        runDbt(index, ['compile', '--select', `path:${selectorPath}`])
-      )
+        runDbt(index, ['compile', '--select', `path:${selectorPath}`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.parseProject', async () => {
       const index = await resolveAnyIndex();
@@ -284,16 +311,16 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       runDbt(index, ['parse']);
     }),
     vscode.commands.registerCommand('dbtForge.buildTag', (item?: TagItem) =>
-      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}`]))
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}`])),
     ),
     vscode.commands.registerCommand('dbtForge.buildTagUpstream', (item?: TagItem) =>
-      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `+tag:${tag}`]))
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `+tag:${tag}`])),
     ),
     vscode.commands.registerCommand('dbtForge.buildTagDownstream', (item?: TagItem) =>
-      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}+`]))
+      withTag(item, (index, tag) => runDbt(index, ['build', '--select', `tag:${tag}+`])),
     ),
     vscode.commands.registerCommand('dbtForge.testTag', (item?: TagItem) =>
-      withTag(item, (index, tag) => runDbt(index, ['test', '--select', `tag:${tag}`]))
+      withTag(item, (index, tag) => runDbt(index, ['test', '--select', `tag:${tag}`])),
     ),
     vscode.commands.registerCommand('dbtForge.refreshTags', () => tagsTree.refresh()),
     // Flipping the setting is only half the job: the button lives in an empty Lineage view, so it
@@ -313,24 +340,29 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         return;
       }
       vscode.window.showInformationMessage(
-        'dbt Forge: lineage now opens in the bottom panel. Run Show Lineage on a model to draw one.'
+        'dbt Forge: lineage now opens in the bottom panel. Run Show Lineage on a model to draw one.',
       );
-    })
+    }),
   );
 
   context.subscriptions.push(
     vscode.window.onDidCloseTerminal(handleTerminalClosed),
     { dispose: disposeSharedTerminal },
-    { dispose: disposeAllIndexes }
+    { dispose: disposeAllIndexes },
   );
 }
 
 /** Resolves the dbt model backing `uri` (or the active editor if omitted) and runs `action`. */
 function withModelNode(
   uri: vscode.Uri | undefined,
-  action: (index: DbtProjectIndex, node: DbtNode) => void
+  action: (index: DbtProjectIndex, node: DbtNode) => void,
 ): void {
-  withNode(uri, (node) => node.resource_type === 'model', 'this file is not a known dbt model.', action);
+  withNode(
+    uri,
+    (node) => node.resource_type === 'model',
+    'this file is not a known dbt model.',
+    action,
+  );
 }
 
 /**
@@ -340,7 +372,7 @@ function withModelNode(
  */
 function withRefTargetNode(
   uri: vscode.Uri | undefined,
-  action: (index: DbtProjectIndex, node: DbtNode) => void
+  action: (index: DbtProjectIndex, node: DbtNode) => void,
 ): void {
   withNode(uri, isReferenceable, 'this file is not a known dbt model, seed or snapshot.', action);
 }
@@ -366,7 +398,7 @@ function withNode(
   uri: vscode.Uri | undefined,
   accepts: (node: DbtNode) => boolean,
   rejectionMessage: string,
-  action: (index: DbtProjectIndex, node: DbtNode) => void
+  action: (index: DbtProjectIndex, node: DbtNode) => void,
 ): void {
   const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
   if (!targetUri) {
@@ -391,7 +423,7 @@ function withNode(
  */
 function withProjectFolder(
   uri: vscode.Uri | undefined,
-  action: (index: DbtProjectIndex, selectorPath: string) => void
+  action: (index: DbtProjectIndex, selectorPath: string) => void,
 ): void {
   if (!uri) {
     vscode.window.showWarningMessage('dbt Forge: no folder selected.');
@@ -400,7 +432,9 @@ function withProjectFolder(
 
   const index = getIndexForResource(uri);
   if (!index) {
-    vscode.window.showWarningMessage('dbt Forge: this folder is not part of an indexed dbt project.');
+    vscode.window.showWarningMessage(
+      'dbt Forge: this folder is not part of an indexed dbt project.',
+    );
     return;
   }
 
@@ -422,7 +456,7 @@ function withProjectFolder(
  */
 function withSqlFileSelector(
   uri: vscode.Uri | undefined,
-  action: (index: DbtProjectIndex, selectorPath: string) => void
+  action: (index: DbtProjectIndex, selectorPath: string) => void,
 ): void {
   const targetUri = uri ?? vscode.window.activeTextEditor?.document.uri;
   if (!targetUri || !isDbtSqlFile(targetUri)) {
@@ -452,7 +486,7 @@ function withSqlFileSelector(
  */
 async function withTag(
   item: TagItem | undefined,
-  action: (index: DbtProjectIndex, tag: string) => void
+  action: (index: DbtProjectIndex, tag: string) => void,
 ): Promise<void> {
   if (item) {
     action(item.index, item.tag);
@@ -465,7 +499,7 @@ async function withTag(
   const tags = index.getAllTags();
   if (tags.length === 0) {
     vscode.window.showWarningMessage(
-      'dbt Forge: no tags declared in this project (or the manifest predates them — try Compile Project).'
+      'dbt Forge: no tags declared in this project (or the manifest predates them — try Compile Project).',
     );
     return;
   }
@@ -476,7 +510,7 @@ async function withTag(
       description: `${t.modelCount} model${t.modelCount === 1 ? '' : 's'}`,
       tag: t.tag,
     })),
-    { placeHolder: 'Select a tag' }
+    { placeHolder: 'Select a tag' },
   );
   if (picked) action(index, picked.tag);
 }
@@ -502,7 +536,8 @@ function refreshActiveEditorViews(relativesTree: RelativesTreeProvider): void {
   relativesTree.refresh(editor);
 
   const uri = editor?.document.uri;
-  const compilable = uri !== undefined && isDbtSqlFile(uri) && getIndexForResource(uri) !== undefined;
+  const compilable =
+    uri !== undefined && isDbtSqlFile(uri) && getIndexForResource(uri) !== undefined;
   void vscode.commands.executeCommand('setContext', 'dbtForge.activeFileCompilable', compilable);
 }
 
@@ -528,7 +563,7 @@ async function resolveAnyIndex(): Promise<DbtProjectIndex | undefined> {
 
   const picked = await vscode.window.showQuickPick(
     all.map((index) => ({ label: index.getConfig().projectDir, index })),
-    { placeHolder: 'Select a dbt project' }
+    { placeHolder: 'Select a dbt project' },
   );
   return picked?.index;
 }
@@ -555,7 +590,7 @@ function activeProjectConfig(): DbtForgeConfig | undefined {
 async function setupWorkspaceFolders(
   context: vscode.ExtensionContext,
   output: vscode.OutputChannel,
-  onIndexChanged: () => void
+  onIndexChanged: () => void,
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of folders) {

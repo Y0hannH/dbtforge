@@ -49,7 +49,7 @@ export async function previewCompiledSql(config: DbtForgeConfig, node: DbtNode):
     .catch(() => false);
   if (!exists) {
     vscode.window.showWarningMessage(
-      `dbt Forge: no compiled SQL found for "${node.name}" at ${compiledPath}. Run "dbt compile" first.`
+      `dbt Forge: no compiled SQL found for "${node.name}" at ${compiledPath}. Run "dbt compile" first.`,
     );
     return;
   }

@@ -36,7 +36,7 @@ const MAX_NAMED_COLUMNS = 6;
 export function reconcileColumns(
   entities: DocumentedEntity[],
   catalogColumns: (entity: DocumentedEntity) => string[] | undefined,
-  options: ReconciliationOptions
+  options: ReconciliationOptions,
 ): ColumnFinding[] {
   const findings: ColumnFinding[] = [];
 

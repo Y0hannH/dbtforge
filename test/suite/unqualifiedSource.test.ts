@@ -31,7 +31,7 @@ test('an alias is present: the alias. path owns this file', () => {
 test('two tables: ambiguous, so nothing', () => {
   assert.equal(
     resolve("select i|\nfrom {{ ref('orders') }}\njoin {{ ref('customers') }} on 1 = 1"),
-    undefined
+    undefined,
   );
 });
 
@@ -42,14 +42,14 @@ test('comma join: still two tables, even though the second has no FROM/JOIN', ()
 test('a ref anywhere else in the file also makes it ambiguous', () => {
   assert.equal(
     resolve("select i|\nfrom {{ ref('orders') }}\nwhere id in (select id from {{ ref('vip') }})"),
-    undefined
+    undefined,
   );
 });
 
 test('a CTE puts a second candidate in scope', () => {
   assert.equal(
     resolve("with recent as (\n  select * from {{ ref('orders') }}\n)\nselect r|\nfrom recent"),
-    undefined
+    undefined,
   );
 });
 

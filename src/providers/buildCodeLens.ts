@@ -21,7 +21,8 @@ export class BuildCodeLensProvider implements vscode.CodeLensProvider {
     if (!node) return [];
 
     const uri = document.uri;
-    if (node.resource_type === 'model') return [...this.modelLenses(uri), ...ctePreviewLenses(document)];
+    if (node.resource_type === 'model')
+      return [...this.modelLenses(uri), ...ctePreviewLenses(document)];
     // A seed's .csv and a snapshot have no model SQL to build, test or preview, but they are
     // nodes in the graph like any other — so at least offer the one action that applies.
     if (isReferenceable(node)) return [lineageLens(uri)];

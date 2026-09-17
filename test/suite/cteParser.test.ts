@@ -35,7 +35,7 @@ test('parseCtes: multiple comma-separated CTEs', () => {
     [
       { name: 'a', columns: ['x', 'y'] },
       { name: 'b', columns: ['z'] },
-    ]
+    ],
   );
   // Offsets must delimit each CTE's own body, which is what the preview rewrite splices around.
   assert.equal(sql.slice(ctes[0].bodyStart, ctes[0].bodyEnd).trim(), 'select x, y from t1');

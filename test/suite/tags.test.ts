@@ -6,13 +6,13 @@ import { DbtManifest } from '../../src/index/manifestTypes';
 import { collectTags } from '../../src/index/tags';
 
 const manifest: DbtManifest = JSON.parse(
-  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8')
+  readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8'),
 );
 
 test('collectTags returns every declared tag, alphabetically', () => {
   assert.deepEqual(
     collectTags(manifest).map((t) => t.tag),
-    ['marts', 'nightly', 'raw', 'staging']
+    ['marts', 'nightly', 'raw', 'staging'],
   );
 });
 
@@ -28,9 +28,7 @@ test('collectTags unions top-level tags with config.tags, without duplicating', 
 test('collectTags picks up tags declared only under config.tags', () => {
   // The test node carries "nightly" via config.tags alone.
   const nightly = collectTags(manifest).find((t) => t.tag === 'nightly');
-  assert.ok(
-    nightly?.uniqueIds.includes('test.example_project.not_null_dim_customers_customer_id')
-  );
+  assert.ok(nightly?.uniqueIds.includes('test.example_project.not_null_dim_customers_customer_id'));
 });
 
 test('modelCount counts models only, while uniqueIds keeps every tagged resource', () => {
