@@ -15,7 +15,7 @@ import {
 import { selectProfile } from './commands/selectProfile';
 import type { DbtForgeConfig } from './config';
 import { resolveConfig } from './config';
-import { DbtProjectIndex } from './index/DbtProjectIndex';
+import { DbtProjectIndex } from './index/dbtProjectIndex';
 import type { DbtNode } from './index/manifestTypes';
 import { isReferenceable } from './index/refIndex';
 import { toggleLineageLocation } from './lineage/lineagePlacement';

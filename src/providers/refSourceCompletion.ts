@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { parseCompletionContext } from '../sql/jinjaRefParser';
 
 export class RefSourceCompletionProvider implements vscode.CompletionItemProvider {

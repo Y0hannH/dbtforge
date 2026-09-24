@@ -1,4 +1,4 @@
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DependencyGraph } from '../index/graph';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';

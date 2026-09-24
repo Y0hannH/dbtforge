@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { lineageWebviewOptions, renderLineageHtml } from '../lineage/lineageHtml';
 import { configuredLineageLocation } from '../lineage/lineagePlacement';
 import { LineageSession } from '../lineage/lineageSession';

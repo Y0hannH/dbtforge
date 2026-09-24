@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { readFileLines } from '../index/textFiles';
 import { findDocCallAtPosition, findDocsBlockLine } from '../sql/jinjaRefParser';
 

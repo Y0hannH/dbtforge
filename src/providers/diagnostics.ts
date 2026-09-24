@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
 import { reconcileColumns } from '../yaml/columnReconciliation';
 import type { DocumentedEntity } from '../yaml/schemaColumns';

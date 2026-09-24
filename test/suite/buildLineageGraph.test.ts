@@ -2,7 +2,7 @@ import { test } from 'node:test';
 
 import { strict as assert } from 'assert';
 
-import type { DbtProjectIndex } from '../../src/index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../../src/index/dbtProjectIndex';
 import type { DependencyGraph } from '../../src/index/graph';
 import type { DbtNode } from '../../src/index/manifestTypes';
 import {

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { buildScopedSubgraph, expandNode } from './buildLineageGraph';
 import type { LineageScope } from './lineageScope';
 import { DEFAULT_SCOPE, sanitizeScope } from './lineageScope';

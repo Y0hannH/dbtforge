@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { ManifestEntity } from '../index/entityPaths';
 import type { DbtMacroNode, DbtNode, DbtSourceNode } from '../index/manifestTypes';
 import { isReferenceable } from '../index/refIndex';

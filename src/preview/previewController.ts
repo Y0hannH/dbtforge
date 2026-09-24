@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { isTsqlAdapter, needsTopRewrite, rewriteWithTopLimit } from '../dbt/previewRewrite';
 import type { ShowTarget } from '../dbt/showCommand';
 import { DbtShowCancelledError, DbtShowError, DbtShowRequest, runDbtShow } from '../dbt/showRunner';
-import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode } from '../index/manifestTypes';
 import { resolveAdapterType } from '../profiles/adapterType';
 import type { ProfileStore } from '../profiles/profileStore';
