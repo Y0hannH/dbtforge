@@ -279,7 +279,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   getCatalogColumns(uniqueId: string): DbtCatalogColumn[] | undefined {
-    const entry = this.catalog?.nodes[uniqueId] ?? this.catalog?.sources[uniqueId];
+    const entry = this.catalog?.nodes?.[uniqueId] ?? this.catalog?.sources?.[uniqueId];
     if (!entry) return undefined;
     return Object.values(entry.columns).sort((a, b) => a.index - b.index);
   }
