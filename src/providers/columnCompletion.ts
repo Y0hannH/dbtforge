@@ -15,8 +15,9 @@ const ALIAS_PREFIX_RE = /([A-Za-z_][A-Za-z0-9_]*)\.$/;
  *  - a same-file CTE name, resolved from its own top-level SELECT column list.
  *
  * With nothing before the cursor, the same columns are suggested unqualified — but only when
- * the file leaves them no other origin: a single table reference, unaliased, and no CTEs
- * (see resolveUnqualifiedSource). Anywhere else, no suggestions are offered — this provider
+ * the statement the cursor is in leaves them no other origin: a single table reference,
+ * unaliased (see resolveUnqualifiedSource, which scopes this to the enclosing CTE's own body
+ * when the cursor is inside one). Anywhere else, no suggestions are offered — this provider
  * never guesses.
  */
 export class ColumnCompletionProvider implements vscode.CompletionItemProvider {

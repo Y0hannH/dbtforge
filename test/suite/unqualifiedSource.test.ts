@@ -48,10 +48,44 @@ void test('a ref anywhere else in the file also makes it ambiguous', () => {
   );
 });
 
-void test('a CTE puts a second candidate in scope', () => {
+void test('a CTE puts a second candidate in scope, for the final SELECT', () => {
   assert.equal(
     resolve("with recent as (\n  select * from {{ ref('orders') }}\n)\nselect r|\nfrom recent"),
     undefined,
+  );
+});
+
+void test('inside a CTE body with a single unaliased ref: columns resolve against it', () => {
+  assert.deepEqual(
+    resolve("with recent as (\n  select ord|\n  from {{ ref('orders') }}\n)\nselect * from recent"),
+    { kind: 'ref', modelName: 'orders' },
+  );
+});
+
+void test('inside a CTE body: an alias there is still the alias. path', () => {
+  assert.equal(
+    resolve(
+      "with recent as (\n  select o|\n  from {{ ref('orders') }} o\n)\nselect * from recent",
+    ),
+    undefined,
+  );
+});
+
+void test('inside a CTE body with two tables: still ambiguous', () => {
+  assert.equal(
+    resolve(
+      "with recent as (\n  select i|\n  from {{ ref('orders') }}\n  join {{ ref('customers') }} on 1 = 1\n)\nselect * from recent",
+    ),
+    undefined,
+  );
+});
+
+void test('a second CTE elsewhere in the file does not leak into this one', () => {
+  assert.deepEqual(
+    resolve(
+      "with a as (\n  select ord|\n  from {{ ref('orders') }}\n), b as (\n  select * from {{ ref('customers') }}\n)\nselect * from a, b",
+    ),
+    { kind: 'ref', modelName: 'orders' },
   );
 });
 
