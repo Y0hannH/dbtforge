@@ -315,3 +315,82 @@ void test('buildInitialSubgraph: the meta row carries what the manifest and cata
   // a materializes as a view and is not in the catalog: no count invented for it.
   assert.equal(resultNodes.find((n) => n.id === 'model.pkg.a')?.metaLabel, 'model · view');
 });
+
+void test('buildInitialSubgraph: a downstream DT with no downstream DT is flagged unresolved', () => {
+  // b (downstream DT) -> c (downstream DT) -> d (plain model, dead end for both).
+  const lagNodes: Record<string, DbtNode> = {
+    'model.pkg.b': {
+      ...makeNode('model.pkg.b', 'b'),
+      config: { materialized: 'dynamic_table', target_lag: 'downstream' },
+    },
+    'model.pkg.c': {
+      ...makeNode('model.pkg.c', 'c'),
+      config: { materialized: 'dynamic_table', target_lag: 'downstream' },
+    },
+    'model.pkg.d': makeNode('model.pkg.d', 'd'),
+  };
+  const lagChildren: Record<string, string[]> = {
+    'model.pkg.b': ['model.pkg.c'],
+    'model.pkg.c': ['model.pkg.d'],
+  };
+  const lagIndex = {
+    getGraph: () => ({
+      getParents: () => [],
+      getChildren: (id: string) => lagChildren[id] ?? [],
+      getTests: () => [],
+      getMacroCallers: () => [],
+    }),
+    getNode: (id: string) => lagNodes[id],
+    getCatalogColumns: () => undefined,
+  } as unknown as DbtProjectIndex;
+
+  const result = buildScopedSubgraph(lagIndex, 'model.pkg.b', {
+    upstreamDepth: 0,
+    downstreamDepth: UNLIMITED_DEPTH,
+    includeTests: false,
+    excludedMaterializations: [],
+  });
+  assert.equal(
+    result.nodes.find((n) => n.id === 'model.pkg.b')?.metaLabel,
+    'model · dynamic_table (downstream, unresolved)',
+  );
+  assert.equal(
+    result.nodes.find((n) => n.id === 'model.pkg.c')?.metaLabel,
+    'model · dynamic_table (downstream, unresolved)',
+  );
+});
+
+void test('buildInitialSubgraph: a downstream DT resolved by a downstream DT with a real lag', () => {
+  const lagNodes: Record<string, DbtNode> = {
+    'model.pkg.b': {
+      ...makeNode('model.pkg.b', 'b'),
+      config: { materialized: 'dynamic_table', target_lag: 'downstream' },
+    },
+    'model.pkg.c': {
+      ...makeNode('model.pkg.c', 'c'),
+      config: { materialized: 'dynamic_table', target_lag: '2 minutes' },
+    },
+  };
+  const lagChildren: Record<string, string[]> = { 'model.pkg.b': ['model.pkg.c'] };
+  const lagIndex = {
+    getGraph: () => ({
+      getParents: () => [],
+      getChildren: (id: string) => lagChildren[id] ?? [],
+      getTests: () => [],
+      getMacroCallers: () => [],
+    }),
+    getNode: (id: string) => lagNodes[id],
+    getCatalogColumns: () => undefined,
+  } as unknown as DbtProjectIndex;
+
+  const result = buildScopedSubgraph(lagIndex, 'model.pkg.b', {
+    upstreamDepth: 0,
+    downstreamDepth: UNLIMITED_DEPTH,
+    includeTests: false,
+    excludedMaterializations: [],
+  });
+  assert.equal(
+    result.nodes.find((n) => n.id === 'model.pkg.b')?.metaLabel,
+    'model · dynamic_table (downstream)',
+  );
+});

@@ -64,9 +64,7 @@ void test('inside a CTE body with a single unaliased ref: columns resolve agains
 
 void test('inside a CTE body: an alias there is still the alias. path', () => {
   assert.equal(
-    resolve(
-      "with recent as (\n  select o|\n  from {{ ref('orders') }} o\n)\nselect * from recent",
-    ),
+    resolve("with recent as (\n  select o|\n  from {{ ref('orders') }} o\n)\nselect * from recent"),
     undefined,
   );
 });

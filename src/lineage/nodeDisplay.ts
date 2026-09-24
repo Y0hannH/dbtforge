@@ -15,6 +15,13 @@ export interface NodeMetaFacts {
   targetLag?: string;
   /** How many columns the warehouse reports, or undefined when the catalog cannot say. */
   columnCount?: number;
+  /**
+   * Only meaningful when `targetLag` is 'downstream': true when nothing in this node's
+   * downstream closure is a dynamic table with an actual lag to inherit — a dead end, not a
+   * resolved value. Computed, not declared, so it is labelled as such rather than shown as
+   * though dbt had said it. See lineage/targetLagResolution.ts.
+   */
+  targetLagUnresolved?: boolean;
 }
 
 /**
@@ -28,7 +35,7 @@ export interface NodeMetaFacts {
  * tables and no generated catalog sees exactly the row it saw before any of this was read.
  */
 export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): string {
-  const { materialization, targetLag, columnCount } = facts;
+  const { materialization, targetLag, columnCount, targetLagUnresolved } = facts;
   let label = resourceType;
 
   if (materialization && materialization !== resourceType) {
@@ -36,7 +43,11 @@ export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): 
     // Parenthesised rather than given its own ` · ` segment: the lag is a property of the
     // materialization, not a third fact about the node, and the row reads wrong if it looks like
     // one. Only appended alongside a materialization, since it describes it.
-    if (targetLag?.trim()) label += ` (${targetLag.trim()})`;
+    if (targetLag?.trim()) {
+      label += targetLagUnresolved
+        ? ` (${targetLag.trim()}, unresolved)`
+        : ` (${targetLag.trim()})`;
+    }
   }
 
   // A count of zero is treated as no answer rather than shown: catalog.json only describes

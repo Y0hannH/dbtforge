@@ -3,6 +3,7 @@ import type { DependencyGraph } from '../index/graph';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
+import { hasResolvableTargetLag } from './targetLagResolution';
 
 export interface LineageNode {
   id: string;
@@ -53,23 +54,33 @@ function toLineageNode(
   id: string,
   isRoot: boolean,
   scope: LineageScope,
+  lagMemo: Map<string, boolean>,
 ): LineageNode | undefined {
   const node = index.getNode(id);
   const graph = index.getGraph();
   if (!node || !graph) return undefined;
+
+  const materialization = node.config?.materialized;
+  const targetLag = node.config?.target_lag;
 
   return {
     id,
     name: node.name,
     resourceType: node.resource_type,
     metaLabel: nodeMetaLabel(node.resource_type, {
-      materialization: node.config?.materialized,
-      targetLag: node.config?.target_lag,
+      materialization,
+      targetLag,
       // The catalog, not the manifest: the manifest only carries the columns someone documented
       // in a .yml, so counting those would confidently report 4 on a 60-column model. Absent
       // until `dbt docs generate` has run, and absent for anything never built — in both cases
       // the label simply says nothing rather than guessing a number.
       columnCount: index.getCatalogColumns(id)?.length,
+      // Only worth walking the downstream closure for the one case it can answer: a dynamic
+      // table that has deferred its schedule and may have nothing to defer to.
+      targetLagUnresolved:
+        materialization === 'dynamic_table' && targetLag === 'downstream'
+          ? !hasResolvableTargetLag(index, id, lagMemo)
+          : undefined,
     }),
     color: readNodeColor(node),
     isRoot,
@@ -96,6 +107,7 @@ function walk(
   scope: LineageScope,
   nodes: Map<string, LineageNode>,
   edges: Map<string, LineageEdge>,
+  lagMemo: Map<string, boolean>,
 ): void {
   const seen = new Set<string>([rootId]);
   let frontier = [rootId];
@@ -115,7 +127,7 @@ function walk(
         if (seen.has(neighborId)) continue;
         seen.add(neighborId);
 
-        const node = toLineageNode(index, neighborId, false, scope);
+        const node = toLineageNode(index, neighborId, false, scope, lagMemo);
         if (!node) continue;
         if (!nodes.has(neighborId)) nodes.set(neighborId, node);
         nextFrontier.push(neighborId);
@@ -141,14 +153,15 @@ export function buildScopedSubgraph(
   scope: LineageScope = DEFAULT_SCOPE,
 ): LineageSubgraph {
   const graph = index.getGraph();
-  const root = toLineageNode(index, rootId, true, scope);
+  const lagMemo = new Map<string, boolean>();
+  const root = toLineageNode(index, rootId, true, scope, lagMemo);
   if (!graph || !root) return { nodes: [], edges: [] };
 
   const nodes = new Map<string, LineageNode>([[rootId, root]]);
   const edges = new Map<string, LineageEdge>();
 
-  walk(index, graph, rootId, 'up', scope.upstreamDepth, scope, nodes, edges);
-  walk(index, graph, rootId, 'down', scope.downstreamDepth, scope, nodes, edges);
+  walk(index, graph, rootId, 'up', scope.upstreamDepth, scope, nodes, edges, lagMemo);
+  walk(index, graph, rootId, 'down', scope.downstreamDepth, scope, nodes, edges, lagMemo);
 
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
 }
@@ -178,9 +191,10 @@ export function expandNode(
 
   const nodes: LineageNode[] = [];
   const edges: LineageEdge[] = [];
+  const lagMemo = new Map<string, boolean>();
 
   for (const neighborId of neighborsInScope(index, graph, nodeId, direction, scope)) {
-    const neighborNode = toLineageNode(index, neighborId, false, scope);
+    const neighborNode = toLineageNode(index, neighborId, false, scope, lagMemo);
     if (!neighborNode) continue;
     nodes.push(neighborNode);
     edges.push(
