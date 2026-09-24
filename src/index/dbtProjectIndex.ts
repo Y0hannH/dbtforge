@@ -58,8 +58,8 @@ export class DbtProjectIndex implements vscode.Disposable {
   private tags: TagRef[] = [];
 
   private readonly disposables: vscode.Disposable[] = [];
-  private readonly _onDidChange = new vscode.EventEmitter<void>();
-  readonly onDidChange = this._onDidChange.event;
+  private readonly changeEmitter = new vscode.EventEmitter<void>();
+  readonly onDidChange = this.changeEmitter.event;
 
   private manifestMissingWarned = false;
   private catalogMissingWarned = false;
@@ -99,7 +99,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.macros = undefined;
       this.docs = undefined;
       this.tags = [];
-      this._onDidChange.fire();
+      this.changeEmitter.fire();
       return;
     }
 
@@ -107,7 +107,7 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.manifest = parsed;
     this.graph = buildDependencyGraph(parsed);
     this.indexModelsAndSources(parsed);
-    this._onDidChange.fire();
+    this.changeEmitter.fire();
   }
 
   private async reloadCatalog(): Promise<void> {
@@ -130,7 +130,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.catalogMissingWarned = false;
     }
     this.catalog = parsed ?? undefined;
-    this._onDidChange.fire();
+    this.changeEmitter.fire();
   }
 
   private indexModelsAndSources(manifest: DbtManifest): void {
@@ -316,7 +316,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   dispose(): void {
-    this._onDidChange.dispose();
+    this.changeEmitter.dispose();
     for (const d of this.disposables) d.dispose();
   }
 }

@@ -17,8 +17,8 @@ export class PreviewViewProvider implements vscode.WebviewViewProvider, vscode.D
   private view: vscode.WebviewView | undefined;
   private state: PreviewState = { kind: 'idle' };
 
-  private readonly _onDidRequestCancel = new vscode.EventEmitter<void>();
-  readonly onDidRequestCancel = this._onDidRequestCancel.event;
+  private readonly cancelEmitter = new vscode.EventEmitter<void>();
+  readonly onDidRequestCancel = this.cancelEmitter.event;
 
   resolveWebviewView(view: vscode.WebviewView): void {
     this.view = view;
@@ -29,7 +29,7 @@ export class PreviewViewProvider implements vscode.WebviewViewProvider, vscode.D
       // The webview asks for state once its script is live. Without that handshake, a result
       // produced while the panel was still resolving would be posted into a void and lost.
       if (message.type === 'ready') this.post();
-      else if (message.type === 'cancel') this._onDidRequestCancel.fire();
+      else if (message.type === 'cancel') this.cancelEmitter.fire();
     });
 
     view.onDidDispose(() => {
@@ -56,6 +56,6 @@ export class PreviewViewProvider implements vscode.WebviewViewProvider, vscode.D
   }
 
   dispose(): void {
-    this._onDidRequestCancel.dispose();
+    this.cancelEmitter.dispose();
   }
 }

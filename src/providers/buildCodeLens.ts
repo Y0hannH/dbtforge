@@ -7,13 +7,13 @@ import { parseCtes } from '../sql/cteParser';
 const TOP_OF_FILE = new vscode.Range(0, 0, 0, 0);
 
 export class BuildCodeLensProvider implements vscode.CodeLensProvider {
-  private readonly _onDidChangeCodeLenses = new vscode.EventEmitter<void>();
-  readonly onDidChangeCodeLenses = this._onDidChangeCodeLenses.event;
+  private readonly codeLensesEmitter = new vscode.EventEmitter<void>();
+  readonly onDidChangeCodeLenses = this.codeLensesEmitter.event;
 
   constructor(private readonly getIndex: (uri: vscode.Uri) => DbtProjectIndex | undefined) {}
 
   refresh(): void {
-    this._onDidChangeCodeLenses.fire();
+    this.codeLensesEmitter.fire();
   }
 
   provideCodeLenses(document: vscode.TextDocument): vscode.CodeLens[] {

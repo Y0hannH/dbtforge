@@ -20,8 +20,8 @@ function toCompiledSqlUri(compiledFilePath: string): vscode.Uri {
 /** Serves target/compiled/*.sql as read-only virtual documents (edits are disallowed by VS Code
  *  for TextDocumentContentProvider-backed documents — no extra readonly plumbing needed). */
 export class CompiledSqlContentProvider implements vscode.TextDocumentContentProvider {
-  private readonly _onDidChange = new vscode.EventEmitter<vscode.Uri>();
-  readonly onDidChange = this._onDidChange.event;
+  private readonly changeEmitter = new vscode.EventEmitter<vscode.Uri>();
+  readonly onDidChange = this.changeEmitter.event;
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     try {
@@ -35,7 +35,7 @@ export class CompiledSqlContentProvider implements vscode.TextDocumentContentPro
    *  recompile) — without this, openTextDocument() on the same URI just returns the stale
    *  cached copy from the first preview. */
   refresh(uri: vscode.Uri): void {
-    this._onDidChange.fire(uri);
+    this.changeEmitter.fire(uri);
   }
 }
 

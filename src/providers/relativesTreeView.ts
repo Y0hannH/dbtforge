@@ -38,8 +38,8 @@ class NodeItem extends vscode.TreeItem {
  * no transitive closure, no visualization beyond a flat list.
  */
 export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElement> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
-  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  private readonly treeDataEmitter = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.treeDataEmitter.event;
 
   private currentNode: DbtNode | undefined;
   private currentIndex: DbtProjectIndex | undefined;
@@ -50,14 +50,14 @@ export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElemen
     if (!editor) {
       this.currentNode = undefined;
       this.currentIndex = undefined;
-      this._onDidChangeTreeData.fire();
+      this.treeDataEmitter.fire();
       return;
     }
 
     const index = this.getIndex(editor.document.uri);
     this.currentIndex = index;
     this.currentNode = index?.getNodeByFileUri(editor.document.uri);
-    this._onDidChangeTreeData.fire();
+    this.treeDataEmitter.fire();
   }
 
   getTreeItem(element: TreeElement): vscode.TreeItem {

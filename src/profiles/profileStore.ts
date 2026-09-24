@@ -17,8 +17,8 @@ const STORAGE_PREFIX = 'dbtForge.profileSelection:';
  * no business being committed to .vscode/settings.json alongside the team's shared config.
  */
 export class ProfileStore {
-  private readonly _onDidChange = new vscode.EventEmitter<void>();
-  readonly onDidChange = this._onDidChange.event;
+  private readonly changeEmitter = new vscode.EventEmitter<void>();
+  readonly onDidChange = this.changeEmitter.event;
 
   constructor(private readonly state: vscode.Memento) {}
 
@@ -29,7 +29,7 @@ export class ProfileStore {
   async set(projectDir: string, selection: ProfileSelection): Promise<void> {
     const hasSelection = Boolean(selection.profile || selection.target);
     await this.state.update(STORAGE_PREFIX + projectDir, hasSelection ? selection : undefined);
-    this._onDidChange.fire();
+    this.changeEmitter.fire();
   }
 
   /** The `--profile`/`--target` flags for a dbt invocation; empty when nothing is overridden. */
@@ -42,6 +42,6 @@ export class ProfileStore {
   }
 
   dispose(): void {
-    this._onDidChange.dispose();
+    this.changeEmitter.dispose();
   }
 }

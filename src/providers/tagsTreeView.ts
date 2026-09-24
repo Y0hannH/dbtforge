@@ -53,13 +53,13 @@ class TaggedResourceItem extends vscode.TreeItem {
  * disambiguate), rather than silently picking one and building the wrong project.
  */
 export class TagsTreeProvider implements vscode.TreeDataProvider<TreeElement> {
-  private readonly _onDidChangeTreeData = new vscode.EventEmitter<void>();
-  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  private readonly treeDataEmitter = new vscode.EventEmitter<void>();
+  readonly onDidChangeTreeData = this.treeDataEmitter.event;
 
   constructor(private readonly getIndex: () => DbtProjectIndex | undefined) {}
 
   refresh(): void {
-    this._onDidChangeTreeData.fire();
+    this.treeDataEmitter.fire();
   }
 
   getTreeItem(element: TreeElement): vscode.TreeItem {
