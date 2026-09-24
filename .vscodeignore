@@ -13,6 +13,8 @@ tsconfig.json
 esbuild.js
 eslint.config.js
 **/.eslintrc*
+.prettierrc.json
+.prettierignore
 CLAUDE.md
 CLAUDE.local.md
 carte-extension.html
