@@ -517,6 +517,7 @@
     "vsix": "vsce package --no-dependencies"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/dagre": "^0.7.54",
     "@types/node": "^20.11.0",
     "@types/react": "^18.3.31",
