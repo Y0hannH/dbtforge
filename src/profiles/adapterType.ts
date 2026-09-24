@@ -1,7 +1,8 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
-import { ProfileSelection } from './profileStore';
+
 import { parseProfiles, parseProjectProfileName, resolveProfilesLocation } from './profilesFile';
+import type { ProfileSelection } from './profileStore';
 
 /**
  * The adapter backing the environment dbt commands currently run against (`fabric`, `sqlserver`,

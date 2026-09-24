@@ -1,7 +1,9 @@
 import * as vscode from 'vscode';
+
 import { lineageWebviewOptions, renderLineageHtml } from './lineageHtml';
-import { configuredLineageLocation, LineageLocation } from './lineagePlacement';
-import { LineageSession } from './lineageSession';
+import type { LineageLocation } from './lineagePlacement';
+import { configuredLineageLocation } from './lineagePlacement';
+import type { LineageSession } from './lineageSession';
 
 /**
  * Hosts the lineage graph in the bottom panel, beside Data Preview and Terminal.

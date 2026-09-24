@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+
 import { isInsideJinjaTag } from '../sql/jinjaRefParser';
 
 const SNIPPETS: Array<{ label: string; detail: string; snippet: string }> = [

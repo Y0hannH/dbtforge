@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { isReferenceable } from '../index/refIndex';
 import { parseCtes } from '../sql/cteParser';
 

@@ -4,6 +4,7 @@
 const js = require('@eslint/js');
 const tseslintPlugin = require('@typescript-eslint/eslint-plugin');
 const tsParser = require('@typescript-eslint/parser');
+const simpleImportSort = require('eslint-plugin-simple-import-sort');
 
 module.exports = [
   {
@@ -16,10 +17,15 @@ module.exports = [
       parserOptions: {
         ecmaVersion: 2022,
         sourceType: 'module',
+        // Type-aware rules (no-floating-promises) need the project graph. tsconfig.json's
+        // `include` already covers test/**/*.ts alongside src, so one project serves both.
+        project: './tsconfig.json',
+        tsconfigRootDir: __dirname,
       },
     },
     plugins: {
       '@typescript-eslint': tseslintPlugin,
+      'simple-import-sort': simpleImportSort,
     },
     rules: {
       ...js.configs.recommended.rules,
@@ -41,6 +47,25 @@ module.exports = [
       ],
       '@typescript-eslint/no-explicit-any': 'warn',
       'no-empty': ['error', { allowEmptyCatch: true }],
+
+      // Phase 1b hardening (HARMONISATION.md) — all autofixable via `eslint --fix`.
+      '@typescript-eslint/consistent-type-imports': 'warn',
+      'simple-import-sort/imports': 'warn',
+      'simple-import-sort/exports': 'warn',
+      // Redundant now that `private` already says it: see HARMONISATION.md decision to drop the
+      // `_` prefix from private class members. dbt Forge already has zero such members, so this
+      // is a no-op guard rail. Does not touch the unused-parameter idiom (`argsIgnorePattern:
+      // '^_'` above), which is a different idiom.
+      '@typescript-eslint/naming-convention': [
+        'warn',
+        {
+          selector: ['classProperty', 'classMethod', 'accessor', 'parameterProperty'],
+          modifiers: ['private'],
+          format: ['camelCase'],
+          leadingUnderscore: 'forbid',
+        },
+      ],
+      '@typescript-eslint/no-floating-promises': 'error',
     },
   },
 ];

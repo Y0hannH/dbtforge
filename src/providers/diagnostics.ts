@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
 import { reconcileColumns } from '../yaml/columnReconciliation';
-import { DocumentedEntity, parseSchemaEntities } from '../yaml/schemaColumns';
+import type { DocumentedEntity } from '../yaml/schemaColumns';
+import { parseSchemaEntities } from '../yaml/schemaColumns';
 
 const VALIDATE_DEBOUNCE_MS = 400;
 

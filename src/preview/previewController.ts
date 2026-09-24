@@ -1,15 +1,16 @@
 import * as fs from 'fs/promises';
 import * as vscode from 'vscode';
+
 import { isTsqlAdapter, needsTopRewrite, rewriteWithTopLimit } from '../dbt/previewRewrite';
-import { ShowTarget } from '../dbt/showCommand';
+import type { ShowTarget } from '../dbt/showCommand';
 import { DbtShowCancelledError, DbtShowError, DbtShowRequest, runDbtShow } from '../dbt/showRunner';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { DbtNode } from '../index/manifestTypes';
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtNode } from '../index/manifestTypes';
 import { resolveAdapterType } from '../profiles/adapterType';
-import { ProfileStore } from '../profiles/profileStore';
+import type { ProfileStore } from '../profiles/profileStore';
 import { buildCtePreviewSql } from '../sql/ctePreview';
-import { PreviewViewProvider } from './previewViewProvider';
 import { describeTarget } from './previewState';
+import type { PreviewViewProvider } from './previewViewProvider';
 
 /** How a preview will be run, once the adapter's quirks have been taken into account. */
 interface PreviewPlan {

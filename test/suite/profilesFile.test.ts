@@ -1,8 +1,10 @@
+import { test } from 'node:test';
+
 import { strict as assert } from 'assert';
 import * as fs from 'fs/promises';
 import * as os from 'os';
 import * as path from 'path';
-import { test } from 'node:test';
+
 import {
   parseProfiles,
   parseProjectProfileName,
@@ -37,7 +39,7 @@ fabric_main:
       schema: dbo
 `;
 
-test('parseProfiles: reads every profile with its default target and outputs', () => {
+void test('parseProfiles: reads every profile with its default target and outputs', () => {
   const profiles = parseProfiles(PROFILES_YML);
   assert.deepEqual(
     profiles.map((p) => p.name),
@@ -57,23 +59,23 @@ test('parseProfiles: reads every profile with its default target and outputs', (
   });
 });
 
-test('parseProfiles: the global config block is not a profile', () => {
+void test('parseProfiles: the global config block is not a profile', () => {
   assert.equal(
     parseProfiles(PROFILES_YML).find((p) => p.name === 'config'),
     undefined,
   );
 });
 
-test('parseProfiles: a profile without outputs is kept, with no targets', () => {
+void test('parseProfiles: a profile without outputs is kept, with no targets', () => {
   const profiles = parseProfiles('empty_profile:\n  target: dev\n');
   assert.deepEqual(profiles, [{ name: 'empty_profile', defaultTarget: 'dev', targets: [] }]);
 });
 
-test('parseProfiles: an empty file yields no profile', () => {
+void test('parseProfiles: an empty file yields no profile', () => {
   assert.deepEqual(parseProfiles(''), []);
 });
 
-test('parseProfiles: values dbt templates at runtime are kept as written', () => {
+void test('parseProfiles: values dbt templates at runtime are kept as written', () => {
   // env_var()/Jinja is resolved by dbt, not here — it just has to survive the parse.
   const profiles = parseProfiles(
     'p:\n  outputs:\n    dev:\n      type: fabric\n      database: "{{ env_var(\'DB\') }}"\n',
@@ -81,12 +83,12 @@ test('parseProfiles: values dbt templates at runtime are kept as written', () =>
   assert.equal(profiles[0].targets[0].database, "{{ env_var('DB') }}");
 });
 
-test('parseProjectProfileName: reads the profile: key of dbt_project.yml', () => {
+void test('parseProjectProfileName: reads the profile: key of dbt_project.yml', () => {
   assert.equal(parseProjectProfileName('name: analytics\nprofile: fabric_dev\n'), 'fabric_dev');
   assert.equal(parseProjectProfileName('name: analytics\n'), undefined);
 });
 
-test('resolveProfilesLocation: the configured directory wins over the project directory', async () => {
+void test('resolveProfilesLocation: the configured directory wins over the project directory', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'dbtforge-profiles-'));
   try {
     const projectDir = path.join(root, 'project');
@@ -112,7 +114,7 @@ test('resolveProfilesLocation: the configured directory wins over the project di
   }
 });
 
-test('resolveProfilesLocation: a relative setting resolves against the project directory', async () => {
+void test('resolveProfilesLocation: a relative setting resolves against the project directory', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'dbtforge-profiles-'));
   try {
     const envDir = path.join(root, 'envs');

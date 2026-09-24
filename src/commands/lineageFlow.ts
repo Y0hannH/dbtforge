@@ -1,9 +1,10 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { lineageWebviewOptions, renderLineageHtml } from '../lineage/lineageHtml';
 import { configuredLineageLocation } from '../lineage/lineagePlacement';
 import { LineageSession } from '../lineage/lineageSession';
-import { LineageViewProvider } from '../lineage/lineageViewProvider';
+import type { LineageViewProvider } from '../lineage/lineageViewProvider';
 
 // One lineage tab, retargeted rather than duplicated. Every call used to create a new panel, so
 // looking at three models in a row left three "Lineage: x" tabs open.

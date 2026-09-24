@@ -1,21 +1,23 @@
+import { test } from 'node:test';
+
 import { strict as assert } from 'assert';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { test } from 'node:test';
-import { DbtManifest } from '../../src/index/manifestTypes';
+
+import type { DbtManifest } from '../../src/index/manifestTypes';
 import { buildRefIndex, isReferenceable } from '../../src/index/refIndex';
 
 const manifest: DbtManifest = JSON.parse(
   readFileSync(join(__dirname, '../fixtures/manifest.sample.json'), 'utf8'),
 );
 
-test('buildRefIndex resolves models by name', () => {
+void test('buildRefIndex resolves models by name', () => {
   const index = buildRefIndex(manifest);
   assert.equal(index.get('dim_customers')?.uniqueId, 'model.example_project.dim_customers');
   assert.equal(index.get('dim_customers')?.resourceType, 'model');
 });
 
-test('buildRefIndex resolves seeds, which ref() targets exactly like models', () => {
+void test('buildRefIndex resolves seeds, which ref() targets exactly like models', () => {
   const index = buildRefIndex(manifest);
   const seed = index.get('country_codes');
   assert.equal(seed?.uniqueId, 'seed.example_project.country_codes');
@@ -23,23 +25,23 @@ test('buildRefIndex resolves seeds, which ref() targets exactly like models', ()
   assert.equal(seed?.packageName, 'example_project');
 });
 
-test('buildRefIndex resolves snapshots', () => {
+void test('buildRefIndex resolves snapshots', () => {
   const snapshot = buildRefIndex(manifest).get('orders_snapshot');
   assert.equal(snapshot?.uniqueId, 'snapshot.example_project.orders_snapshot');
   assert.equal(snapshot?.resourceType, 'snapshot');
 });
 
-test('buildRefIndex leaves out what ref() cannot target', () => {
+void test('buildRefIndex leaves out what ref() cannot target', () => {
   const index = buildRefIndex(manifest);
   assert.equal(index.get('ad_hoc_revenue'), undefined);
   assert.equal(index.get('not_null_dim_customers_customer_id'), undefined);
 });
 
-test('buildRefIndex returns an empty map for a manifest with no nodes', () => {
+void test('buildRefIndex returns an empty map for a manifest with no nodes', () => {
   assert.equal(buildRefIndex({ ...manifest, nodes: {} }).size, 0);
 });
 
-test('isReferenceable accepts models, seeds and snapshots only', () => {
+void test('isReferenceable accepts models, seeds and snapshots only', () => {
   const of = (resourceType: string) => ({
     unique_id: `${resourceType}.p.x`,
     resource_type: resourceType,

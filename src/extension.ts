@@ -1,9 +1,10 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+
 import {
-  previewCompiledSql,
-  compiledSqlContentProvider,
   COMPILED_SQL_SCHEME,
+  compiledSqlContentProvider,
+  previewCompiledSql,
 } from './commands/compiledSqlPreview';
 import { disposeLineagePanel, showLineage } from './commands/lineageFlow';
 import {
@@ -12,29 +13,31 @@ import {
   runDbtCommand,
 } from './commands/runDbtCommand';
 import { selectProfile } from './commands/selectProfile';
-import { DbtForgeConfig, resolveConfig } from './config';
+import type { DbtForgeConfig } from './config';
+import { resolveConfig } from './config';
 import { DbtProjectIndex } from './index/DbtProjectIndex';
+import type { DbtNode } from './index/manifestTypes';
+import { isReferenceable } from './index/refIndex';
 import { toggleLineageLocation } from './lineage/lineagePlacement';
 import { LineageViewProvider } from './lineage/lineageViewProvider';
-import { DbtNode } from './index/manifestTypes';
-import { isReferenceable } from './index/refIndex';
 import { PreviewController } from './preview/previewController';
 import { PreviewViewProvider } from './preview/previewViewProvider';
 import { ProfileStore } from './profiles/profileStore';
 import { BuildCodeLensProvider } from './providers/buildCodeLens';
 import { ColumnCompletionProvider } from './providers/columnCompletion';
+import { RefSourceDefinitionProvider } from './providers/definitionProvider';
+import { DbtDiagnosticsController } from './providers/diagnostics';
 import { DocBlockSnippetProvider } from './providers/docBlockSnippet';
 import { DocCompletionProvider } from './providers/docCompletion';
 import { DocDefinitionProvider } from './providers/docDefinitionProvider';
-import { RefSourceDefinitionProvider } from './providers/definitionProvider';
-import { DbtDiagnosticsController } from './providers/diagnostics';
 import { DbtHoverProvider } from './providers/hoverProvider';
 import { JinjaSnippetCompletionProvider } from './providers/jinjaSnippetCompletion';
 import { ProfileStatusBar } from './providers/profileStatusBar';
-import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { DbtReferenceProvider } from './providers/referenceProvider';
+import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
-import { TagItem, TagsTreeProvider } from './providers/tagsTreeView';
+import type { TagItem } from './providers/tagsTreeView';
+import { TagsTreeProvider } from './providers/tagsTreeView';
 import { cteNameAtOffset } from './sql/ctePreview';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.

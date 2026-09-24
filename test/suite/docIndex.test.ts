@@ -1,7 +1,9 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
+
+import { strict as assert } from 'assert';
+
 import { buildDocIndex } from '../../src/index/docIndex';
-import { DbtDocNode, DbtManifest } from '../../src/index/manifestTypes';
+import type { DbtDocNode, DbtManifest } from '../../src/index/manifestTypes';
 
 function makeDoc(packageName: string, name: string, contents?: string): DbtDocNode {
   return {
@@ -24,19 +26,19 @@ function makeManifest(docs: DbtDocNode[]): DbtManifest {
   };
 }
 
-test('buildDocIndex: resolves a block declared by the root project', () => {
+void test('buildDocIndex: resolves a block declared by the root project', () => {
   const index = buildDocIndex(makeManifest([makeDoc('my_project', 'customer_id', 'The id.')]));
   const block = index.resolve('customer_id');
   assert.equal(block?.uniqueId, 'doc.my_project.customer_id');
   assert.equal(block?.node.block_contents, 'The id.');
 });
 
-test('buildDocIndex: an unknown name resolves to nothing rather than to a guess', () => {
+void test('buildDocIndex: an unknown name resolves to nothing rather than to a guess', () => {
   const index = buildDocIndex(makeManifest([makeDoc('my_project', 'customer_id')]));
   assert.equal(index.resolve('customer_di'), undefined);
 });
 
-test('buildDocIndex: the root project wins a name collision with a package', () => {
+void test('buildDocIndex: the root project wins a name collision with a package', () => {
   // Manifest order deliberately puts the package first, so a naive last-write-wins map would
   // resolve to the wrong block.
   const index = buildDocIndex(
@@ -48,7 +50,7 @@ test('buildDocIndex: the root project wins a name collision with a package', () 
   assert.equal(index.resolve('shared')?.packageName, 'my_project');
 });
 
-test('buildDocIndex: a namespaced call resolves exactly, with no fallback', () => {
+void test('buildDocIndex: a namespaced call resolves exactly, with no fallback', () => {
   const index = buildDocIndex(
     makeManifest([makeDoc('my_project', 'shared'), makeDoc('dbt_utils', 'shared')]),
   );
@@ -57,7 +59,7 @@ test('buildDocIndex: a namespaced call resolves exactly, with no fallback', () =
   assert.equal(index.resolve('shared', 'nowhere'), undefined);
 });
 
-test('buildDocIndex: all() lists the project blocks first, then packages, each alphabetically', () => {
+void test('buildDocIndex: all() lists the project blocks first, then packages, each alphabetically', () => {
   const index = buildDocIndex(
     makeManifest([
       makeDoc('dbt_utils', 'a_package_block'),
@@ -71,7 +73,7 @@ test('buildDocIndex: all() lists the project blocks first, then packages, each a
   );
 });
 
-test('buildDocIndex: a manifest with no docs section yields an empty index', () => {
+void test('buildDocIndex: a manifest with no docs section yields an empty index', () => {
   const manifest: DbtManifest = {
     metadata: { dbt_schema_version: 'v12', project_name: 'my_project' },
     nodes: {},

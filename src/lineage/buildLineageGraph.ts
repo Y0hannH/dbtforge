@@ -1,6 +1,7 @@
 import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import type { DependencyGraph } from '../index/graph';
-import { canDescend, DEFAULT_SCOPE, isInScope, LineageScope } from './lineageScope';
+import type { LineageScope } from './lineageScope';
+import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
 
 export interface LineageNode {

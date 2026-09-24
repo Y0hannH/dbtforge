@@ -1,4 +1,5 @@
-import { isMap, isScalar, isSeq, parseDocument, YAMLMap } from 'yaml';
+import type { YAMLMap } from 'yaml';
+import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
 
 /**
  * The entities a dbt schema .yml documents, and the columns declared under each — with the source

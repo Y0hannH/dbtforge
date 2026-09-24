@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { PreviewState } from './previewState';
+
 import { renderPreviewHtml } from './previewHtml';
+import type { PreviewState } from './previewState';
 
 /**
  * Hosts the results grid in the bottom panel, beside Terminal and Problems.

@@ -1,5 +1,7 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
+
+import { strict as assert } from 'assert';
+
 import { parseSchemaEntities } from '../../src/yaml/schemaColumns';
 
 const SCHEMA = `version: 2
@@ -35,7 +37,7 @@ sources:
       - name: raw_customers
 `;
 
-test('parseSchemaEntities: reads models, seeds, snapshots and source tables', () => {
+void test('parseSchemaEntities: reads models, seeds, snapshots and source tables', () => {
   const entities = parseSchemaEntities(SCHEMA);
   assert.deepEqual(
     entities.map((e) => `${e.kind}:${e.sourceName ? e.sourceName + '.' : ''}${e.name}`),
@@ -50,7 +52,7 @@ test('parseSchemaEntities: reads models, seeds, snapshots and source tables', ()
   );
 });
 
-test('parseSchemaEntities: columns belong to the entity that declares them', () => {
+void test('parseSchemaEntities: columns belong to the entity that declares them', () => {
   const entities = parseSchemaEntities(SCHEMA);
   const byName = (name: string) => entities.find((e) => e.name === name);
   assert.deepEqual(
@@ -65,7 +67,7 @@ test('parseSchemaEntities: columns belong to the entity that declares them', () 
   assert.deepEqual(byName('raw_customers')?.columns, []);
 });
 
-test('parseSchemaEntities: offsets point at the name in the source', () => {
+void test('parseSchemaEntities: offsets point at the name in the source', () => {
   const entities = parseSchemaEntities(SCHEMA);
   const column = entities
     .find((e) => e.name === 'orders')
@@ -74,27 +76,27 @@ test('parseSchemaEntities: offsets point at the name in the source', () => {
   assert.equal(SCHEMA.slice(column.offset, column.offset + column.length), 'customer_id');
 });
 
-test('parseSchemaEntities: a quoted name is located including its quotes', () => {
+void test('parseSchemaEntities: a quoted name is located including its quotes', () => {
   const text = 'models:\n  - name: orders\n    columns:\n      - name: "order id"\n';
   const column = parseSchemaEntities(text)[0].columns[0];
   assert.equal(column.name, 'order id');
   assert.equal(text.slice(column.offset, column.offset + column.length), '"order id"');
 });
 
-test('parseSchemaEntities: a file that does not parse yields nothing', () => {
+void test('parseSchemaEntities: a file that does not parse yields nothing', () => {
   // Half-written YAML is indistinguishable from YAML being typed; a partial reading of it would
   // warn about columns the author has not finished writing.
   assert.deepEqual(parseSchemaEntities('models:\n  - name: orders\n   columns:\n  bad: ['), []);
 });
 
-test('parseSchemaEntities: files that are not schema files yield nothing', () => {
+void test('parseSchemaEntities: files that are not schema files yield nothing', () => {
   assert.deepEqual(parseSchemaEntities(''), []);
   assert.deepEqual(parseSchemaEntities('name: my_project\nprofile: default\n'), []);
   // dbt_project.yml has a models: key too, but it holds a config tree, not a list of entities.
   assert.deepEqual(parseSchemaEntities('models:\n  my_project:\n    +materialized: view\n'), []);
 });
 
-test('parseSchemaEntities: an entry without a usable name is skipped, the rest survives', () => {
+void test('parseSchemaEntities: an entry without a usable name is skipped, the rest survives', () => {
   const text = 'models:\n  - description: nameless\n  - name: orders\n';
   assert.deepEqual(
     parseSchemaEntities(text).map((e) => e.name),

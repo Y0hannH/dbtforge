@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { parseDocCompletionContext } from '../sql/jinjaRefParser';
 
 /** How much of a block's markdown to preview in the completion popup. */

@@ -1,22 +1,22 @@
+import 'reactflow/dist/style.css';
+import './lineageFlow.css';
+
 import dagre from 'dagre';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import type { Edge, Node, NodeProps } from 'reactflow';
 import ReactFlow, {
   Background,
   Controls,
-  Edge,
   Handle,
   MiniMap,
-  Node,
-  NodeProps,
   Position,
   ReactFlowProvider,
   useReactFlow,
 } from 'reactflow';
-import 'reactflow/dist/style.css';
-import './lineageFlow.css';
+
 import type { LineageEdge, LineageNode } from '../lineage/buildLineageGraph';
-import { UNLIMITED_DEPTH, type LineageScope } from '../lineage/lineageScope';
+import { type LineageScope, UNLIMITED_DEPTH } from '../lineage/lineageScope';
 import type {
   ExpandDirection,
   HostToWebviewMessage,

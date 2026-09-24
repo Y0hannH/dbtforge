@@ -7,7 +7,8 @@
 // moment a second table appears the model is ambiguous again and this returns nothing, which
 // is the alias requirement doing its job rather than a gap.
 
-import { SourceRef, parseTableReferences } from './aliasParser';
+import type { SourceRef } from './aliasParser';
+import { parseTableReferences } from './aliasParser';
 import { parseCtes } from './cteParser';
 import { findAllRefCalls, findAllSourceCalls, isInsideJinjaExpression } from './jinjaRefParser';
 

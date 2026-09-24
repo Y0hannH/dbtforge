@@ -1,8 +1,9 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DbtForgeConfig } from '../config';
-import { DbtNode } from '../index/manifestTypes';
+
+import type { DbtForgeConfig } from '../config';
+import type { DbtNode } from '../index/manifestTypes';
 
 export const COMPILED_SQL_SCHEME = 'dbtforge-compiled';
 

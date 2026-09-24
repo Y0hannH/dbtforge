@@ -1,4 +1,4 @@
-import { PreviewTable } from '../dbt/showOutput';
+import type { PreviewTable } from '../dbt/showOutput';
 
 /** What the preview panel is showing. Serialized straight into the webview on every change. */
 export type PreviewState =

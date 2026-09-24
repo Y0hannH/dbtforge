@@ -1,16 +1,29 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DbtForgeConfig } from '../config';
-import { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
-import { buildDocIndex, DocIndex, DocRef } from './docIndex';
-import { isOneNodePerFilePath, ManifestEntity, resolveEntityPath } from './entityPaths';
+
+import type { DbtForgeConfig } from '../config';
+import type { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
+import type { DocIndex, DocRef } from './docIndex';
+import { buildDocIndex } from './docIndex';
+import type { ManifestEntity } from './entityPaths';
+import { isOneNodePerFilePath, resolveEntityPath } from './entityPaths';
 import { watchFile } from './fileWatcher';
-import { buildDependencyGraph, DependencyGraph } from './graph';
-import { buildMacroIndex, MacroIndex, MacroRef } from './macroIndex';
-import { DbtDocNode, DbtManifest, DbtMacroNode, DbtNode, DbtSourceNode } from './manifestTypes';
-import { buildRefIndex, ModelRef } from './refIndex';
-import { collectTags, TagRef } from './tags';
+import type { DependencyGraph } from './graph';
+import { buildDependencyGraph } from './graph';
+import type { MacroIndex, MacroRef } from './macroIndex';
+import { buildMacroIndex } from './macroIndex';
+import type {
+  DbtDocNode,
+  DbtMacroNode,
+  DbtManifest,
+  DbtNode,
+  DbtSourceNode,
+} from './manifestTypes';
+import type { ModelRef } from './refIndex';
+import { buildRefIndex } from './refIndex';
+import type { TagRef } from './tags';
+import { collectTags } from './tags';
 
 export interface SourceRef {
   uniqueId: string;

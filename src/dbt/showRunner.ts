@@ -7,9 +7,12 @@
 // containing spaces or quotes can't be mangled on the way in.
 
 import { execFile } from 'child_process';
+
 import { resolveDbtExecutable } from './executable';
-import { ShowTarget, buildShowArgs, checkCommandLineLength } from './showCommand';
-import { PreviewTable, ShowOutputError, extractDbtError, parseShowOutput } from './showOutput';
+import type { ShowTarget } from './showCommand';
+import { buildShowArgs, checkCommandLineLength } from './showCommand';
+import type { PreviewTable } from './showOutput';
+import { extractDbtError, parseShowOutput, ShowOutputError } from './showOutput';
 
 export interface DbtShowRequest {
   /** Python inside the project's venv; empty falls back to `dbt` on PATH, as elsewhere. */

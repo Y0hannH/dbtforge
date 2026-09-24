@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex, MacroRef, ModelRef, SourceRef } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex, MacroRef, ModelRef, SourceRef } from '../index/DbtProjectIndex';
 import {
   findCallAtPosition,
   findMacroCallAtPosition,

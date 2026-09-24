@@ -1,6 +1,8 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
-import { DbtNode } from '../../src/index/manifestTypes';
+
+import { strict as assert } from 'assert';
+
+import type { DbtNode } from '../../src/index/manifestTypes';
 import { nodeMetaLabel, readNodeColor, sanitizeNodeColor } from '../../src/lineage/nodeDisplay';
 
 function node(overrides: Partial<DbtNode>): DbtNode {
@@ -15,23 +17,23 @@ function node(overrides: Partial<DbtNode>): DbtNode {
   };
 }
 
-test('nodeMetaLabel: a model shows what it materializes as', () => {
+void test('nodeMetaLabel: a model shows what it materializes as', () => {
   assert.equal(nodeMetaLabel('model', { materialization: 'incremental' }), 'model · incremental');
   assert.equal(nodeMetaLabel('model', { materialization: 'ephemeral' }), 'model · ephemeral');
 });
 
-test('nodeMetaLabel: nothing to add when the materialization repeats the resource type', () => {
+void test('nodeMetaLabel: nothing to add when the materialization repeats the resource type', () => {
   assert.equal(nodeMetaLabel('seed', { materialization: 'seed' }), 'seed');
   assert.equal(nodeMetaLabel('snapshot', { materialization: 'snapshot' }), 'snapshot');
 });
 
-test('nodeMetaLabel: an unbuilt or partial manifest entry still labels itself', () => {
+void test('nodeMetaLabel: an unbuilt or partial manifest entry still labels itself', () => {
   assert.equal(nodeMetaLabel('model'), 'model');
   assert.equal(nodeMetaLabel('model', {}), 'model');
   assert.equal(nodeMetaLabel('model', { materialization: '' }), 'model');
 });
 
-test('nodeMetaLabel: a dynamic table carries its target lag, verbatim', () => {
+void test('nodeMetaLabel: a dynamic table carries its target lag, verbatim', () => {
   assert.equal(
     nodeMetaLabel('model', { materialization: 'dynamic_table', targetLag: '3 minutes' }),
     'model · dynamic_table (3 minutes)',
@@ -44,12 +46,12 @@ test('nodeMetaLabel: a dynamic table carries its target lag, verbatim', () => {
   );
 });
 
-test('nodeMetaLabel: no materialization to qualify means no lag either', () => {
+void test('nodeMetaLabel: no materialization to qualify means no lag either', () => {
   assert.equal(nodeMetaLabel('model', { targetLag: '3 minutes' }), 'model');
   assert.equal(nodeMetaLabel('seed', { materialization: 'seed', targetLag: '1 hour' }), 'seed');
 });
 
-test('nodeMetaLabel: the column count is appended when the catalog knows it', () => {
+void test('nodeMetaLabel: the column count is appended when the catalog knows it', () => {
   assert.equal(
     nodeMetaLabel('model', { materialization: 'table', columnCount: 42 }),
     'model · table · 42 cols',
@@ -57,7 +59,7 @@ test('nodeMetaLabel: the column count is appended when the catalog knows it', ()
   assert.equal(nodeMetaLabel('model', { columnCount: 1 }), 'model · 1 col');
 });
 
-test('nodeMetaLabel: an unknown column count says nothing at all', () => {
+void test('nodeMetaLabel: an unknown column count says nothing at all', () => {
   assert.equal(nodeMetaLabel('model', { materialization: 'view' }), 'model · view');
   assert.equal(
     nodeMetaLabel('model', { materialization: 'view', columnCount: undefined }),
@@ -67,7 +69,7 @@ test('nodeMetaLabel: an unknown column count says nothing at all', () => {
   assert.equal(nodeMetaLabel('model', { materialization: 'view', columnCount: 0 }), 'model · view');
 });
 
-test('nodeMetaLabel: everything known at once, in one row', () => {
+void test('nodeMetaLabel: everything known at once, in one row', () => {
   assert.equal(
     nodeMetaLabel('model', {
       materialization: 'dynamic_table',
@@ -78,13 +80,13 @@ test('nodeMetaLabel: everything known at once, in one row', () => {
   );
 });
 
-test('sanitizeNodeColor: accepts the two forms dbt documents', () => {
+void test('sanitizeNodeColor: accepts the two forms dbt documents', () => {
   assert.equal(sanitizeNodeColor('#FF00AA'), '#ff00aa');
   assert.equal(sanitizeNodeColor('#f0a'), '#f0a');
   assert.equal(sanitizeNodeColor('  red  '), 'red');
 });
 
-test('sanitizeNodeColor: refuses anything that is not one of them', () => {
+void test('sanitizeNodeColor: refuses anything that is not one of them', () => {
   assert.equal(sanitizeNodeColor('#ff00'), undefined);
   assert.equal(sanitizeNodeColor('rgb(255,0,0)'), undefined);
   assert.equal(sanitizeNodeColor('url(evil.png)'), undefined);
@@ -92,18 +94,18 @@ test('sanitizeNodeColor: refuses anything that is not one of them', () => {
   assert.equal(sanitizeNodeColor('var(--vscode-editor-background)'), undefined);
 });
 
-test('sanitizeNodeColor: an absent or empty value is simply no colour', () => {
+void test('sanitizeNodeColor: an absent or empty value is simply no colour', () => {
   assert.equal(sanitizeNodeColor(undefined), undefined);
   assert.equal(sanitizeNodeColor(null), undefined);
   assert.equal(sanitizeNodeColor('   '), undefined);
 });
 
-test('readNodeColor: reads node_color from either place dbt writes it', () => {
+void test('readNodeColor: reads node_color from either place dbt writes it', () => {
   assert.equal(readNodeColor(node({ docs: { node_color: '#123456' } })), '#123456');
   assert.equal(readNodeColor(node({ config: { docs: { node_color: 'teal' } } })), 'teal');
 });
 
-test("readNodeColor: the node's own docs wins over the one nested in config", () => {
+void test("readNodeColor: the node's own docs wins over the one nested in config", () => {
   const both = node({
     docs: { node_color: '#111111' },
     config: { docs: { node_color: '#222222' } },
@@ -111,7 +113,7 @@ test("readNodeColor: the node's own docs wins over the one nested in config", ()
   assert.equal(readNodeColor(both), '#111111');
 });
 
-test('readNodeColor: a node declaring no colour gets none', () => {
+void test('readNodeColor: a node declaring no colour gets none', () => {
   assert.equal(readNodeColor(node({})), undefined);
   assert.equal(readNodeColor(node({ docs: { show: true } })), undefined);
 });

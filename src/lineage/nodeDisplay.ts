@@ -1,4 +1,4 @@
-import { DbtNode } from '../index/manifestTypes';
+import type { DbtNode } from '../index/manifestTypes';
 
 /**
  * What a lineage node says about itself beyond its name, and how it is coloured.

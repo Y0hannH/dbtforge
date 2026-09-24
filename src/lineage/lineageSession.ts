@@ -1,8 +1,10 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
 import { buildScopedSubgraph, expandNode } from './buildLineageGraph';
-import { DEFAULT_SCOPE, LineageScope, sanitizeScope } from './lineageScope';
-import { HostToWebviewMessage, LineageBootstrap, WebviewToHostMessage } from './messages';
+import type { LineageScope } from './lineageScope';
+import { DEFAULT_SCOPE, sanitizeScope } from './lineageScope';
+import type { HostToWebviewMessage, LineageBootstrap, WebviewToHostMessage } from './messages';
 
 /**
  * One lineage view's behaviour: which node it is rooted on, how much of the DAG it is showing,

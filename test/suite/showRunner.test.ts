@@ -1,5 +1,7 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
+
+import { strict as assert } from 'assert';
+
 import { execDbt } from '../../src/dbt/showRunner';
 
 // dbt isn't a dependency of this repo, so the process-handling contract is verified against node
@@ -16,7 +18,7 @@ function runScript(script: string, options: { timeoutMs?: number; signal?: Abort
   });
 }
 
-test('execDbt: a successful run reports code 0 and its stdout', async () => {
+void test('execDbt: a successful run reports code 0 and its stdout', async () => {
   const result = await runScript('console.log(JSON.stringify({m: [{a: 1}]}))');
 
   assert.equal(result.code, 0);
@@ -26,7 +28,7 @@ test('execDbt: a successful run reports code 0 and its stdout', async () => {
   assert.ok(result.stdout.includes('"a"'));
 });
 
-test('execDbt: a non-zero exit keeps both streams instead of discarding them', async () => {
+void test('execDbt: a non-zero exit keeps both streams instead of discarding them', async () => {
   const result = await runScript(
     'console.log("compiling"); console.error("Database Error"); process.exit(2)',
   );
@@ -38,7 +40,7 @@ test('execDbt: a non-zero exit keeps both streams instead of discarding them', a
   assert.ok(result.stderr.includes('Database Error'));
 });
 
-test('execDbt: aborting reports cancellation, not a timeout', async () => {
+void test('execDbt: aborting reports cancellation, not a timeout', async () => {
   const controller = new AbortController();
   const pending = runScript('setTimeout(() => {}, 10000)', { signal: controller.signal });
   controller.abort();
@@ -48,14 +50,14 @@ test('execDbt: aborting reports cancellation, not a timeout', async () => {
   assert.equal(result.timedOut, false);
 });
 
-test('execDbt: exceeding the timeout reports a timeout, not a cancellation', async () => {
+void test('execDbt: exceeding the timeout reports a timeout, not a cancellation', async () => {
   const result = await runScript('setTimeout(() => {}, 10000)', { timeoutMs: 150 });
 
   assert.equal(result.timedOut, true);
   assert.equal(result.cancelled, false);
 });
 
-test('execDbt: a binary that cannot be launched is distinguished from one that failed', async () => {
+void test('execDbt: a binary that cannot be launched is distinguished from one that failed', async () => {
   const result = await execDbt('dbt-forge-no-such-executable', ['--version'], {
     cwd: CWD,
     timeoutMs: 10_000,

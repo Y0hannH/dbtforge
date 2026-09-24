@@ -1,4 +1,4 @@
-import { DbtManifest, DbtNode } from './manifestTypes';
+import type { DbtManifest, DbtNode } from './manifestTypes';
 
 export interface DependencyGraph {
   getParents(uniqueId: string): string[];

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
+
 import { getNonce } from '../webview/nonce';
-import { LineageBootstrap } from './messages';
+import type { LineageBootstrap } from './messages';
 
 /**
  * The webview document, identical whether it is hosted in an editor tab or in the bottom panel —

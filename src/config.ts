@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
+
 import { DEFAULT_ROW_LIMIT, normalizeRowLimit } from './dbt/showCommand';
 
 export interface DbtForgeConfig {

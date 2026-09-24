@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { DbtForgeConfig } from '../config';
-import { ProfileStore } from '../profiles/profileStore';
+
+import type { DbtForgeConfig } from '../config';
+import type { ProfileStore } from '../profiles/profileStore';
 
 /**
  * Status bar item showing which profile/target the next dbt command will use, and opening the

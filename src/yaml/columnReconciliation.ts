@@ -1,4 +1,4 @@
-import { DocumentedEntity } from './schemaColumns';
+import type { DocumentedEntity } from './schemaColumns';
 
 /**
  * Compares what a schema .yml claims about an entity's columns with what the warehouse actually

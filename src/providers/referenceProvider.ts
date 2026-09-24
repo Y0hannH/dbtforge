@@ -1,11 +1,12 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { ManifestEntity } from '../index/entityPaths';
-import { DbtMacroNode, DbtNode, DbtSourceNode } from '../index/manifestTypes';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { ManifestEntity } from '../index/entityPaths';
+import type { DbtMacroNode, DbtNode, DbtSourceNode } from '../index/manifestTypes';
 import { isReferenceable } from '../index/refIndex';
 import { readFileLines } from '../index/textFiles';
+import type { CallLocation } from '../sql/jinjaRefParser';
 import {
-  CallLocation,
   findAllMacroCallLocations,
   findAllRefCallLocations,
   findAllSourceCallLocations,

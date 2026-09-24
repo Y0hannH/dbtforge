@@ -1,8 +1,10 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
-import { ShowOutputError, extractDbtError, parseShowOutput } from '../../src/dbt/showOutput';
 
-test('parseShowOutput: named-node shape (dbt show --select)', () => {
+import { strict as assert } from 'assert';
+
+import { extractDbtError, parseShowOutput, ShowOutputError } from '../../src/dbt/showOutput';
+
+void test('parseShowOutput: named-node shape (dbt show --select)', () => {
   const stdout = JSON.stringify({
     stg_customers: [
       { customer_id: 1, first_name: 'Ada' },
@@ -18,13 +20,13 @@ test('parseShowOutput: named-node shape (dbt show --select)', () => {
   ]);
 });
 
-test('parseShowOutput: inline shape is a bare array', () => {
+void test('parseShowOutput: inline shape is a bare array', () => {
   const table = parseShowOutput('[{"x": 1}, {"x": 2}]');
   assert.deepEqual(table.columns, ['x']);
   assert.deepEqual(table.rows, [[1], [2]]);
 });
 
-test('parseShowOutput: ignores logging printed around the payload', () => {
+void test('parseShowOutput: ignores logging printed around the payload', () => {
   const stdout = [
     '[WARNING]: Deprecated functionality',
     JSON.stringify({ my_model: [{ a: 1 }] }),
@@ -34,7 +36,7 @@ test('parseShowOutput: ignores logging printed around the payload', () => {
   assert.deepEqual(parseShowOutput(stdout).rows, [[1]]);
 });
 
-test('parseShowOutput: braces inside string values do not truncate the payload', () => {
+void test('parseShowOutput: braces inside string values do not truncate the payload', () => {
   const stdout = JSON.stringify({ m: [{ payload: '{"nested": "}"}', n: 1 }] });
 
   const table = parseShowOutput(stdout);
@@ -42,7 +44,7 @@ test('parseShowOutput: braces inside string values do not truncate the payload',
   assert.deepEqual(table.rows, [['{"nested": "}"}', 1]]);
 });
 
-test('parseShowOutput: nulls are preserved and missing keys become null', () => {
+void test('parseShowOutput: nulls are preserved and missing keys become null', () => {
   const stdout = JSON.stringify({ m: [{ a: 1, b: null }, { a: 2 }] });
 
   const table = parseShowOutput(stdout);
@@ -53,35 +55,35 @@ test('parseShowOutput: nulls are preserved and missing keys become null', () => 
   ]);
 });
 
-test('parseShowOutput: columns appearing only in later rows are still collected', () => {
+void test('parseShowOutput: columns appearing only in later rows are still collected', () => {
   const table = parseShowOutput(JSON.stringify({ m: [{ a: 1 }, { a: 2, late: 'x' }] }));
   assert.deepEqual(table.columns, ['a', 'late']);
   assert.deepEqual(table.rows[0], [1, null]);
 });
 
-test('parseShowOutput: structs and arrays are rendered as JSON text', () => {
+void test('parseShowOutput: structs and arrays are rendered as JSON text', () => {
   const table = parseShowOutput(JSON.stringify({ m: [{ tags: ['a', 'b'], meta: { k: 1 } }] }));
   assert.deepEqual(table.rows, [['["a","b"]', '{"k":1}']]);
 });
 
-test('parseShowOutput: a zero-row result has no columns to show', () => {
+void test('parseShowOutput: a zero-row result has no columns to show', () => {
   const table = parseShowOutput(JSON.stringify({ m: [] }));
   assert.deepEqual(table.columns, []);
   assert.deepEqual(table.rows, []);
 });
 
-test('parseShowOutput: output with no JSON at all is rejected', () => {
+void test('parseShowOutput: output with no JSON at all is rejected', () => {
   assert.throws(
     () => parseShowOutput('Database Error in model m\n  syntax error'),
     ShowOutputError,
   );
 });
 
-test('parseShowOutput: truncated JSON is rejected rather than half-read', () => {
+void test('parseShowOutput: truncated JSON is rejected rather than half-read', () => {
   assert.throws(() => parseShowOutput('{"m": [{"a": 1}'), ShowOutputError);
 });
 
-test('extractDbtError: prefers stderr, where a broken venv reports itself', () => {
+void test('extractDbtError: prefers stderr, where a broken venv reports itself', () => {
   const message = extractDbtError(
     'some stdout',
     'ModuleNotFoundError: No module named "dbt.adapters"',
@@ -89,7 +91,7 @@ test('extractDbtError: prefers stderr, where a broken venv reports itself', () =
   assert.ok(message.includes('ModuleNotFoundError'));
 });
 
-test('extractDbtError: falls back to the tail of stdout', () => {
+void test('extractDbtError: falls back to the tail of stdout', () => {
   const message = extractDbtError(
     'compiling...\n\nDatabase Error in model m\n  invalid column\n',
     '',
@@ -98,6 +100,6 @@ test('extractDbtError: falls back to the tail of stdout', () => {
   assert.ok(message.includes('invalid column'));
 });
 
-test('extractDbtError: silence still yields something printable', () => {
+void test('extractDbtError: silence still yields something printable', () => {
   assert.ok(extractDbtError('', '  \n \n').length > 0);
 });

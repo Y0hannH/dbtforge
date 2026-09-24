@@ -1,4 +1,4 @@
-import { DbtMacroNode, DbtManifest } from './manifestTypes';
+import type { DbtMacroNode, DbtManifest } from './manifestTypes';
 
 export interface MacroRef {
   uniqueId: string;

@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { DbtNode, DbtSourceNode } from '../index/manifestTypes';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtNode, DbtSourceNode } from '../index/manifestTypes';
 
 type TreeElement = TagItem | TaggedResourceItem;
 

@@ -1,4 +1,4 @@
-import { DbtManifest, DbtNode, DbtSourceNode } from './manifestTypes';
+import type { DbtManifest, DbtNode, DbtSourceNode } from './manifestTypes';
 
 export interface TagRef {
   tag: string;

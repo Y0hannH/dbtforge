@@ -1,14 +1,17 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
+
+import { strict as assert } from 'assert';
+
+import type { DbtProjectIndex } from '../../src/index/DbtProjectIndex';
+import type { DependencyGraph } from '../../src/index/graph';
+import type { DbtNode } from '../../src/index/manifestTypes';
 import {
   buildInitialSubgraph,
   buildScopedSubgraph,
   expandNode,
 } from '../../src/lineage/buildLineageGraph';
-import { DEFAULT_SCOPE, LineageScope, UNLIMITED_DEPTH } from '../../src/lineage/lineageScope';
-import type { DbtProjectIndex } from '../../src/index/DbtProjectIndex';
-import { DependencyGraph } from '../../src/index/graph';
-import { DbtNode } from '../../src/index/manifestTypes';
+import type { LineageScope } from '../../src/lineage/lineageScope';
+import { DEFAULT_SCOPE, UNLIMITED_DEPTH } from '../../src/lineage/lineageScope';
 
 function makeNode(uniqueId: string, name: string): DbtNode {
   return {
@@ -66,7 +69,7 @@ const fakeIndex = {
   getCatalogColumns: (id: string) => catalogColumns[id],
 } as unknown as DbtProjectIndex;
 
-test('buildInitialSubgraph: includes root, direct parents and direct children only', () => {
+void test('buildInitialSubgraph: includes root, direct parents and direct children only', () => {
   const { nodes: resultNodes, edges } = buildInitialSubgraph(fakeIndex, 'model.pkg.b');
   const ids = resultNodes.map((n) => n.id).sort();
   assert.deepEqual(ids, ['model.pkg.a', 'model.pkg.b', 'model.pkg.c', 'model.pkg.d'].sort());
@@ -75,14 +78,14 @@ test('buildInitialSubgraph: includes root, direct parents and direct children on
   assert.equal(edges.length, 3); // a->b, b->c, b->d
 });
 
-test('buildInitialSubgraph: root node reports correct parent/child counts', () => {
+void test('buildInitialSubgraph: root node reports correct parent/child counts', () => {
   const { nodes: resultNodes } = buildInitialSubgraph(fakeIndex, 'model.pkg.b');
   const root = resultNodes.find((n) => n.id === 'model.pkg.b');
   assert.equal(root?.parentCount, 1);
   assert.equal(root?.childCount, 2);
 });
 
-test('buildInitialSubgraph: carries the materialization and colour the project declared', () => {
+void test('buildInitialSubgraph: carries the materialization and colour the project declared', () => {
   const decorated: Record<string, DbtNode> = {
     ...nodes,
     'model.pkg.b': {
@@ -102,7 +105,7 @@ test('buildInitialSubgraph: carries the materialization and colour the project d
   assert.equal(root?.color, '#ff8800');
 });
 
-test('buildInitialSubgraph: a node declaring neither still gets a usable label', () => {
+void test('buildInitialSubgraph: a node declaring neither still gets a usable label', () => {
   const root = buildInitialSubgraph(fakeIndex, 'model.pkg.b').nodes.find(
     (n) => n.id === 'model.pkg.b',
   );
@@ -110,7 +113,7 @@ test('buildInitialSubgraph: a node declaring neither still gets a usable label',
   assert.equal(root?.color, undefined);
 });
 
-test('expandNode: "up" returns the next hop of parents with correctly directed edges', () => {
+void test('expandNode: "up" returns the next hop of parents with correctly directed edges', () => {
   const { nodes: resultNodes, edges } = expandNode(fakeIndex, 'model.pkg.a', 'up');
   assert.deepEqual(
     resultNodes.map((n) => n.id),
@@ -119,7 +122,7 @@ test('expandNode: "up" returns the next hop of parents with correctly directed e
   assert.deepEqual(edges, [{ source: 'model.pkg.z', target: 'model.pkg.a' }]);
 });
 
-test('expandNode: "down" returns the next hop of children with correctly directed edges', () => {
+void test('expandNode: "down" returns the next hop of children with correctly directed edges', () => {
   const { nodes: resultNodes, edges } = expandNode(fakeIndex, 'model.pkg.b', 'down');
   const ids = resultNodes.map((n) => n.id).sort();
   assert.deepEqual(ids, ['model.pkg.c', 'model.pkg.d']);
@@ -132,7 +135,7 @@ test('expandNode: "down" returns the next hop of children with correctly directe
   );
 });
 
-test('expandNode: no more neighbors in a direction returns empty subgraph', () => {
+void test('expandNode: no more neighbors in a direction returns empty subgraph', () => {
   const result = expandNode(fakeIndex, 'model.pkg.z', 'up');
   assert.deepEqual(result, { nodes: [], edges: [] });
 });
@@ -191,25 +194,25 @@ function idsOf(subgraph: { nodes: Array<{ id: string }> }): string[] {
   return subgraph.nodes.map((n) => n.id).sort();
 }
 
-test('buildScopedSubgraph: tests are left out of the graph by default', () => {
+void test('buildScopedSubgraph: tests are left out of the graph by default', () => {
   const ids = idsOf(buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope()));
   assert.equal(ids.includes('test.pkg.t'), false);
 });
 
-test('buildScopedSubgraph: the child count excludes the hidden test', () => {
+void test('buildScopedSubgraph: the child count excludes the hidden test', () => {
   const result = buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope());
   const root = result.nodes.find((n) => n.id === 'model.pkg.b');
   // c, d and e — not the test, which the expand button would otherwise promise to reveal.
   assert.equal(root?.childCount, 3);
 });
 
-test('buildScopedSubgraph: includeTests brings the test back as an ordinary node', () => {
+void test('buildScopedSubgraph: includeTests brings the test back as an ordinary node', () => {
   const result = buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope({ includeTests: true }));
   assert.equal(idsOf(result).includes('test.pkg.t'), true);
   assert.equal(result.nodes.find((n) => n.id === 'model.pkg.b')?.childCount, 4);
 });
 
-test('buildScopedSubgraph: an excluded materialization drops that node', () => {
+void test('buildScopedSubgraph: an excluded materialization drops that node', () => {
   const result = buildScopedSubgraph(
     scopedIndex,
     'model.pkg.b',
@@ -219,7 +222,7 @@ test('buildScopedSubgraph: an excluded materialization drops that node', () => {
   assert.equal(result.nodes.find((n) => n.id === 'model.pkg.b')?.childCount, 2);
 });
 
-test('buildScopedSubgraph: upstream depth 2 reaches the grandparent', () => {
+void test('buildScopedSubgraph: upstream depth 2 reaches the grandparent', () => {
   const ids = idsOf(
     buildScopedSubgraph(
       scopedIndex,
@@ -230,7 +233,7 @@ test('buildScopedSubgraph: upstream depth 2 reaches the grandparent', () => {
   assert.deepEqual(ids, ['model.pkg.a', 'model.pkg.b', 'model.pkg.z']);
 });
 
-test('buildScopedSubgraph: downstream depth 2 reaches the grandchild', () => {
+void test('buildScopedSubgraph: downstream depth 2 reaches the grandchild', () => {
   const ids = idsOf(
     buildScopedSubgraph(
       scopedIndex,
@@ -247,7 +250,7 @@ test('buildScopedSubgraph: downstream depth 2 reaches the grandchild', () => {
   ]);
 });
 
-test('buildScopedSubgraph: unlimited depth walks the whole DAG both ways', () => {
+void test('buildScopedSubgraph: unlimited depth walks the whole DAG both ways', () => {
   const ids = idsOf(
     buildScopedSubgraph(
       scopedIndex,
@@ -266,7 +269,7 @@ test('buildScopedSubgraph: unlimited depth walks the whole DAG both ways', () =>
   ]);
 });
 
-test('buildScopedSubgraph: depth 0 both ways leaves the root on its own', () => {
+void test('buildScopedSubgraph: depth 0 both ways leaves the root on its own', () => {
   const result = buildScopedSubgraph(
     scopedIndex,
     'model.pkg.b',
@@ -276,7 +279,7 @@ test('buildScopedSubgraph: depth 0 both ways leaves the root on its own', () => 
   assert.deepEqual(result.edges, []);
 });
 
-test('buildScopedSubgraph: the root survives a filter that would otherwise hide it', () => {
+void test('buildScopedSubgraph: the root survives a filter that would otherwise hide it', () => {
   // The user has the ephemeral model open; hiding ephemerals must not blank the view.
   const result = buildScopedSubgraph(
     scopedIndex,
@@ -286,7 +289,7 @@ test('buildScopedSubgraph: the root survives a filter that would otherwise hide 
   assert.equal(result.nodes.find((n) => n.id === 'model.pkg.e')?.isRoot, true);
 });
 
-test('buildScopedSubgraph: no edge points at a node the scope filtered out', () => {
+void test('buildScopedSubgraph: no edge points at a node the scope filtered out', () => {
   const result = buildScopedSubgraph(scopedIndex, 'model.pkg.b', scope());
   const present = new Set(result.nodes.map((n) => n.id));
   for (const edge of result.edges) {
@@ -295,14 +298,14 @@ test('buildScopedSubgraph: no edge points at a node the scope filtered out', () 
   }
 });
 
-test('expandNode: honours the scope it is given rather than the raw child list', () => {
+void test('expandNode: honours the scope it is given rather than the raw child list', () => {
   const withTests = expandNode(scopedIndex, 'model.pkg.b', 'down', scope({ includeTests: true }));
   const withoutTests = expandNode(scopedIndex, 'model.pkg.b', 'down', scope());
   assert.equal(idsOf(withTests).includes('test.pkg.t'), true);
   assert.equal(idsOf(withoutTests).includes('test.pkg.t'), false);
 });
 
-test('buildInitialSubgraph: the meta row carries what the manifest and catalog know', () => {
+void test('buildInitialSubgraph: the meta row carries what the manifest and catalog know', () => {
   const { nodes: resultNodes } = buildInitialSubgraph(fakeIndex, 'model.pkg.b');
   // c is a dynamic table, built and in the catalog: everything shows.
   assert.equal(

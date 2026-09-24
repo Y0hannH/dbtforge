@@ -1,4 +1,4 @@
-import { DbtDocNode, DbtManifest } from './manifestTypes';
+import type { DbtDocNode, DbtManifest } from './manifestTypes';
 
 export interface DocRef {
   uniqueId: string;

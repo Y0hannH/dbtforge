@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
-import { DbtForgeConfig } from '../config';
+
+import type { DbtForgeConfig } from '../config';
 import { resolveDbtExecutable } from '../dbt/executable';
 
 let sharedTerminal: vscode.Terminal | undefined;

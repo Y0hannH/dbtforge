@@ -1,16 +1,16 @@
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { DbtForgeConfig } from '../config';
+
+import type { DbtForgeConfig } from '../config';
+import type { DbtProfileSummary, DbtTargetSummary } from '../profiles/profilesFile';
 import {
-  DbtProfileSummary,
-  DbtTargetSummary,
   describeSearchedLocations,
   parseProfiles,
   parseProjectProfileName,
   resolveProfilesLocation,
 } from '../profiles/profilesFile';
-import { ProfileSelection, ProfileStore } from '../profiles/profileStore';
+import type { ProfileSelection, ProfileStore } from '../profiles/profileStore';
 
 interface ProfileQuickPickItem extends vscode.QuickPickItem {
   profile?: DbtProfileSummary;

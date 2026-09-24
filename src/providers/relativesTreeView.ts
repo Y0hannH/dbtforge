@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { DbtNode } from '../index/manifestTypes';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { DbtNode } from '../index/manifestTypes';
 
 type TreeElement = CategoryItem | NodeItem;
 

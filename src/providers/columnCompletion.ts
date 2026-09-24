@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
-import { DbtProjectIndex } from '../index/DbtProjectIndex';
-import { SourceRef, parseAliases } from '../sql/aliasParser';
+
+import type { DbtProjectIndex } from '../index/DbtProjectIndex';
+import type { SourceRef } from '../sql/aliasParser';
+import { parseAliases } from '../sql/aliasParser';
 import { parseCtes } from '../sql/cteParser';
 import { resolveUnqualifiedSource } from '../sql/unqualifiedSource';
 

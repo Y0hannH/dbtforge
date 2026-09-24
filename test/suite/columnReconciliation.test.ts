@@ -1,7 +1,9 @@
-import { strict as assert } from 'assert';
 import { test } from 'node:test';
+
+import { strict as assert } from 'assert';
+
 import { reconcileColumns } from '../../src/yaml/columnReconciliation';
-import { DocumentedColumn, DocumentedEntity } from '../../src/yaml/schemaColumns';
+import type { DocumentedColumn, DocumentedEntity } from '../../src/yaml/schemaColumns';
 
 function column(name: string, offset = 0): DocumentedColumn {
   return { name, offset, length: name.length };
@@ -22,7 +24,7 @@ const NOTHING_KNOWN = (): undefined => undefined;
 const OFF = { flagUndocumented: false };
 const ON = { flagUndocumented: true };
 
-test('a documented column the table does not have is flagged', () => {
+void test('a documented column the table does not have is flagged', () => {
   const findings = reconcileColumns(
     [model('orders', ['order_id', 'custmer_id'])],
     ALL_KNOWN(['order_id', 'customer_id']),
@@ -33,7 +35,7 @@ test('a documented column the table does not have is flagged', () => {
   assert.match(findings[0].message, /dbt docs generate/);
 });
 
-test('case is not a difference: warehouses report it their own way', () => {
+void test('case is not a difference: warehouses report it their own way', () => {
   const findings = reconcileColumns(
     [model('orders', ['order_id', 'customer_id'])],
     ALL_KNOWN(['ORDER_ID', 'CUSTOMER_ID']),
@@ -42,7 +44,7 @@ test('case is not a difference: warehouses report it their own way', () => {
   assert.deepEqual(findings, []);
 });
 
-test('an unknown catalog silences every comparison', () => {
+void test('an unknown catalog silences every comparison', () => {
   const findings = reconcileColumns(
     [model('orders', ['nothing_like_a_real_column'])],
     NOTHING_KNOWN,
@@ -51,7 +53,7 @@ test('an unknown catalog silences every comparison', () => {
   assert.deepEqual(findings, []);
 });
 
-test('a column documented twice is flagged on its second entry', () => {
+void test('a column documented twice is flagged on its second entry', () => {
   const entity = model('orders', ['order_id', 'status', 'order_id']);
   const findings = reconcileColumns([entity], ALL_KNOWN(['order_id', 'status']), OFF);
   assert.equal(findings.length, 1);
@@ -60,13 +62,13 @@ test('a column documented twice is flagged on its second entry', () => {
   assert.match(findings[0].message, /the description above this one is dropped/);
 });
 
-test('duplicates are caught without a catalog, because the mistake is inside the file', () => {
+void test('duplicates are caught without a catalog, because the mistake is inside the file', () => {
   const findings = reconcileColumns([model('orders', ['id', 'ID'])], NOTHING_KNOWN, OFF);
   assert.equal(findings.length, 1);
   assert.match(findings[0].message, /documented twice/);
 });
 
-test('undocumented columns say nothing unless asked', () => {
+void test('undocumented columns say nothing unless asked', () => {
   const entity = model('orders', ['order_id']);
   assert.deepEqual(reconcileColumns([entity], ALL_KNOWN(['order_id', 'status']), OFF), []);
 
@@ -76,7 +78,7 @@ test('undocumented columns say nothing unless asked', () => {
   assert.match(findings[0].message, /1 column of "orders" is not documented here: status/);
 });
 
-test('a long list of undocumented columns stops naming them', () => {
+void test('a long list of undocumented columns stops naming them', () => {
   const real = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'];
   const findings = reconcileColumns([model('wide', [])], ALL_KNOWN(real), ON);
   assert.equal(findings.length, 1);
@@ -84,7 +86,7 @@ test('a long list of undocumented columns stops naming them', () => {
   assert.match(findings[0].message, /a, b, c, d, e, f and 3 more\./);
 });
 
-test('a source table is named source.table in the message', () => {
+void test('a source table is named source.table in the message', () => {
   const table: DocumentedEntity = {
     kind: 'source',
     name: 'raw_orders',
@@ -98,7 +100,7 @@ test('a source table is named source.table in the message', () => {
   assert.match(findings[0].message, /"jaffle\.raw_orders" has no column "nope"/);
 });
 
-test('findings come back in source order, whichever entity they belong to', () => {
+void test('findings come back in source order, whichever entity they belong to', () => {
   const first = { ...model('a', ['x']), offset: 0 };
   const second = { ...model('b', ['y']), columns: [column('y', 5)] };
   const findings = reconcileColumns([first, second], ALL_KNOWN([]), OFF);

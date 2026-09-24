@@ -1,4 +1,4 @@
-import { DbtManifest, DbtNode } from './manifestTypes';
+import type { DbtManifest, DbtNode } from './manifestTypes';
 
 /**
  * Resource types `ref()` can resolve to. Seeds and snapshots are referenced exactly like models

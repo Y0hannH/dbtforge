@@ -528,6 +528,7 @@
     "@vscode/vsce": "^3.9.2",
     "esbuild": "^0.20.0",
     "eslint": "^10.0.3",
+    "eslint-plugin-simple-import-sort": "^14.0.0",
     "prettier": "^3.9.7",
     "tsx": "^4.7.0",
     "typescript": "^5.4.0"
