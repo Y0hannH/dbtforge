@@ -2,6 +2,17 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [0.16.0] - 2026-09-24
+
+### Added
+- **A downstream dynamic table with nothing to inherit a lag from is flagged** ([#28](https://github.com/Y0hannH/dbtforge/issues/28)). `target_lag: downstream` still shows exactly as declared — dbt records the word, not what Snowflake resolves it to at run time — but the lineage graph now also answers the one related question it can, without guessing: is there anything downstream to defer to at all. `model · dynamic_table (downstream, unresolved)` when no dynamic table anywhere in the downstream closure states a real lag; unchanged `(downstream)` when one does.
+  - Computed by walking `child_map` once per node, memoized, so a wide graph never re-walks a downstream branch shared by several nodes.
+  - Looks past intervening plain tables/views and chains of `downstream` dynamic tables — only a genuine dead end is flagged.
+
+### Fixed
+- **Column autocomplete without an alias now works inside a CTE's own body** ([#23](https://github.com/Y0hannH/dbtforge/issues/23)). Any CTE in the file used to disable the unaliased-completion path everywhere, even inside a CTE that itself reads a single unaliased `ref()`/`source()` — because the final SELECT might read from the CTE rather than the table. The search is now scoped to whichever CTE's body the cursor is actually in; outside of any CTE, a CTE is still a second candidate and completion still refuses, as before.
+- **A `catalog.json` missing `nodes` or `sources` could crash the lineage graph** instead of leaving the column count off as usual — an unguarded property access on a key a hand-edited or partial file can omit.
+
 ## [0.15.0] - 2026-09-09
 
 ### Added
