@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
-import type { DbtNode } from '../index/manifestTypes';
+import type { DbtNode, LineageEntity } from '../index/manifestTypes';
 
 type TreeElement = CategoryItem | NodeItem;
 
@@ -17,18 +17,33 @@ class CategoryItem extends vscode.TreeItem {
 
 class NodeItem extends vscode.TreeItem {
   constructor(
-    public readonly node: DbtNode,
+    public readonly node: LineageEntity,
     uri: vscode.Uri,
   ) {
     super(node.name, vscode.TreeItemCollapsibleState.None);
     this.description = node.resource_type === 'model' ? node.package_name : node.resource_type;
-    this.iconPath = new vscode.ThemeIcon(node.resource_type === 'test' ? 'beaker' : 'symbol-file');
+    this.iconPath = new vscode.ThemeIcon(iconFor(node));
     this.command = {
       command: 'vscode.open',
       title: 'Open',
       arguments: [uri],
     };
     this.contextValue = 'dbtForge.node';
+  }
+}
+
+// Sources and exposures are the two kinds a model's neighbours can be besides other dbt nodes:
+// the table it reads from, and the dashboard or app that reads it.
+function iconFor(node: LineageEntity): string {
+  switch (node.resource_type) {
+    case 'test':
+      return 'beaker';
+    case 'source':
+      return 'database';
+    case 'exposure':
+      return 'dashboard';
+    default:
+      return 'symbol-file';
   }
 }
 
@@ -84,8 +99,8 @@ export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElemen
 
     if (element instanceof CategoryItem) {
       return element.nodeIds
-        .map((id) => index.getNode(id))
-        .filter((n): n is DbtNode => n !== undefined)
+        .map((id) => index.getLineageEntity(id))
+        .filter((n): n is LineageEntity => n !== undefined)
         .map((n) => new NodeItem(n, index.getFileUri(n)));
     }
 
