@@ -47,6 +47,17 @@ export class LineageViewProvider implements vscode.WebviewViewProvider, vscode.D
     });
   }
 
+  /** The session currently drawn, if any. */
+  get currentSession(): LineageSession | undefined {
+    return this.session;
+  }
+
+  /** Swaps the graph in place, without taking focus or surfacing the view. */
+  retarget(session: LineageSession): void {
+    this.session = session;
+    this.render();
+  }
+
   /** Points the panel at `session` and brings it forward, resolving the view on first use. */
   async show(session: LineageSession): Promise<void> {
     this.session = session;
