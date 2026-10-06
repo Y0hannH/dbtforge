@@ -10,6 +10,7 @@ import type { LineageViewProvider } from '../lineage/lineageViewProvider';
 // looking at three models in a row left three "Lineage: x" tabs open.
 let editorPanel: vscode.WebviewPanel | undefined;
 let editorAttachment: vscode.Disposable | undefined;
+let editorSession: LineageSession | undefined;
 
 export function showLineage(
   context: vscode.ExtensionContext,
@@ -27,6 +28,42 @@ export function showLineage(
   showInEditor(context, session);
 }
 
+/**
+ * Points whichever lineage is already open at `rootId`, quietly: nothing is opened, revealed or
+ * focused, so following the active editor never steals the user's place. A no-op when no lineage
+ * is open or it already shows this node. The depth/exclusion choices carry over, since the user
+ * made them for the graph they are reading, not for one particular model.
+ */
+export function followActiveEditor(
+  context: vscode.ExtensionContext,
+  index: DbtProjectIndex,
+  rootId: string,
+  panelView: LineageViewProvider,
+): void {
+  if (editorPanel && editorSession && editorSession.rootId !== rootId) {
+    const session = new LineageSession(index, rootId, editorSession.currentScope);
+    attachToEditorPanel(context, editorPanel, session);
+  }
+
+  const panelSession = panelView.currentSession;
+  if (panelSession && panelSession.rootId !== rootId) {
+    panelView.retarget(new LineageSession(index, rootId, panelSession.currentScope));
+  }
+}
+
+function attachToEditorPanel(
+  context: vscode.ExtensionContext,
+  panel: vscode.WebviewPanel,
+  session: LineageSession,
+): void {
+  editorSession = session;
+  panel.title = lineageTitle(session);
+  // Replacing the html tears down the old document, so the listener bound to it goes with it.
+  editorAttachment?.dispose();
+  panel.webview.html = renderLineageHtml(panel.webview, context.extensionUri, session.bootstrap());
+  editorAttachment = session.attach(panel.webview);
+}
+
 function showInEditor(context: vscode.ExtensionContext, session: LineageSession): void {
   if (!editorPanel) {
     editorPanel = vscode.window.createWebviewPanel(
@@ -39,20 +76,13 @@ function showInEditor(context: vscode.ExtensionContext, session: LineageSession)
       editorAttachment?.dispose();
       editorAttachment = undefined;
       editorPanel = undefined;
+      editorSession = undefined;
     });
   } else {
     editorPanel.reveal(editorPanel.viewColumn ?? vscode.ViewColumn.Beside, true);
   }
 
-  editorPanel.title = lineageTitle(session);
-  // Replacing the html tears down the old document, so the listener bound to it goes with it.
-  editorAttachment?.dispose();
-  editorPanel.webview.html = renderLineageHtml(
-    editorPanel.webview,
-    context.extensionUri,
-    session.bootstrap(),
-  );
-  editorAttachment = session.attach(editorPanel.webview);
+  attachToEditorPanel(context, editorPanel, session);
 }
 
 function lineageTitle(session: LineageSession): string {
@@ -65,4 +95,5 @@ export function disposeLineagePanel(): void {
   editorAttachment = undefined;
   editorPanel?.dispose();
   editorPanel = undefined;
+  editorSession = undefined;
 }

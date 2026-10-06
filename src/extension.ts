@@ -6,7 +6,7 @@ import {
   compiledSqlContentProvider,
   previewCompiledSql,
 } from './commands/compiledSqlPreview';
-import { disposeLineagePanel, showLineage } from './commands/lineageFlow';
+import { disposeLineagePanel, followActiveEditor, showLineage } from './commands/lineageFlow';
 import {
   disposeSharedTerminal,
   handleTerminalClosed,
@@ -155,6 +155,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Which project the tags view describes follows the active editor in a multi-root
       // workspace, so it has to re-read on editor change too, not just on manifest reload.
       tagsTree.refresh();
+      followLineage(context, lineageView);
     }),
   );
   refreshActiveEditorViews(relativesTree);
@@ -395,6 +396,26 @@ function cteUnderCursor(): string | undefined {
 
   const offset = editor.document.offsetAt(editor.selection.active);
   return cteNameAtOffset(editor.document.getText(), offset);
+}
+
+/**
+ * Keeps an already-open lineage on the file in front of the user (dbtForge.lineageFollowsEditor).
+ * Only retargets: it never opens a lineage, and files that aren't a node (a yml, a CSV that isn't
+ * a seed, focus moving to a webview) leave the graph where it was.
+ */
+function followLineage(context: vscode.ExtensionContext, lineageView: LineageViewProvider): void {
+  const uri = vscode.window.activeTextEditor?.document.uri;
+  if (!uri || uri.scheme !== 'file') return;
+  if (
+    !vscode.workspace.getConfiguration('dbtForge', uri).get<boolean>('lineageFollowsEditor', true)
+  )
+    return;
+
+  const index = getIndexForResource(uri);
+  const node = index?.getNodeByFileUri(uri);
+  if (!index || !node || !isReferenceable(node)) return;
+
+  followActiveEditor(context, index, node.unique_id, lineageView);
 }
 
 function withNode(

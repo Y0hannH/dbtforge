@@ -16,12 +16,20 @@ import type { HostToWebviewMessage, LineageBootstrap, WebviewToHostMessage } fro
  * either placement without a second implementation to keep in sync.
  */
 export class LineageSession {
-  private scope: LineageScope = DEFAULT_SCOPE;
+  private scope: LineageScope;
 
   constructor(
     private readonly index: DbtProjectIndex,
     readonly rootId: string,
-  ) {}
+    scope: LineageScope = DEFAULT_SCOPE,
+  ) {
+    this.scope = scope;
+  }
+
+  /** The depth/exclusion choices in force, so a follow-up session can keep them. */
+  get currentScope(): LineageScope {
+    return this.scope;
+  }
 
   get rootName(): string {
     return this.index.getNode(this.rootId)?.name ?? this.rootId;

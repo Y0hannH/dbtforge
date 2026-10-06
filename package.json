@@ -102,6 +102,12 @@
           "default": "editor",
           "scope": "resource",
           "description": "Where the lineage graph opens. Takes effect the next time you open a lineage."
+        },
+        "dbtForge.lineageFollowsEditor": {
+          "type": "boolean",
+          "default": true,
+          "scope": "resource",
+          "description": "When a lineage graph is open, redraw it for whichever model, seed or snapshot you switch to in the editor. Never opens a lineage by itself, and keeps your depth and exclusion choices."
         }
       }
     },
