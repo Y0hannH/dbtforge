@@ -9,6 +9,9 @@ export interface DbtManifest {
   };
   nodes: Record<string, DbtNode>;
   sources: Record<string, DbtSourceNode>;
+  // Downstream consumers declared in a .yml (dashboards, notebooks, apps). Kept apart from `nodes`
+  // by dbt, and optional here because older manifests do not have the section.
+  exposures?: Record<string, DbtExposureNode>;
   macros?: Record<string, DbtMacroNode>;
   // `{% docs %}` blocks, keyed by unique_id. Present since the manifest schema versions dbt Forge
   // targets; optional here for the same reason macros are — a partial manifest may omit it.
@@ -80,6 +83,25 @@ export interface DbtDocNode {
   /** The markdown between the tags — what dbt substitutes wherever `doc('name')` appears. */
   block_contents?: string;
 }
+
+/** A declared consumer of the project — always a leaf, since nothing can depend on it. */
+export interface DbtExposureNode {
+  unique_id: string;
+  resource_type: 'exposure';
+  name: string;
+  package_name: string;
+  path: string;
+  original_file_path: string; // the .yml that declares it
+  description?: string;
+  /** 'dashboard' | 'notebook' | 'analysis' | 'ml' | 'application'. */
+  type?: string;
+  maturity?: string;
+  url?: string;
+  depends_on?: { nodes: string[] };
+}
+
+/** Anything the lineage graph can draw: `parent_map`/`child_map` carry all three kinds. */
+export type LineageEntity = DbtNode | DbtSourceNode | DbtExposureNode;
 
 export interface DbtSourceNode {
   unique_id: string;

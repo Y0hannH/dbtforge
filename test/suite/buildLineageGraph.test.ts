@@ -4,7 +4,7 @@ import { strict as assert } from 'assert';
 
 import type { DbtProjectIndex } from '../../src/index/dbtProjectIndex';
 import type { DependencyGraph } from '../../src/index/graph';
-import type { DbtNode } from '../../src/index/manifestTypes';
+import type { DbtNode, LineageEntity } from '../../src/index/manifestTypes';
 import {
   buildInitialSubgraph,
   buildScopedSubgraph,
@@ -65,7 +65,7 @@ const catalogColumns: Record<string, Array<{ name: string; type: string; index: 
 
 const fakeIndex = {
   getGraph: () => fakeGraph,
-  getNode: (id: string) => nodes[id],
+  getLineageEntity: (id: string) => nodes[id],
   getCatalogColumns: (id: string) => catalogColumns[id],
 } as unknown as DbtProjectIndex;
 
@@ -96,7 +96,7 @@ void test('buildInitialSubgraph: carries the materialization and colour the proj
   };
   const index = {
     getGraph: () => fakeGraph,
-    getNode: (id: string) => decorated[id],
+    getLineageEntity: (id: string) => decorated[id],
     getCatalogColumns: () => undefined,
   } as unknown as DbtProjectIndex;
 
@@ -181,7 +181,7 @@ const scopedIndex = {
     getTests: () => [],
     getMacroCallers: () => [],
   }),
-  getNode: (id: string) => scopedNodes[id],
+  getLineageEntity: (id: string) => scopedNodes[id],
   getCatalogColumns: () => undefined,
 } as unknown as DbtProjectIndex;
 
@@ -341,6 +341,7 @@ void test('buildInitialSubgraph: a downstream DT with no downstream DT is flagge
       getMacroCallers: () => [],
     }),
     getNode: (id: string) => lagNodes[id],
+    getLineageEntity: (id: string) => lagNodes[id],
     getCatalogColumns: () => undefined,
   } as unknown as DbtProjectIndex;
 
@@ -380,6 +381,7 @@ void test('buildInitialSubgraph: a downstream DT resolved by a downstream DT wit
       getMacroCallers: () => [],
     }),
     getNode: (id: string) => lagNodes[id],
+    getLineageEntity: (id: string) => lagNodes[id],
     getCatalogColumns: () => undefined,
   } as unknown as DbtProjectIndex;
 
@@ -392,5 +394,111 @@ void test('buildInitialSubgraph: a downstream DT resolved by a downstream DT wit
   assert.equal(
     result.nodes.find((n) => n.id === 'model.pkg.b')?.metaLabel,
     'model · dynamic_table (downstream)',
+  );
+});
+
+// A source feeding the root and an exposure consuming it, plus an exposure hanging off a view:
+//   raw.orders (source) -> m (model) -> dash (exposure)
+//                                    -> v (view) -> app (exposure)
+const consumerEntities: Record<string, LineageEntity> = {
+  'source.pkg.raw.orders': {
+    unique_id: 'source.pkg.raw.orders',
+    resource_type: 'source',
+    name: 'orders',
+    source_name: 'raw',
+    package_name: 'pkg',
+    original_file_path: 'models/sources.yml',
+  },
+  'model.pkg.m': makeNode('model.pkg.m', 'm'),
+  'model.pkg.v': { ...makeNode('model.pkg.v', 'v'), config: { materialized: 'view' } },
+  'exposure.pkg.dash': {
+    unique_id: 'exposure.pkg.dash',
+    resource_type: 'exposure',
+    name: 'dash',
+    package_name: 'pkg',
+    path: 'exposures.yml',
+    original_file_path: 'models/exposures.yml',
+    type: 'dashboard',
+  },
+  'exposure.pkg.app': {
+    unique_id: 'exposure.pkg.app',
+    resource_type: 'exposure',
+    name: 'app',
+    package_name: 'pkg',
+    path: 'exposures.yml',
+    original_file_path: 'models/exposures.yml',
+    type: 'application',
+  },
+};
+
+const consumerParents: Record<string, string[]> = {
+  'model.pkg.m': ['source.pkg.raw.orders'],
+  'model.pkg.v': ['model.pkg.m'],
+  'exposure.pkg.dash': ['model.pkg.m'],
+  'exposure.pkg.app': ['model.pkg.v'],
+};
+const consumerChildren: Record<string, string[]> = {
+  'source.pkg.raw.orders': ['model.pkg.m'],
+  'model.pkg.m': ['model.pkg.v', 'exposure.pkg.dash'],
+  'model.pkg.v': ['exposure.pkg.app'],
+};
+
+const consumerIndex = {
+  getGraph: () => ({
+    getParents: (id: string) => consumerParents[id] ?? [],
+    getChildren: (id: string) => consumerChildren[id] ?? [],
+    getTests: () => [],
+    getMacroCallers: () => [],
+  }),
+  getLineageEntity: (id: string) => consumerEntities[id],
+  getCatalogColumns: () => undefined,
+} as unknown as DbtProjectIndex;
+
+void test('buildScopedSubgraph: draws the source upstream and the exposure downstream', () => {
+  const { nodes: result, edges } = buildScopedSubgraph(consumerIndex, 'model.pkg.m');
+  assert.deepEqual(result.map((n) => n.id).sort(), [
+    'exposure.pkg.dash',
+    'model.pkg.m',
+    'model.pkg.v',
+    'source.pkg.raw.orders',
+  ]);
+  assert.equal(edges.length, 3);
+});
+
+void test('buildScopedSubgraph: labels sources by source name and exposures by kind', () => {
+  const { nodes: result } = buildScopedSubgraph(consumerIndex, 'model.pkg.m');
+  const source = result.find((n) => n.id === 'source.pkg.raw.orders');
+  const exposure = result.find((n) => n.id === 'exposure.pkg.dash');
+  assert.equal(source?.name, 'raw.orders');
+  assert.equal(source?.metaLabel, 'source');
+  assert.equal(exposure?.name, 'dash');
+  assert.equal(exposure?.metaLabel, 'exposure · dashboard');
+});
+
+void test('buildScopedSubgraph: an unlimited downstream walk reaches the exposure behind a view', () => {
+  const scope: LineageScope = { ...DEFAULT_SCOPE, downstreamDepth: UNLIMITED_DEPTH };
+  const ids = buildScopedSubgraph(consumerIndex, 'model.pkg.m', scope).nodes.map((n) => n.id);
+  assert.ok(ids.includes('exposure.pkg.app'));
+});
+
+void test('buildScopedSubgraph: a materialization filter never hides sources or exposures', () => {
+  const scope: LineageScope = { ...DEFAULT_SCOPE, excludedMaterializations: ['view'] };
+  const ids = buildScopedSubgraph(consumerIndex, 'model.pkg.m', scope).nodes.map((n) => n.id);
+  assert.ok(ids.includes('source.pkg.raw.orders'));
+  assert.ok(ids.includes('exposure.pkg.dash'));
+  assert.ok(!ids.includes('model.pkg.v'));
+});
+
+void test('buildScopedSubgraph: an exposure can be the root, and has parents but no children', () => {
+  const root = buildScopedSubgraph(consumerIndex, 'exposure.pkg.dash').nodes.find((n) => n.isRoot);
+  assert.equal(root?.parentCount, 1);
+  assert.equal(root?.childCount, 0);
+});
+
+void test('expandNode: expanding a model reveals its exposure', () => {
+  const { nodes: result } = expandNode(consumerIndex, 'model.pkg.v', 'down');
+  assert.deepEqual(
+    result.map((n) => n.id),
+    ['exposure.pkg.app'],
   );
 });

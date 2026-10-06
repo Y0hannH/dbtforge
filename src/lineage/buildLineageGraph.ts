@@ -1,5 +1,11 @@
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DependencyGraph } from '../index/graph';
+import type {
+  DbtExposureNode,
+  DbtNode,
+  DbtSourceNode,
+  LineageEntity,
+} from '../index/manifestTypes';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
@@ -44,9 +50,31 @@ function neighborsInScope(
 ): string[] {
   const neighbors = direction === 'up' ? graph.getParents(id) : graph.getChildren(id);
   return neighbors.filter((neighborId) => {
-    const node = index.getNode(neighborId);
+    const node = index.getLineageEntity(neighborId);
     return node !== undefined && isInScope(node, scope);
   });
+}
+
+// `DbtNode.resource_type` is an open string, so a plain `=== 'source'` check does not narrow the
+// union; these guards do.
+function isSource(entity: LineageEntity): entity is DbtSourceNode {
+  return entity.resource_type === 'source';
+}
+
+function isExposure(entity: LineageEntity): entity is DbtExposureNode {
+  return entity.resource_type === 'exposure';
+}
+
+function isBuiltNode(entity: LineageEntity): entity is DbtNode {
+  return !isSource(entity) && !isExposure(entity);
+}
+
+/**
+ * A source table is only unique together with its source (`raw.customers`), and two sources
+ * routinely share a table name — so the bare name would draw two identical-looking boxes.
+ */
+function displayName(entity: LineageEntity): string {
+  return isSource(entity) ? `${entity.source_name}.${entity.name}` : entity.name;
 }
 
 function toLineageNode(
@@ -56,18 +84,23 @@ function toLineageNode(
   scope: LineageScope,
   lagMemo: Map<string, boolean>,
 ): LineageNode | undefined {
-  const node = index.getNode(id);
+  const entity = index.getLineageEntity(id);
   const graph = index.getGraph();
-  if (!node || !graph) return undefined;
+  if (!entity || !graph) return undefined;
 
-  const materialization = node.config?.materialized;
-  const targetLag = node.config?.target_lag;
+  // Sources and exposures are not built by dbt: no materialization, no target lag, no colour to
+  // declare. Only the models, seeds and snapshots in `nodes` carry those.
+  const node = isBuiltNode(entity) ? entity : undefined;
+  const materialization = isExposure(entity) ? entity.type : node?.config?.materialized;
+  const targetLag = node?.config?.target_lag;
 
   return {
     id,
-    name: node.name,
-    resourceType: node.resource_type,
-    metaLabel: nodeMetaLabel(node.resource_type, {
+    name: displayName(entity),
+    resourceType: entity.resource_type,
+    metaLabel: nodeMetaLabel(entity.resource_type, {
+      // For an exposure this is its kind ('dashboard'), which the row renders the same way:
+      // `exposure · dashboard`, as `model · view` says what a model is.
       materialization,
       targetLag,
       // The catalog, not the manifest: the manifest only carries the columns someone documented
@@ -82,7 +115,7 @@ function toLineageNode(
           ? !hasResolvableTargetLag(index, id, lagMemo)
           : undefined,
     }),
-    color: readNodeColor(node),
+    color: node ? readNodeColor(node) : undefined,
     isRoot,
     // Counted after filtering, because the count is a promise: the expand button says how many
     // nodes a click will reveal. Counting raw neighbours made it promise the hidden tests too.

@@ -1,4 +1,4 @@
-import type { DbtNode } from '../index/manifestTypes';
+import type { DbtNode, LineageEntity } from '../index/manifestTypes';
 
 /**
  * How much of the DAG the lineage view is currently showing, and what it leaves out.
@@ -46,10 +46,19 @@ export const DEFAULT_SCOPE: LineageScope = {
  * rather than the clever one — and for tests, the case this exists for, nothing is ever lost,
  * since a test is always a leaf.
  */
-export function isInScope(node: DbtNode, scope: LineageScope): boolean {
+export function isInScope(node: LineageEntity, scope: LineageScope): boolean {
   if (!scope.includeTests && node.resource_type === 'test') return false;
-  const materialized = node.config?.materialized;
+  const materialized = materializationOf(node);
   return !(materialized !== undefined && scope.excludedMaterializations.includes(materialized));
+}
+
+/**
+ * `config.materialized`, for the kinds that have one. Sources and exposures are not built by dbt,
+ * so they carry no materialization and are never hidden by a materialization filter.
+ */
+export function materializationOf(node: LineageEntity): string | undefined {
+  if (node.resource_type === 'source' || node.resource_type === 'exposure') return undefined;
+  return (node as DbtNode).config?.materialized;
 }
 
 /** Whether a walk that has already taken `depth` hops may take one more. */

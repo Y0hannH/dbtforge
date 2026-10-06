@@ -2,6 +2,14 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Exposures appear in the lineage graph** ([#30](https://github.com/Y0hannH/dbtforge/issues/30)). A dashboard, notebook or app declared under `exposures:` is drawn downstream of the models it depends on, as dbt docs does: `exposure · dashboard`. Exposures are always leaves, are never hidden by the materialization filter, and can themselves be the root of a graph. Clicking one opens the `.yml` that declares it.
+
+### Fixed
+- **Sources were missing from the lineage graph.** The graph's edges already pointed at them, but the walk only resolved ids found in `manifest.nodes`, so they were silently dropped. They now appear upstream, labelled `source_name.table` (two sources often share a table name) with `source` as the type.
+
 ## [0.16.0] - 2026-09-24
 
 ### Added

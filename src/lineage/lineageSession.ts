@@ -24,7 +24,7 @@ export class LineageSession {
   ) {}
 
   get rootName(): string {
-    return this.index.getNode(this.rootId)?.name ?? this.rootId;
+    return this.index.getLineageEntity(this.rootId)?.name ?? this.rootId;
   }
 
   bootstrap(): LineageBootstrap {
@@ -64,7 +64,7 @@ export class LineageSession {
         }
 
         case 'open': {
-          const target = this.index.getNode(message.nodeId);
+          const target = this.index.getLineageEntity(message.nodeId);
           if (target) {
             void vscode.window.showTextDocument(this.index.getFileUri(target), { preview: true });
           }

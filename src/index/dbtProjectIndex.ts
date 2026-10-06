@@ -19,6 +19,7 @@ import type {
   DbtManifest,
   DbtNode,
   DbtSourceNode,
+  LineageEntity,
 } from './manifestTypes';
 import type { ModelRef } from './refIndex';
 import { buildRefIndex } from './refIndex';
@@ -263,6 +264,19 @@ export class DbtProjectIndex implements vscode.Disposable {
 
   getNode(uniqueId: string): DbtNode | undefined {
     return this.manifest?.nodes[uniqueId];
+  }
+
+  /**
+   * Resolves an id from `parent_map`/`child_map` to whatever it names: a node, a source or an
+   * exposure. getNode() only knows `manifest.nodes`, which is why the lineage used to lose the
+   * sources and exposures its own graph edges pointed at.
+   */
+  getLineageEntity(uniqueId: string): LineageEntity | undefined {
+    return (
+      this.manifest?.nodes[uniqueId] ??
+      this.manifest?.sources[uniqueId] ??
+      this.manifest?.exposures?.[uniqueId]
+    );
   }
 
   getMacroNode(uniqueId: string): DbtMacroNode | undefined {
