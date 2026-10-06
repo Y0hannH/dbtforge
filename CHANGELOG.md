@@ -2,16 +2,19 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.17.0] - 2026-10-06
 
 ### Added
 - **Exposures appear in the lineage graph** ([#30](https://github.com/Y0hannH/dbtforge/issues/30)). A dashboard, notebook or app declared under `exposures:` is drawn downstream of the models it depends on, as dbt docs does: `exposure · dashboard`. Exposures are always leaves, are never hidden by the materialization filter, and can themselves be the root of a graph. Clicking one opens the `.yml` that declares it.
-
-- **The Parents / Children / Tests panel lists them too.** It resolved ids the same way and so dropped the same entries: a model's source now shows under Parents and its dashboard under Children.
+  - The Parents / Children / Tests panel lists them too: a model's dashboard now shows under Children.
+- **The lineage follows the active editor** ([#25](https://github.com/Y0hannH/dbtforge/issues/25)). With a lineage open, switching to another model, seed or snapshot redraws it for that file, keeping your depth and exclusion choices. It never opens a lineage by itself, never takes focus, and ignores files that are not a node.
+  - **`dbtForge.lineageFollowsEditor`** (on by default) turns it off, for anyone who wants the graph to stay put.
 
 ### Fixed
-- **Lineage follows the active editor** ([#25](https://github.com/Y0hannH/dbtforge/issues/25)). With a lineage open, switching to another model, seed or snapshot redraws it for that file, keeping your depth and exclusion choices. It never opens a lineage by itself and ignores files that are not a node. `dbtForge.lineageFollowsEditor` (on by default) turns it off.
-- **Sources were missing from the lineage graph.** The graph's edges already pointed at them, but the walk only resolved ids found in `manifest.nodes`, so they were silently dropped. They now appear upstream, labelled `source_name.table` (two sources often share a table name) with `source` as the type.
+- **Sources were missing from the lineage graph.** The graph's edges already pointed at them, but the walk only resolved ids found in `manifest.nodes`, so they were silently dropped. They now appear upstream, labelled `source_name.table` (two sources often share a table name) with `source` as the type, and show in the Parents panel as well.
+
+### Known limits
+- `metrics`, `semantic_models` and `saved_queries` are in the manifest's `child_map` but are still not drawn in the lineage.
 
 ## [0.16.0] - 2026-09-24
 

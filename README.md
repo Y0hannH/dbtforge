@@ -66,7 +66,7 @@ The extension is also on the [Marketplace page](https://marketplace.visualstudio
 <summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
 
 ```bash
-code --install-extension dbtforge-0.16.0.vsix
+code --install-extension dbtforge-0.17.0.vsix
 ```
 
 </details>
