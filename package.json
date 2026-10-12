@@ -280,17 +280,19 @@
       "editor/title": [
         {
           "submenu": "dbtForge.editorTitle",
-          "when": "dbtForge.activeFileCompilable",
+          "when": "dbtForge.activeFileCompilable || dbtForge.activeFileIsSeed",
           "group": "navigation@1"
         }
       ],
       "dbtForge.editorTitle": [
         {
           "command": "dbtForge.previewData",
+          "when": "dbtForge.activeFileCompilable",
           "group": "1_preview@1"
         },
         {
           "command": "dbtForge.previewCompiledSql",
+          "when": "dbtForge.activeFileCompilable",
           "group": "1_preview@2"
         },
         {
@@ -299,22 +301,27 @@
         },
         {
           "command": "dbtForge.buildModel",
+          "when": "dbtForge.activeFileCompilable",
           "group": "2_build@1"
         },
         {
           "command": "dbtForge.buildUpstream",
+          "when": "dbtForge.activeFileCompilable",
           "group": "2_build@2"
         },
         {
           "command": "dbtForge.buildDownstream",
+          "when": "dbtForge.activeFileCompilable",
           "group": "2_build@3"
         },
         {
           "command": "dbtForge.testModel",
+          "when": "dbtForge.activeFileCompilable",
           "group": "2_build@4"
         },
         {
           "command": "dbtForge.compileFile",
+          "when": "dbtForge.activeFileCompilable",
           "group": "3_project@1"
         }
       ],
@@ -505,7 +512,7 @@
         "command": "dbtForge.showLineage",
         "key": "ctrl+k l",
         "mac": "cmd+k l",
-        "when": "editorTextFocus && resourceExtname == .sql && dbtForge.activeFileCompilable"
+        "when": "editorTextFocus && (resourceExtname == .sql && dbtForge.activeFileCompilable || resourceExtname == .csv)"
       }
     ]
   },

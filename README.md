@@ -172,14 +172,14 @@ All of these apply while a dbt model is focused in the editor, and are inert eve
 | `Ctrl+K U` | Build Upstream (`+model`) |
 | `Ctrl+K D` | Build Downstream (`model+`) |
 | `Ctrl+K T` | Test Model |
-| `Ctrl+K L` | Show Lineage |
+| `Ctrl+K L` | Show Lineage — also on a seed's `.csv` |
 
 `Ctrl+Enter` follows the cursor: inside a CTE it previews that CTE, anywhere else it previews the
 whole model. Only the shortcut (and the command palette) work this way — the buttons say which
 scope they mean, so **Preview Data** in a menu or in the CodeLens row is always the whole model,
 and **Preview CTE** is always that CTE. Whichever ran, the panel's header names it.
 
-The same actions are also under the **dbt Forge** icon in the editor's title bar, which — unlike the CodeLens row at the top of the file — stays put when you scroll. They sit in one menu rather than as separate icons because VS Code sorts every extension's title-bar buttons into a single shared group, so loose icons end up interleaved with whatever else you have installed.
+The same actions are also under the **dbt Forge** icon in the editor's title bar, which — unlike the CodeLens row at the top of the file — stays put when you scroll. They sit in one menu rather than as separate icons because VS Code sorts every extension's title-bar buttons into a single shared group, so loose icons end up interleaved with whatever else you have installed. On a seed's `.csv` the menu holds only **Show Lineage**, the one action that applies.
 
 ---
 

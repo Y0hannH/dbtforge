@@ -2,6 +2,12 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **`Ctrl+K L` / `Cmd+K L` did nothing on a seed** ([#29](https://github.com/Y0hannH/dbtforge/issues/29)). The shortcut was only bound while a `.sql` file was focused, so on a seed's `.csv` VS Code swallowed the chord and answered "not a command". Show Lineage was already reachable from the CodeLens, the Explorer menu and the command palette; the shortcut now works there too. The build, test and preview shortcuts stay on `.sql`: a seed has nothing to run them on.
+- **The title-bar menu was missing on a seed.** The dbt Forge icon only appeared on `.sql` files, so a seed's `.csv` had no title-bar way to reach Show Lineage. It now appears on a seed, holding that one item; build, test, preview and compile stay on `.sql`.
+
 ## [0.17.0] - 2026-10-06
 
 ### Added

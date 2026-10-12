@@ -554,15 +554,21 @@ function isDbtSqlFile(uri: vscode.Uri): boolean {
  * Re-drives everything keyed off "which file is in front of the user": the relatives panel,
  * and the `dbtForge.activeFileCompilable` context key that decides which welcome view the
  * panel shows when it's empty (offer to compile this file vs. "open a model").
+ *
+ * `dbtForge.activeFileIsSeed` is separate because a seed's .csv is a node in the graph without
+ * being SQL to compile: it must not turn the build/preview items of the title-bar menu on, only
+ * the one action that applies to it, Show Lineage.
  */
 function refreshActiveEditorViews(relativesTree: RelativesTreeProvider): void {
   const editor = vscode.window.activeTextEditor;
   relativesTree.refresh(editor);
 
   const uri = editor?.document.uri;
-  const compilable =
-    uri !== undefined && isDbtSqlFile(uri) && getIndexForResource(uri) !== undefined;
+  const index = uri ? getIndexForResource(uri) : undefined;
+  const compilable = uri !== undefined && isDbtSqlFile(uri) && index !== undefined;
+  const isSeed = uri !== undefined && index?.getNodeByFileUri(uri)?.resource_type === 'seed';
   void vscode.commands.executeCommand('setContext', 'dbtForge.activeFileCompilable', compilable);
+  void vscode.commands.executeCommand('setContext', 'dbtForge.activeFileIsSeed', isSeed);
 }
 
 /**
