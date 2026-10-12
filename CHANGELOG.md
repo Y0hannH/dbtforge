@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.18.0] - 2026-10-12
 
 ### Added
 - **A `downstream` dynamic table shows the shortest lag it can be held to** ([#28](https://github.com/Y0hannH/dbtforge/issues/28)). `target_lag: downstream` still shows as declared, but the lineage graph now adds the shortest lag declared by the dynamic tables that read it: `model · dynamic_table (downstream, ≤ 10 minutes)`. That is Snowflake's documented rule — a `downstream` table is refreshed as often as its most demanding consumer needs.
