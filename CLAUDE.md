@@ -36,10 +36,13 @@ Declining a request on this basis is expected, not a failure.
 ## Issues
 
 - Reference issues with `Refs #N`, never `Fixes #N` / `Closes #N`, in commits and PRs: those
-  keywords close the issue at merge, before the reporter can try the fix in a release.
-- Close an issue by hand once the release is published, with a comment saying which version
-  shipped it.
-- `.github/workflows/reopen-on-comment.yml` reopens a completed issue when a non-maintainer
-  comments on it. A maintainer comment (e.g. "Shipped in x.y.z") never reopens.
+  keywords close the issue at merge, before the reporter has tried the fix.
+- When there is something to try, comment on the PR mentioning the issue and the reporter
+  (`@user`), saying what changed and which build to try. For a change committed without a PR,
+  comment on the issue itself. The issue stays open.
+- The reporter tests the fix and closes the issue themselves, or comments if it doesn't work.
+  We don't close an issue a reporter is still waiting on.
+- We keep the right to close an issue ourselves (out of scope per the Non-goals, duplicate, no
+  feedback), always with a comment saying why.
 - A follow-up on the same topic goes on the existing issue; a distinct problem gets a new issue
   that links back.
