@@ -3,6 +3,8 @@ import * as vscode from 'vscode';
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { SourceRef } from '../sql/aliasParser';
 import { parseAliases } from '../sql/aliasParser';
+import type { CteColumn } from '../sql/cteColumns';
+import { resolveCteColumns } from '../sql/cteColumns';
 import { parseCtes } from '../sql/cteParser';
 import { resolveUnqualifiedSource } from '../sql/unqualifiedSource';
 
@@ -36,45 +38,45 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
 
     if (!prefixMatch) {
       const source = resolveUnqualifiedSource(documentText, document.offsetAt(position));
-      return source ? this.catalogColumns(index, source) : undefined;
+      return source ? toItems(this.catalogColumns(index, source)) : undefined;
     }
 
     const alias = prefixMatch[1];
 
-    // A CTE whose columns couldn't be resolved is skipped rather than matched: the parser now
+    // A CTE that names no column and expands none is skipped rather than matched: the parser
     // reports every CTE (the preview rewrite needs them all), so matching one blindly would answer
     // "no columns" where the alias resolution below might still have found some.
-    const cte = parseCtes(documentText).find((c) => c.name === alias && c.columns.length > 0);
+    const cte = parseCtes(documentText).find(
+      (c) => c.name === alias && (c.columns.length > 0 || c.expansion !== undefined),
+    );
     if (cte) {
-      return cte.columns.map(
-        (name) => new vscode.CompletionItem(name, vscode.CompletionItemKind.Field),
-      );
+      // A CTE with a `*` is answered whole or not at all, never with the columns it names alone.
+      return toItems(resolveCteColumns(cte, (source) => this.catalogColumns(index, source)));
     }
 
     const aliasSource = parseAliases(documentText).find((a) => a.alias === alias);
     if (!aliasSource) return undefined;
 
-    return this.catalogColumns(index, aliasSource);
+    return toItems(this.catalogColumns(index, aliasSource));
   }
 
   /** Columns of a model or source as catalog.json knows them, or nothing when it doesn't. */
-  private catalogColumns(
-    index: DbtProjectIndex,
-    source: SourceRef,
-  ): vscode.CompletionItem[] | undefined {
+  private catalogColumns(index: DbtProjectIndex, source: SourceRef): CteColumn[] | undefined {
     const uniqueId =
       source.kind === 'ref'
         ? index.resolveRef(source.modelName)?.uniqueId
         : index.resolveSource(source.sourceName, source.tableName)?.uniqueId;
     if (!uniqueId) return undefined;
 
-    const columns = index.getCatalogColumns(uniqueId);
-    if (!columns) return undefined; // not built yet — nothing to suggest, not a guess
-
-    return columns.map((col) => {
-      const item = new vscode.CompletionItem(col.name, vscode.CompletionItemKind.Field);
-      item.detail = col.type;
-      return item;
-    });
+    // Absent until the model has been built — nothing to suggest, not a guess.
+    return index.getCatalogColumns(uniqueId)?.map((col) => ({ name: col.name, type: col.type }));
   }
+}
+
+function toItems(columns: CteColumn[] | undefined): vscode.CompletionItem[] | undefined {
+  return columns?.map((column) => {
+    const item = new vscode.CompletionItem(column.name, vscode.CompletionItemKind.Field);
+    if (column.type) item.detail = column.type;
+    return item;
+  });
 }

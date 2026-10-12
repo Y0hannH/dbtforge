@@ -102,6 +102,7 @@ Column suggestions come from two independent paths, which explains why they some
 | You type | Where the columns come from | Requires |
 |---|---|---|
 | `my_cte.` | The CTE's own `SELECT` list, parsed from the open file | Nothing — works offline, on an unbuilt model |
+| `my_cte.` where the `SELECT` list has a `*` | The columns it names, plus the columns of the one table the `*` reads, from `catalog.json` | **`dbt docs generate`**, the model must have been built, and the conditions below |
 | `m.` where `m` aliases a model/source | `catalog.json` | **`dbt docs generate`**, and the model must have been built |
 | nothing, in a model that reads one unaliased table | `catalog.json` | The same, plus the conditions below |
 
@@ -111,6 +112,8 @@ Two things trip people up:
 - **The alias is mandatory as soon as the model reads more than one table.** `from {{ ref('orders') }} o` gives you `o.`; a second table with no alias gives you nothing to type before the dot, because a bare column could then have come from either.
 
 **The single-table exception.** A model whose whole file holds exactly one `ref()`/`source()` call, written as an unaliased `FROM`/`JOIN`, and no CTEs, suggests that table's columns with nothing typed before them — there is no other place they could have come from, so nothing is being guessed. Add a second table and the suggestions stop, which is the alias requirement coming back rather than a fault. Suggestions are also held back where a column isn't what you're typing: inside a `{{ … }}` tag, inside a string or a comment, and directly after `FROM`/`JOIN`.
+
+**A CTE that selects `*`.** `my_cte.` is the way to complete a CTE you don't alias, since its name is already unique. When its `SELECT` list holds a `*` (or `alias.*`), the columns the `*` adds can only come from the catalog, so they are offered only when the `*` is unambiguous: the CTE's first `SELECT` (a `UNION` takes its column names from it) reads exactly one `ref()`/`source()`, with no join, comma, subquery, `pivot` or other CTE behind it. Anything else — a join, `* exclude (…)`, a macro such as `dbt_utils.star()`, a model never built — gives **no suggestions at all**, never just the few columns the text names, which would read as the whole list.
 
 Also note that the alias must sit right after a single-argument `ref()`/`source()` call — `ref('package', 'model')`, `ref('model', version=2)`, and calls split across lines aren't detected yet.
 

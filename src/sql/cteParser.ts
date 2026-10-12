@@ -5,6 +5,9 @@
 // exactly where the final SELECT starts and what shape it has, because it splices text around it —
 // so every function here reports "I could not tell" rather than returning a best guess.
 
+import type { SourceRef } from './aliasParser';
+import { parseTableReferences } from './aliasParser';
+import { findAllRefCalls, findAllSourceCalls } from './jinjaRefParser';
 import {
   findMatchingParen,
   findTopLevelKeyword,
@@ -13,6 +16,20 @@ import {
   splitTopLevel,
 } from './scanner';
 
+/**
+ * What a CTE's SELECT list holds beyond the columns it names: `*`, `alias.*`, or a Jinja macro such
+ * as `dbt_utils.star(...)`. Each expands into columns this parser cannot read off the text.
+ */
+export interface CteExpansion {
+  /**
+   * The one table every expanded column comes from, when that can be told: the CTE's first SELECT
+   * (a UNION takes its column names from it) reads exactly one ref()/source(), with nothing else in
+   * its FROM clause, and nothing in the list expands from anywhere else. Absent otherwise, which
+   * means the expanded columns are unknown — not that there are none.
+   */
+  source?: SourceRef;
+}
+
 export interface CteDefinition {
   /** Delimiters stripped, for matching against an alias the user typed. */
   name: string;
@@ -20,8 +37,14 @@ export interface CteDefinition {
   rawName: string;
   /** Offset of the name in the document, for placing a CodeLens on the CTE. */
   nameStart: number;
-  /** Output columns of the CTE's own outer-most SELECT; empty when they can't be resolved. */
+  /**
+   * Output columns of the CTE's own outer-most SELECT that the text names; empty when they can't be
+   * resolved. When `expansion` is set this is only part of the answer, and must not be presented
+   * as the CTE's columns on its own — the rest are the ones the expansion adds.
+   */
   columns: string[];
+  /** Present when the SELECT list also expands into columns that aren't named in the text. */
+  expansion?: CteExpansion;
   /** Offset just past the CTE's opening parenthesis. */
   bodyStart: number;
   /** Offset of the CTE's closing parenthesis. */
@@ -109,11 +132,13 @@ function parseWithClause(sql: string): WithClause | undefined {
     const bodyEnd = findMatchingParen(sql, i);
     if (bodyEnd === -1) return undefined;
 
+    const output = describeOutput(sql.slice(bodyStart, bodyEnd));
     ctes.push({
       name: stripDelimiters(name.value),
       rawName: name.value,
       nameStart: name.startIndex,
-      columns: extractTopLevelSelectColumns(sql.slice(bodyStart, bodyEnd)),
+      columns: output.columns,
+      ...(output.expansion ? { expansion: output.expansion } : {}),
       bodyStart,
       bodyEnd,
     });
@@ -143,17 +168,126 @@ function hasTopLevelOrderBy(sql: string, fromIndex: number): boolean {
   return matchesWordAt(sql, skipIgnorable(sql, orderIndex + 'order'.length), 'by');
 }
 
-function extractTopLevelSelectColumns(body: string): string[] {
+// `*` or `alias.*`, with whatever follows it: `* exclude (a)`, `* replace (...)`, `* ilike '...'`.
+const STAR_ITEM = new RegExp(`^(?:(${IDENT})\\.)?\\*(?:\\s+([\\s\\S]*))?$`);
+
+// An item that is nothing but a Jinja expression and was given no alias: `{{ dbt_utils.star(...) }}`.
+// The macro writes out a column list the parser never sees.
+const BARE_JINJA_ITEM = /^\{\{[\s\S]*\}\}$/;
+
+// Where a SELECT's FROM clause ends, and where its UNION branches begin.
+const CLAUSES_AFTER_FROM = ['where', 'group', 'order', 'having', 'qualify', 'window', 'limit'];
+const SET_OPERATORS = ['union', 'intersect', 'except', 'minus'];
+
+// A single table in a FROM clause: one Jinja block, then at most an alias. Anything past that
+// (`pivot (...)`, `sample (10)`) reshapes the columns, so it is not a single plain table.
+const SINGLE_TABLE = new RegExp(
+  `^\\{\\{(?:(?!\\}\\}).)*\\}\\}(?:\\s+(?:as\\s+)?(${IDENT}))?$`,
+  'is',
+);
+
+interface SelectOutput {
+  columns: string[];
+  expansion?: CteExpansion;
+}
+
+function describeOutput(body: string): SelectOutput {
   const selectIndex = findTopLevelKeyword(body, 'select', 0);
-  if (selectIndex === -1) return [];
+  if (selectIndex === -1) return { columns: [] };
 
   const listStart = selectIndex + 'select'.length;
   const fromIndex = findTopLevelKeyword(body, 'from', listStart);
   const columnList = body.slice(listStart, fromIndex === -1 ? body.length : fromIndex);
 
-  return splitTopLevel(columnList, ',')
-    .map(extractColumnAlias)
-    .filter((alias): alias is string => alias !== undefined);
+  const columns: string[] = [];
+  const qualifiers: string[] = [];
+  let expands = false;
+  let unreadable = false;
+
+  for (const item of splitTopLevel(columnList, ',')) {
+    // Comments are dropped for recognising a star or a macro only: a `-- note` above `*` is still
+    // a star. They are not dropped before reading a column name, which has always been read as is.
+    const trimmed = item
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/--[^\n]*/g, '')
+      .trim();
+
+    const star = STAR_ITEM.exec(trimmed);
+    if (star) {
+      expands = true;
+      if (star[2]?.trim()) unreadable = true; // `* exclude (...)`: not every column survives
+      if (star[1]) qualifiers.push(stripDelimiters(star[1]));
+      continue;
+    }
+
+    const column = extractColumnAlias(item);
+    if (column !== undefined) {
+      columns.push(column);
+    } else if (BARE_JINJA_ITEM.test(trimmed)) {
+      expands = true;
+      unreadable = true;
+    }
+  }
+
+  if (!expands) return { columns };
+
+  const source = unreadable ? undefined : resolveExpansionSource(body, fromIndex, qualifiers);
+  return { columns, expansion: source ? { source } : {} };
+}
+
+/**
+ * The single ref()/source() the first SELECT of `body` reads, or undefined when anything about its
+ * FROM clause could put columns from somewhere else into a `*`: a join, a comma, a subquery, a CTE
+ * name, a pivot, an alias that isn't the one the star was qualified with.
+ */
+function resolveExpansionSource(
+  body: string,
+  fromIndex: number,
+  qualifiers: string[],
+): SourceRef | undefined {
+  if (fromIndex === -1) return undefined;
+  const afterFrom = fromIndex + 'from'.length;
+
+  // UNION branches share their first branch's column names, so only that branch is read.
+  const branchEnd = firstOf(body, SET_OPERATORS, afterFrom, body.length);
+  const clauseEnd = firstOf(body, CLAUSES_AFTER_FROM, afterFrom, branchEnd);
+  const fromClause = body.slice(afterFrom, clauseEnd).trim();
+
+  if (findTopLevelKeyword(fromClause, 'join', 0) !== -1) return undefined;
+  if (splitTopLevel(fromClause, ',').length !== 1) return undefined;
+  if (findAllRefCalls(fromClause).length + findAllSourceCalls(fromClause).length !== 1) {
+    return undefined;
+  }
+
+  const table = SINGLE_TABLE.exec(fromClause);
+  if (!table) return undefined;
+
+  const [reference] = parseTableReferences(`from ${fromClause}`);
+  if (!reference) return undefined;
+
+  // The alias the regex read must be the one the reference parser accepted: a keyword where an
+  // alias would sit is not an alias, and then there is something after the table that isn't one.
+  const alias = table[1] ? stripDelimiters(table[1]) : undefined;
+  if (alias !== reference.alias) return undefined;
+
+  // `a.*` is only this table's columns when `a` is the alias this table was given.
+  if (qualifiers.some((qualifier) => qualifier.toLowerCase() !== alias?.toLowerCase())) {
+    return undefined;
+  }
+
+  return reference.kind === 'ref'
+    ? { kind: 'ref', modelName: reference.modelName }
+    : { kind: 'source', sourceName: reference.sourceName, tableName: reference.tableName };
+}
+
+/** Offset of the earliest top-level occurrence of any of `words` in [from, to), or `to`. */
+function firstOf(text: string, words: string[], from: number, to: number): number {
+  let earliest = to;
+  for (const word of words) {
+    const at = findTopLevelKeyword(text, word, from, earliest);
+    if (at !== -1) earliest = at;
+  }
+  return earliest;
 }
 
 function extractColumnAlias(expression: string): string | undefined {

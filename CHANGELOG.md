@@ -13,6 +13,11 @@ All notable changes to the dbt Forge extension are documented in this file.
   - The keyword is now matched in any case, as Snowflake accepts it: `DOWNSTREAM` is treated like `downstream`.
 
 ### Fixed
+- **`my_cte.` offered only the columns a CTE names, hiding the ones its `*` adds** ([#14](https://github.com/Y0hannH/dbtforge/issues/14)). For `select … as gmv_id, * from {{ ref('gmv_finalized') }}` the list was just `gmv_id`, as if that were all of them. A CTE with a `*` is now answered whole or not at all:
+  - **Resolved from the catalog** when the `*` is unambiguous: the CTE's first `SELECT` (a `UNION` takes its names from it) reads exactly one `ref()`/`source()`, and a `*` or `alias.*` is not qualified by some other alias. The result is the named columns plus the table's, deduplicated ignoring case.
+  - **No suggestions** when it isn't: a join or comma, a subquery, a pivot, a read from another CTE or a plain table, `* exclude (…)`, or a Jinja macro such as `dbt_utils.star()`. The same when the model was never built, since the catalog has nothing for it.
+  - A CTE of a bare `select * from {{ ref('orders') }}` now completes too; it used to be skipped because it names no column.
+  - Needs `dbt docs generate`, like every catalog-backed suggestion.
 - **`Ctrl+K L` / `Cmd+K L` did nothing on a seed** ([#29](https://github.com/Y0hannH/dbtforge/issues/29)). The shortcut was only bound while a `.sql` file was focused, so on a seed's `.csv` VS Code swallowed the chord and answered "not a command". Show Lineage was already reachable from the CodeLens, the Explorer menu and the command palette; the shortcut now works there too. The build, test and preview shortcuts stay on `.sql`: a seed has nothing to run them on.
 - **The title-bar menu was missing on a seed.** The dbt Forge icon only appeared on `.sql` files, so a seed's `.csv` had no title-bar way to reach Show Lineage. It now appears on a seed, holding that one item; build, test, preview and compile stay on `.sql`.
 
