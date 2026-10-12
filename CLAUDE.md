@@ -32,3 +32,14 @@ Declining a request on this basis is expected, not a failure.
 - Providers never guess: when something can't be resolved, return nothing rather than a plausible
   answer. This is a product decision, stated in the README, not an implementation gap.
 - These notes are in English, like the rest of the repo (README, code comments, commit messages).
+
+## Issues
+
+- Reference issues with `Refs #N`, never `Fixes #N` / `Closes #N`, in commits and PRs: those
+  keywords close the issue at merge, before the reporter can try the fix in a release.
+- Close an issue by hand once the release is published, with a comment saying which version
+  shipped it.
+- `.github/workflows/reopen-on-comment.yml` reopens a completed issue when a non-maintainer
+  comments on it. A maintainer comment (e.g. "Shipped in x.y.z") never reopens.
+- A follow-up on the same topic goes on the existing issue; a distinct problem gets a new issue
+  that links back.
