@@ -46,6 +46,37 @@ void test('nodeMetaLabel: a dynamic table carries its target lag, verbatim', () 
   );
 });
 
+void test('nodeMetaLabel: an inherited lag is shown as an upper bound, after the declared word', () => {
+  assert.equal(
+    nodeMetaLabel('model', {
+      materialization: 'dynamic_table',
+      targetLag: 'downstream',
+      inheritedTargetLag: '10 minutes',
+    }),
+    'model · dynamic_table (downstream, ≤ 10 minutes)',
+  );
+});
+
+void test('nodeMetaLabel: an inherited lag wins over unresolved, and a blank one is ignored', () => {
+  assert.equal(
+    nodeMetaLabel('model', {
+      materialization: 'dynamic_table',
+      targetLag: 'downstream',
+      targetLagUnresolved: true,
+      inheritedTargetLag: '1 hour',
+    }),
+    'model · dynamic_table (downstream, ≤ 1 hour)',
+  );
+  assert.equal(
+    nodeMetaLabel('model', {
+      materialization: 'dynamic_table',
+      targetLag: 'downstream',
+      inheritedTargetLag: '  ',
+    }),
+    'model · dynamic_table (downstream)',
+  );
+});
+
 void test('nodeMetaLabel: no materialization to qualify means no lag either', () => {
   assert.equal(nodeMetaLabel('model', { targetLag: '3 minutes' }), 'model');
   assert.equal(nodeMetaLabel('seed', { materialization: 'seed', targetLag: '1 hour' }), 'seed');

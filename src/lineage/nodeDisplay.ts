@@ -22,6 +22,12 @@ export interface NodeMetaFacts {
    * though dbt had said it. See lineage/targetLagResolution.ts.
    */
   targetLagUnresolved?: boolean;
+  /**
+   * Only meaningful when `targetLag` is 'downstream': the shortest lag declared downstream, as the
+   * project wrote it. Shown as "at most" because dbt only knows its own consumers — a dynamic
+   * table built elsewhere can only shorten it. See lineage/targetLagResolution.ts.
+   */
+  inheritedTargetLag?: string;
 }
 
 /**
@@ -35,7 +41,8 @@ export interface NodeMetaFacts {
  * tables and no generated catalog sees exactly the row it saw before any of this was read.
  */
 export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): string {
-  const { materialization, targetLag, columnCount, targetLagUnresolved } = facts;
+  const { materialization, targetLag, columnCount, targetLagUnresolved, inheritedTargetLag } =
+    facts;
   let label = resourceType;
 
   if (materialization && materialization !== resourceType) {
@@ -43,10 +50,13 @@ export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): 
     // Parenthesised rather than given its own ` · ` segment: the lag is a property of the
     // materialization, not a third fact about the node, and the row reads wrong if it looks like
     // one. Only appended alongside a materialization, since it describes it.
-    if (targetLag?.trim()) {
-      label += targetLagUnresolved
-        ? ` (${targetLag.trim()}, unresolved)`
-        : ` (${targetLag.trim()})`;
+    const lag = targetLag?.trim();
+    if (lag) {
+      // The declared word always comes first and is never replaced: what follows is derived from
+      // the DAG, and the "≤" is what says so.
+      if (inheritedTargetLag?.trim()) label += ` (${lag}, ≤ ${inheritedTargetLag.trim()})`;
+      else if (targetLagUnresolved) label += ` (${lag}, unresolved)`;
+      else label += ` (${lag})`;
     }
   }
 

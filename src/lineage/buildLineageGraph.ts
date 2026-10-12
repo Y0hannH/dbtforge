@@ -9,7 +9,8 @@ import type {
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
-import { hasResolvableTargetLag } from './targetLagResolution';
+import type { InheritedTargetLag } from './targetLagResolution';
+import { isDownstreamLag, resolveInheritedTargetLag } from './targetLagResolution';
 
 export interface LineageNode {
   id: string;
@@ -82,7 +83,7 @@ function toLineageNode(
   id: string,
   isRoot: boolean,
   scope: LineageScope,
-  lagMemo: Map<string, boolean>,
+  lagMemo: Map<string, InheritedTargetLag>,
 ): LineageNode | undefined {
   const entity = index.getLineageEntity(id);
   const graph = index.getGraph();
@@ -93,6 +94,10 @@ function toLineageNode(
   const node = isBuiltNode(entity) ? entity : undefined;
   const materialization = isExposure(entity) ? entity.type : node?.config?.materialized;
   const targetLag = node?.config?.target_lag;
+  const inherited =
+    materialization === 'dynamic_table' && isDownstreamLag(targetLag)
+      ? resolveInheritedTargetLag(index, id, lagMemo)
+      : undefined;
 
   return {
     id,
@@ -109,11 +114,9 @@ function toLineageNode(
       // the label simply says nothing rather than guessing a number.
       columnCount: index.getCatalogColumns(id)?.length,
       // Only worth walking the downstream closure for the one case it can answer: a dynamic
-      // table that has deferred its schedule and may have nothing to defer to.
-      targetLagUnresolved:
-        materialization === 'dynamic_table' && targetLag === 'downstream'
-          ? !hasResolvableTargetLag(index, id, lagMemo)
-          : undefined,
+      // table that has deferred its schedule.
+      targetLagUnresolved: inherited ? inherited.kind === 'dead-end' : undefined,
+      inheritedTargetLag: inherited?.kind === 'lag' ? inherited.text : undefined,
     }),
     color: node ? readNodeColor(node) : undefined,
     isRoot,
@@ -140,7 +143,7 @@ function walk(
   scope: LineageScope,
   nodes: Map<string, LineageNode>,
   edges: Map<string, LineageEdge>,
-  lagMemo: Map<string, boolean>,
+  lagMemo: Map<string, InheritedTargetLag>,
 ): void {
   const seen = new Set<string>([rootId]);
   let frontier = [rootId];
@@ -186,7 +189,7 @@ export function buildScopedSubgraph(
   scope: LineageScope = DEFAULT_SCOPE,
 ): LineageSubgraph {
   const graph = index.getGraph();
-  const lagMemo = new Map<string, boolean>();
+  const lagMemo = new Map<string, InheritedTargetLag>();
   const root = toLineageNode(index, rootId, true, scope, lagMemo);
   if (!graph || !root) return { nodes: [], edges: [] };
 
@@ -224,7 +227,7 @@ export function expandNode(
 
   const nodes: LineageNode[] = [];
   const edges: LineageEdge[] = [];
-  const lagMemo = new Map<string, boolean>();
+  const lagMemo = new Map<string, InheritedTargetLag>();
 
   for (const neighborId of neighborsInScope(index, graph, nodeId, direction, scope)) {
     const neighborNode = toLineageNode(index, neighborId, false, scope, lagMemo);

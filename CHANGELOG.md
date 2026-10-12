@@ -4,6 +4,14 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **A `downstream` dynamic table shows the shortest lag it can be held to** ([#28](https://github.com/Y0hannH/dbtforge/issues/28)). `target_lag: downstream` still shows as declared, but the lineage graph now adds the shortest lag declared by the dynamic tables that read it: `model · dynamic_table (downstream, ≤ 10 minutes)`. That is Snowflake's documented rule — a `downstream` table is refreshed as often as its most demanding consumer needs.
+  - **It is an upper bound, hence the `≤`.** dbt only knows the consumers it builds; a dynamic table created elsewhere can only shorten the real lag.
+  - Looks through plain tables, views and chains of `downstream` dynamic tables, and stops at the first dynamic table with a real lag: that table's own schedule is what its upstream serves.
+  - No dynamic table downstream names a lag: still `unresolved`, as before.
+  - **No minimum is claimed when a downstream lag can't be read** as a duration (an unrendered Jinja expression, an unknown unit): the row falls back to the bare `downstream`, because the unreadable one could be the shortest.
+  - The keyword is now matched in any case, as Snowflake accepts it: `DOWNSTREAM` is treated like `downstream`.
+
 ### Fixed
 - **`Ctrl+K L` / `Cmd+K L` did nothing on a seed** ([#29](https://github.com/Y0hannH/dbtforge/issues/29)). The shortcut was only bound while a `.sql` file was focused, so on a seed's `.csv` VS Code swallowed the chord and answered "not a command". Show Lineage was already reachable from the CodeLens, the Explorer menu and the command palette; the shortcut now works there too. The build, test and preview shortcuts stay on `.sql`: a seed has nothing to run them on.
 - **The title-bar menu was missing on a seed.** The dbt Forge icon only appeared on `.sql` files, so a seed's `.csv` had no title-bar way to reach Show Lineage. It now appears on a seed, holding that one item; build, test, preview and compile stay on `.sql`.

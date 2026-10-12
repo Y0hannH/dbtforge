@@ -361,7 +361,7 @@ void test('buildInitialSubgraph: a downstream DT with no downstream DT is flagge
   );
 });
 
-void test('buildInitialSubgraph: a downstream DT resolved by a downstream DT with a real lag', () => {
+void test('buildInitialSubgraph: a downstream DT shows the shortest lag downstream as an upper bound', () => {
   const lagNodes: Record<string, DbtNode> = {
     'model.pkg.b': {
       ...makeNode('model.pkg.b', 'b'),
@@ -391,9 +391,11 @@ void test('buildInitialSubgraph: a downstream DT resolved by a downstream DT wit
     includeTests: false,
     excludedMaterializations: [],
   });
+  // c is the only consumer and declares 2 minutes, so b is refreshed at least that often. The "≤"
+  // is there because dbt only sees its own consumers: one built elsewhere could shorten it.
   assert.equal(
     result.nodes.find((n) => n.id === 'model.pkg.b')?.metaLabel,
-    'model · dynamic_table (downstream)',
+    'model · dynamic_table (downstream, ≤ 2 minutes)',
   );
 });
 
