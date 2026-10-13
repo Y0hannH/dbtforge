@@ -23,6 +23,7 @@ import type {
   LineageBootstrap,
   WebviewToHostMessage,
 } from '../lineage/messages';
+import { shouldShowMinimap } from '../lineage/minimapPolicy';
 import { lineageNodeWidth, NODE_HEIGHT } from '../lineage/nodeSize';
 
 declare global {
@@ -105,13 +106,6 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
 const NODE_TYPES = { lineageNode: LineageNodeView };
 
 /**
- * Below this many nodes the graph fits the viewport on its own, and the minimap is a shrunken
- * copy of what is already fully visible. The initial view is one hop — typically 3 to 8 nodes —
- * so without this the minimap spends most of its life adding nothing but occupying a corner.
- */
-const MINIMAP_MIN_NODES = 10;
-
-/**
  * VS Code publishes its theme as CSS custom properties on the document root, but React Flow
  * writes the minimap's colours as SVG presentation attributes, where `var()` is not substituted.
  * So the values have to be read back as real colours.
@@ -167,11 +161,14 @@ function ScopeToolbar({
   materializations,
   busy,
   onChange,
+  onOpenFull,
 }: {
   scope: LineageScope;
   materializations: string[];
   busy: boolean;
   onChange: (next: LineageScope) => void;
+  /** Present only where there is a larger view to go to: the bottom panel. */
+  onOpenFull?: () => void;
 }) {
   const toggleMaterialization = (name: string) => {
     const excluded = scope.excludedMaterializations.includes(name);
@@ -245,6 +242,17 @@ function ScopeToolbar({
             );
           })}
         </div>
+      )}
+
+      {onOpenFull && (
+        <button
+          type="button"
+          className="lineage-action"
+          title="Open this lineage in an editor tab, with a minimap"
+          onClick={onOpenFull}
+        >
+          Full lineage
+        </button>
       )}
     </div>
   );
@@ -325,7 +333,15 @@ function layoutGraph(
   return { nodes, edges };
 }
 
-function Flow({ nodes, edges }: { nodes: Node<LineageNodeViewData>[]; edges: Edge[] }) {
+function Flow({
+  nodes,
+  edges,
+  showMinimap,
+}: {
+  nodes: Node<LineageNodeViewData>[];
+  edges: Edge[];
+  showMinimap: boolean;
+}) {
   const { fitView } = useReactFlow();
   const themeRevision = useThemeRevision();
 
@@ -356,7 +372,7 @@ function Flow({ nodes, edges }: { nodes: Node<LineageNodeViewData>[]; edges: Edg
     >
       <Background />
       <Controls />
-      {nodes.length >= MINIMAP_MIN_NODES && (
+      {showMinimap && (
         <MiniMap
           pannable
           zoomable
@@ -377,6 +393,7 @@ function Flow({ nodes, edges }: { nodes: Node<LineageNodeViewData>[]; edges: Edg
 const EMPTY_BOOTSTRAP: LineageBootstrap = {
   rootId: '',
   rootName: '',
+  placement: 'editor',
   scope: {
     upstreamDepth: 1,
     downstreamDepth: 1,
@@ -409,6 +426,10 @@ function App() {
 
   const handleOpen = useCallback((nodeId: string) => {
     vscode.postMessage({ type: 'open', nodeId });
+  }, []);
+
+  const handleOpenFull = useCallback(() => {
+    vscode.postMessage({ type: 'openFull' });
   }, []);
 
   // The control moves immediately and the graph follows. The host answers from the manifest it
@@ -486,6 +507,7 @@ function App() {
         materializations={bootstrap.materializations}
         busy={scopePending}
         onChange={handleScopeChange}
+        onOpenFull={bootstrap.placement === 'panel' ? handleOpenFull : undefined}
       />
       <div className="lineage-canvas">
         {rawNodes.size <= 1 && scope.upstreamDepth === 0 && scope.downstreamDepth === 0 ? (
@@ -495,7 +517,11 @@ function App() {
           </div>
         ) : (
           <ReactFlowProvider>
-            <Flow nodes={nodes} edges={edges} />
+            <Flow
+              nodes={nodes}
+              edges={edges}
+              showMinimap={shouldShowMinimap(bootstrap.placement, nodes.length)}
+            />
           </ReactFlowProvider>
         )}
       </div>

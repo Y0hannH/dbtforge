@@ -11,6 +11,11 @@ All notable changes to the dbt Forge extension are documented in this file.
   - **A CTE with a `*`** is answered whole or not at all, by the same rule as `my_cte.`.
   - A final `SELECT` that reads a single `ref()`/`source()` after CTEs now completes too; it used to be refused because a CTE existed somewhere in the file.
 
+- **The lineage in the bottom panel has a way to its larger view** ([#4](https://github.com/Y0hannH/dbtforge/issues/4)). A **Full lineage** button in the toolbar opens the same graph, with the same depth and exclusion choices, in an editor tab — reusing the tab if one is already open, and taking focus, since you asked for it.
+  - **The minimap now lives only in the tab.** The panel is short and wide and its toggles already say how much of the DAG is drawn; the minimap there took a corner of a graph with little height to spare. In the editor tab it behaves as before (shown from 10 nodes).
+  - The two are independent once open: changing the scope in one doesn't move the other, though both still follow the active editor.
+  - This is the first half of what was agreed on the issue. Running a full dbt selection (`dbt ls`) from the larger view is the second, and is not in this release.
+
 ### Fixed
 - **A CTE's explicit column list was ignored** ([#36](https://github.com/Y0hannH/dbtforge/issues/36)). For `with orders_renamed (order_id, customer_id) as (select id, cust from …)`, `orders_renamed.` offered `id` and `cust` — names the CTE doesn't have. The list is now the CTE's columns, in full, and the `SELECT` list is not read: a `*` in the body no longer pulls the table's columns in under their old names either.
   - **A list that can't be read in full gives no suggestions** (a Jinja expression inside the parentheses), rather than falling back to the `SELECT` list's names.
