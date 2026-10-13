@@ -17,10 +17,10 @@ const ALIAS_PREFIX_RE = /([A-Za-z_][A-Za-z0-9_]*)\.$/;
  *  - a same-file CTE name, resolved from its own top-level SELECT column list.
  *
  * With nothing before the cursor, the same columns are suggested unqualified — but only when
- * the statement the cursor is in leaves them no other origin: a single table reference,
- * unaliased (see resolveUnqualifiedSource, which scopes this to the enclosing CTE's own body
- * when the cursor is inside one). Anywhere else, no suggestions are offered — this provider
- * never guesses.
+ * the statement the cursor is in leaves them no other origin: a single table, unaliased and
+ * unjoined, which may be a model, a source or a CTE written earlier in the file (see
+ * resolveUnqualifiedSource, which scopes this to the enclosing CTE's own body, or to the final
+ * SELECT). Anywhere else, no suggestions are offered — this provider never guesses.
  */
 export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
   constructor(private readonly getIndex: (uri: vscode.Uri) => DbtProjectIndex | undefined) {}
@@ -37,8 +37,14 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
     const prefixMatch = ALIAS_PREFIX_RE.exec(lineTextBeforeCursor);
 
     if (!prefixMatch) {
-      const source = resolveUnqualifiedSource(documentText, document.offsetAt(position));
-      return source ? toItems(this.catalogColumns(index, source)) : undefined;
+      const origin = resolveUnqualifiedSource(documentText, document.offsetAt(position));
+      if (!origin) return undefined;
+      if (origin.kind === 'cte') {
+        return toItems(
+          resolveCteColumns(origin.cte, (source) => this.catalogColumns(index, source)),
+        );
+      }
+      return toItems(this.catalogColumns(index, origin));
     }
 
     const alias = prefixMatch[1];

@@ -305,7 +305,7 @@ function extractColumnAlias(expression: string): string | undefined {
   return undefined;
 }
 
-function stripDelimiters(identifier: string): string {
+export function stripDelimiters(identifier: string): string {
   const first = identifier[0];
   const last = identifier[identifier.length - 1];
   if ((first === '[' && last === ']') || (first === '"' && last === '"')) {
