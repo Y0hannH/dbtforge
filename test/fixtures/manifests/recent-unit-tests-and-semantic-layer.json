@@ -1,0 +1,158 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
+    "project_name": "modern_project"
+  },
+  "nodes": {
+    "model.modern_project.stg_orders": {
+      "unique_id": "model.modern_project.stg_orders",
+      "resource_type": "model",
+      "name": "stg_orders",
+      "package_name": "modern_project",
+      "path": "staging/stg_orders.sql",
+      "original_file_path": "models/staging/stg_orders.sql",
+      "group": null,
+      "access": "protected",
+      "version": null,
+      "latest_version": null,
+      "contract": { "enforced": false },
+      "constraints": [],
+      "config": { "materialized": "view", "tags": [] },
+      "depends_on": { "nodes": ["source.modern_project.raw.orders"], "macros": [] }
+    },
+    "model.modern_project.fct_orders": {
+      "unique_id": "model.modern_project.fct_orders",
+      "resource_type": "model",
+      "name": "fct_orders",
+      "package_name": "modern_project",
+      "path": "marts/fct_orders.sql",
+      "original_file_path": "models/marts/fct_orders.sql",
+      "group": "finance",
+      "access": "public",
+      "version": null,
+      "latest_version": null,
+      "contract": { "enforced": true },
+      "constraints": [],
+      "config": { "materialized": "incremental", "tags": ["nightly"] },
+      "depends_on": { "nodes": ["model.modern_project.stg_orders"], "macros": [] }
+    },
+    "test.modern_project.unique_fct_orders_order_id.9f8e7d": {
+      "unique_id": "test.modern_project.unique_fct_orders_order_id.9f8e7d",
+      "resource_type": "test",
+      "name": "unique_fct_orders_order_id",
+      "package_name": "modern_project",
+      "path": "unique_fct_orders_order_id.sql",
+      "original_file_path": "models/marts/schema.yml",
+      "depends_on": { "nodes": ["model.modern_project.fct_orders"] }
+    }
+  },
+  "sources": {
+    "source.modern_project.raw.orders": {
+      "unique_id": "source.modern_project.raw.orders",
+      "resource_type": "source",
+      "name": "orders",
+      "source_name": "raw",
+      "package_name": "modern_project",
+      "original_file_path": "models/staging/sources.yml"
+    }
+  },
+  "macros": {},
+  "docs": {},
+  "exposures": {
+    "exposure.modern_project.revenue_dashboard": {
+      "unique_id": "exposure.modern_project.revenue_dashboard",
+      "resource_type": "exposure",
+      "name": "revenue_dashboard",
+      "package_name": "modern_project",
+      "path": "marts/exposures.yml",
+      "original_file_path": "models/marts/exposures.yml",
+      "type": "dashboard",
+      "depends_on": { "nodes": ["model.modern_project.fct_orders"] }
+    }
+  },
+  "unit_tests": {
+    "unit_test.modern_project.fct_orders.test_totals_are_summed": {
+      "unique_id": "unit_test.modern_project.fct_orders.test_totals_are_summed",
+      "resource_type": "unit_test",
+      "name": "test_totals_are_summed",
+      "package_name": "modern_project",
+      "path": "marts/unit_tests.yml",
+      "original_file_path": "models/marts/unit_tests.yml",
+      "depends_on": { "nodes": ["model.modern_project.fct_orders"] }
+    }
+  },
+  "semantic_models": {
+    "semantic_model.modern_project.orders": {
+      "unique_id": "semantic_model.modern_project.orders",
+      "resource_type": "semantic_model",
+      "name": "orders",
+      "package_name": "modern_project",
+      "path": "marts/semantic.yml",
+      "original_file_path": "models/marts/semantic.yml",
+      "depends_on": { "nodes": ["model.modern_project.fct_orders"] }
+    }
+  },
+  "metrics": {
+    "metric.modern_project.revenue": {
+      "unique_id": "metric.modern_project.revenue",
+      "resource_type": "metric",
+      "name": "revenue",
+      "package_name": "modern_project",
+      "path": "marts/semantic.yml",
+      "original_file_path": "models/marts/semantic.yml",
+      "depends_on": { "nodes": ["semantic_model.modern_project.orders"] }
+    }
+  },
+  "saved_queries": {
+    "saved_query.modern_project.weekly_revenue": {
+      "unique_id": "saved_query.modern_project.weekly_revenue",
+      "resource_type": "saved_query",
+      "name": "weekly_revenue",
+      "package_name": "modern_project",
+      "path": "marts/saved_queries.yml",
+      "original_file_path": "models/marts/saved_queries.yml",
+      "depends_on": { "nodes": ["metric.modern_project.revenue"] }
+    }
+  },
+  "groups": {
+    "group.modern_project.finance": {
+      "unique_id": "group.modern_project.finance",
+      "resource_type": "group",
+      "name": "finance",
+      "package_name": "modern_project",
+      "path": "marts/groups.yml",
+      "original_file_path": "models/marts/groups.yml"
+    }
+  },
+  "disabled": {},
+  "selectors": {},
+  "parent_map": {
+    "model.modern_project.stg_orders": ["source.modern_project.raw.orders"],
+    "model.modern_project.fct_orders": ["model.modern_project.stg_orders"],
+    "test.modern_project.unique_fct_orders_order_id.9f8e7d": ["model.modern_project.fct_orders"],
+    "unit_test.modern_project.fct_orders.test_totals_are_summed": [
+      "model.modern_project.fct_orders"
+    ],
+    "exposure.modern_project.revenue_dashboard": ["model.modern_project.fct_orders"],
+    "semantic_model.modern_project.orders": ["model.modern_project.fct_orders"],
+    "metric.modern_project.revenue": ["semantic_model.modern_project.orders"],
+    "saved_query.modern_project.weekly_revenue": ["metric.modern_project.revenue"]
+  },
+  "child_map": {
+    "source.modern_project.raw.orders": ["model.modern_project.stg_orders"],
+    "model.modern_project.stg_orders": ["model.modern_project.fct_orders"],
+    "model.modern_project.fct_orders": [
+      "exposure.modern_project.revenue_dashboard",
+      "semantic_model.modern_project.orders",
+      "test.modern_project.unique_fct_orders_order_id.9f8e7d",
+      "unit_test.modern_project.fct_orders.test_totals_are_summed"
+    ],
+    "semantic_model.modern_project.orders": ["metric.modern_project.revenue"],
+    "metric.modern_project.revenue": ["saved_query.modern_project.weekly_revenue"],
+    "test.modern_project.unique_fct_orders_order_id.9f8e7d": [],
+    "unit_test.modern_project.fct_orders.test_totals_are_summed": [],
+    "exposure.modern_project.revenue_dashboard": [],
+    "saved_query.modern_project.weekly_revenue": []
+  },
+  "group_map": { "finance": ["model.modern_project.fct_orders"] }
+}
