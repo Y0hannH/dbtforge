@@ -5,6 +5,8 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **A model, seed or snapshot that errored is in the Problems panel too**, on the first line of its file, carrying dbt's own message — `Model "dim_customers" (v2) failed — Runtime Error in model dim_customers_v2: Binder Error: Referenced column "country_code" not found…`. The version is named, so two versions of a model are not confused.
+  - **A skipped node is not listed.** It was skipped because something upstream failed, and that upstream node is the entry worth having; listing both would bury the cause under its consequences.
 - **Each node shows what its last `dbt build`, `run` or `test` did.** In the lineage graph a row under the name reads `✓ 4.2s`, `✗ failed` or `– skipped`, and the Parents / Children / Tests panel swaps its icon and description for the same. Hover for the command, dbt's status, the duration, when it ran and dbt's own message.
   - **A model that built fine but fails a test is shown as failing**, with the count: `3.4s · 1 test failing`. The graph hides tests by default, so without this a failing test would be invisible there. A model nothing was said about shows nothing — never a green mark.
   - **A failed test says how many rows it returned** (`failed · 3 rows`); a `warn`-severity test is a warning, not a failure.
