@@ -33,7 +33,7 @@ export function collectTags(manifest: DbtManifest): TagRef[] {
     if (node.resource_type === 'model') modelIds.add(node.unique_id);
     record(node);
   }
-  for (const source of Object.values(manifest.sources)) {
+  for (const source of Object.values(manifest.sources ?? {})) {
     record(source);
   }
 

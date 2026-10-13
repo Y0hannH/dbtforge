@@ -23,7 +23,8 @@ export class DbtHoverProvider implements vscode.HoverProvider {
 
     const call = findCallAtPosition(lineText, position.character);
     if (call?.kind === 'ref') {
-      const model = index.resolveRef(call.name);
+      if (call.versionUnreadable) return undefined;
+      const model = index.resolveRef(call.name, call.version);
       if (!model) return undefined;
       return new vscode.Hover(
         modelMarkdown(model),
@@ -57,7 +58,8 @@ export class DbtHoverProvider implements vscode.HoverProvider {
 
 function modelMarkdown(model: ModelRef): vscode.MarkdownString {
   const md = new vscode.MarkdownString();
-  md.appendMarkdown(`**${model.name}** _(${model.resourceType} · ${model.packageName})_`);
+  const version = model.version === undefined ? '' : ` · v${model.version}`;
+  md.appendMarkdown(`**${model.name}** _(${model.resourceType} · ${model.packageName}${version})_`);
   if (model.node.description) {
     md.appendMarkdown(`\n\n${model.node.description}`);
   }

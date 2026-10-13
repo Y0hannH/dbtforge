@@ -1,0 +1,58 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v12.json",
+    "project_name": "versioned_project"
+  },
+  "nodes": {
+    "model.versioned_project.dim_customers.v1": {
+      "unique_id": "model.versioned_project.dim_customers.v1",
+      "resource_type": "model",
+      "name": "dim_customers",
+      "package_name": "versioned_project",
+      "path": "marts/dim_customers_v1.sql",
+      "original_file_path": "models/marts/dim_customers_v1.sql",
+      "version": 1,
+      "latest_version": 1,
+      "config": { "materialized": "table" },
+      "depends_on": { "nodes": [] }
+    },
+    "model.versioned_project.dim_customers.v2": {
+      "unique_id": "model.versioned_project.dim_customers.v2",
+      "resource_type": "model",
+      "name": "dim_customers",
+      "package_name": "versioned_project",
+      "path": "marts/dim_customers_v2.sql",
+      "original_file_path": "models/marts/dim_customers_v2.sql",
+      "version": 2,
+      "latest_version": 1,
+      "config": { "materialized": "table" },
+      "depends_on": { "nodes": [] }
+    },
+    "model.versioned_project.fct_orders": {
+      "unique_id": "model.versioned_project.fct_orders",
+      "resource_type": "model",
+      "name": "fct_orders",
+      "package_name": "versioned_project",
+      "path": "marts/fct_orders.sql",
+      "original_file_path": "models/marts/fct_orders.sql",
+      "version": null,
+      "latest_version": null,
+      "config": { "materialized": "table" },
+      "depends_on": { "nodes": ["model.versioned_project.dim_customers.v1"] }
+    }
+  },
+  "sources": {},
+  "macros": {},
+  "docs": {},
+  "exposures": {},
+  "parent_map": {
+    "model.versioned_project.dim_customers.v1": [],
+    "model.versioned_project.dim_customers.v2": [],
+    "model.versioned_project.fct_orders": ["model.versioned_project.dim_customers.v1"]
+  },
+  "child_map": {
+    "model.versioned_project.dim_customers.v1": ["model.versioned_project.fct_orders"],
+    "model.versioned_project.dim_customers.v2": [],
+    "model.versioned_project.fct_orders": []
+  }
+}

@@ -71,15 +71,15 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       if (kind !== 'sql') continue;
 
       for (const call of findAllRefCalls(lineText)) {
-        if (index.resolveRef(call.name)) continue;
-        diagnostics.push(
-          this.makeDiagnostic(
-            line,
-            call.start,
-            call.end,
-            `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`,
-          ),
-        );
+        // A version given as an expression is resolved by dbt at compile time; saying the model
+        // doesn't exist would be a claim this scan has no way to back.
+        if (call.versionUnreadable) continue;
+        if (index.resolveRef(call.name, call.version)) continue;
+        const message =
+          call.version === undefined
+            ? `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`
+            : `No version "${call.version}" of "${call.name}" in the manifest. Run dbt compile if it was just added.`;
+        diagnostics.push(this.makeDiagnostic(line, call.start, call.end, message));
       }
 
       for (const call of findAllSourceCalls(lineText)) {

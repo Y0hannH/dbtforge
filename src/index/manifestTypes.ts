@@ -8,7 +8,9 @@ export interface DbtManifest {
     project_name: string;
   };
   nodes: Record<string, DbtNode>;
-  sources: Record<string, DbtSourceNode>;
+  // dbt always writes it, but a partial or hand-edited manifest can omit it — read like the
+  // other sections below, so a missing one means "none" rather than a crash on load.
+  sources?: Record<string, DbtSourceNode>;
   // Downstream consumers declared in a .yml (dashboards, notebooks, apps). Kept apart from `nodes`
   // by dbt, and optional here because older manifests do not have the section.
   exposures?: Record<string, DbtExposureNode>;
@@ -28,6 +30,11 @@ export interface DbtNode {
   path: string; // relative to the package's models dir
   original_file_path: string; // relative to project root
   description?: string;
+  // Model versions share a `name` and differ by `version` (the unique_id ends in `.v<version>`).
+  // `latest_version` is what a bare `ref('name')` resolves to; dbt writes it on every version.
+  // Both are int, float or string in a yml, hence the union — and null on an unversioned model.
+  version?: string | number | null;
+  latest_version?: string | number | null;
   // dbt resolves tags from dbt_project.yml, the schema .yml, and in-model config() into the
   // top-level `tags`, but older/partial manifests only carry them under `config.tags` —
   // both are read and unioned rather than trusting one.

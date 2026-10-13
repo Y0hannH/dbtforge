@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "dbt_schema_version": "https://schemas.getdbt.com/dbt/manifest/v10.json",
+    "project_name": "legacy_project"
+  },
+  "nodes": {
+    "model.legacy_project.stg_orders": {
+      "unique_id": "model.legacy_project.stg_orders",
+      "resource_type": "model",
+      "name": "stg_orders",
+      "package_name": "legacy_project",
+      "path": "staging/stg_orders.sql",
+      "original_file_path": "models/staging/stg_orders.sql",
+      "config": { "materialized": "view", "tags": ["staging"] },
+      "depends_on": { "nodes": ["source.legacy_project.raw.orders"] }
+    },
+    "model.legacy_project.fct_orders": {
+      "unique_id": "model.legacy_project.fct_orders",
+      "resource_type": "model",
+      "name": "fct_orders",
+      "package_name": "legacy_project",
+      "path": "marts/fct_orders.sql",
+      "original_file_path": "models/marts/fct_orders.sql",
+      "config": { "materialized": "table" },
+      "docs": { "show": true, "node_color": "#336699" },
+      "depends_on": { "nodes": ["model.legacy_project.stg_orders"] }
+    },
+    "test.legacy_project.not_null_fct_orders_order_id.1a2b3c": {
+      "unique_id": "test.legacy_project.not_null_fct_orders_order_id.1a2b3c",
+      "resource_type": "test",
+      "name": "not_null_fct_orders_order_id",
+      "package_name": "legacy_project",
+      "path": "not_null_fct_orders_order_id.sql",
+      "original_file_path": "models/marts/schema.yml",
+      "depends_on": { "nodes": ["model.legacy_project.fct_orders"] }
+    }
+  },
+  "sources": {
+    "source.legacy_project.raw.orders": {
+      "unique_id": "source.legacy_project.raw.orders",
+      "resource_type": "source",
+      "name": "orders",
+      "source_name": "raw",
+      "package_name": "legacy_project",
+      "original_file_path": "models/staging/sources.yml"
+    }
+  },
+  "parent_map": {
+    "model.legacy_project.stg_orders": ["source.legacy_project.raw.orders"],
+    "model.legacy_project.fct_orders": ["model.legacy_project.stg_orders"],
+    "test.legacy_project.not_null_fct_orders_order_id.1a2b3c": ["model.legacy_project.fct_orders"]
+  },
+  "child_map": {
+    "source.legacy_project.raw.orders": ["model.legacy_project.stg_orders"],
+    "model.legacy_project.stg_orders": ["model.legacy_project.fct_orders"],
+    "model.legacy_project.fct_orders": ["test.legacy_project.not_null_fct_orders_order_id.1a2b3c"],
+    "test.legacy_project.not_null_fct_orders_order_id.1a2b3c": []
+  }
+}
