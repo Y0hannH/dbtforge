@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.19.0] - 2026-10-13
 
 ### Added
 - **Column autocomplete without a prefix now reads from a CTE** ([#14](https://github.com/Y0hannH/dbtforge/issues/14)). In a final `SELECT` that reads exactly one CTE, or in a CTE body that reads exactly one other CTE, columns are suggested with nothing typed before them: `select |  from cte3` offers `cte3`'s columns. Until now only a `ref()`/`source()` could be the one table, so a model written the way a style guide without aliases writes it got nothing outside a CTE's own body.
