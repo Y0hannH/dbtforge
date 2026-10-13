@@ -5,6 +5,14 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **State-aware builds: build what changed, on top of the reference environment.** Point dbt Forge at a folder holding a reference `manifest.json` — a build of `main`, or a CI artefact — with **Set Reference Manifest Folder…** (or `dbtForge.stateDir`), and:
+  - **The lineage and the relatives panel mark what differs**, on the row above the name: `modified` (its SQL or its config changed), `new` (not in the reference), and `impacted` (downstream of a change — what `state:modified+` would also build). Hover in the panel gives the reason. Setting the folder says at once what it found: *2 modified, 1 new, 5 downstream of a change*.
+  - **Build Modified + Downstream** runs `dbt build --select state:modified+ --defer --state <folder>`.
+  - **Build Model, Deferring Upstream to the Reference** (in the title-bar menu) builds the open model with `--defer`, so its upstream is read from the reference instead of having to exist in your own schema. A versioned model is selected by its file.
+  - **`--defer` is always passed.** The upstream of a modified node isn't selected, so without it those `ref()`s would resolve to a schema where they were never built.
+  - **The comparison is local and a subset of dbt's.** It looks at a node's SQL (the file checksum) and its config as written (`unrendered_config`, which is what dbt compares, so an environment-dependent value isn't a change). A changed macro or contract is not found, which is why a mark is only ever a positive: a node with none has no difference *found*, not "unchanged", and dbt may select more.
+  - **Without a reference, nothing changes**, and the build commands offer to choose a folder rather than run a build that would select everything.
+  - **The folder is remembered per machine** (workspace state), not written to `.vscode/settings.json`, like the environment choice.
 - **The versions of a model are told apart.** Two versions of `dim_customers` used to be two boxes with the same name in the lineage and two identical rows in the Parents / Children / Tests panel. They now read `dim_customers (v1)` and `dim_customers (v2)`, and the version a bare `ref()` goes to carries `· latest` on its row above the name. The lineage tab, the data preview's header and the relatives panel use the same name.
 - **A schema `.yml` is read version by version.** `versions:` entries and the columns listed under each are now understood, and each version is compared against its own table in `catalog.json`:
   - **A column listed under a version** is wrong when *that* version's table lacks it.

@@ -67,6 +67,7 @@ const fakeIndex = {
   getGraph: () => fakeGraph,
   getLineageEntity: (id: string) => nodes[id],
   getCatalogColumns: (id: string) => catalogColumns[id],
+  getStateChange: () => undefined,
 } as unknown as DbtProjectIndex;
 
 void test('buildInitialSubgraph: includes root, direct parents and direct children only', () => {
@@ -98,6 +99,7 @@ void test('buildInitialSubgraph: carries the materialization and colour the proj
     getGraph: () => fakeGraph,
     getLineageEntity: (id: string) => decorated[id],
     getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
 
   const root = buildInitialSubgraph(index, 'model.pkg.b').nodes.find((n) => n.id === 'model.pkg.b');
@@ -183,6 +185,7 @@ const scopedIndex = {
   }),
   getLineageEntity: (id: string) => scopedNodes[id],
   getCatalogColumns: () => undefined,
+  getStateChange: () => undefined,
 } as unknown as DbtProjectIndex;
 
 const scope = (overrides: Partial<LineageScope> = {}): LineageScope => ({
@@ -343,6 +346,7 @@ void test('buildInitialSubgraph: a downstream DT with no downstream DT is flagge
     getNode: (id: string) => lagNodes[id],
     getLineageEntity: (id: string) => lagNodes[id],
     getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
 
   const result = buildScopedSubgraph(lagIndex, 'model.pkg.b', {
@@ -383,6 +387,7 @@ void test('buildInitialSubgraph: a downstream DT shows the shortest lag downstre
     getNode: (id: string) => lagNodes[id],
     getLineageEntity: (id: string) => lagNodes[id],
     getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
 
   const result = buildScopedSubgraph(lagIndex, 'model.pkg.b', {
@@ -454,6 +459,7 @@ const consumerIndex = {
   }),
   getLineageEntity: (id: string) => consumerEntities[id],
   getCatalogColumns: () => undefined,
+  getStateChange: () => undefined,
 } as unknown as DbtProjectIndex;
 
 void test('buildScopedSubgraph: draws the source upstream and the exposure downstream', () => {

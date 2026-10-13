@@ -55,6 +55,7 @@ function indexFor(manifest: DbtManifest): DbtProjectIndex {
     getLineageEntity: (id: string): LineageEntity | undefined =>
       manifest.nodes[id] ?? manifest.sources?.[id] ?? manifest.exposures?.[id],
     getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
 }
 

@@ -64,6 +64,12 @@
           "scope": "resource",
           "description": "Path to catalog.json, relative to the dbt project root."
         },
+        "dbtForge.stateDir": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Folder holding the reference manifest.json — a build of main, or a CI artefact — that state-aware builds compare against (dbt's --state). Relative to the dbt project root, or absolute. Empty turns the feature off."
+        },
         "dbtForge.runResultsPath": {
           "type": "string",
           "default": "target/run_results.json",
@@ -239,6 +245,22 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "dbtForge.setReferenceState",
+        "title": "dbt Forge: Set Reference Manifest Folder…"
+      },
+      {
+        "command": "dbtForge.clearReferenceState",
+        "title": "dbt Forge: Clear Reference Manifest"
+      },
+      {
+        "command": "dbtForge.buildModified",
+        "title": "dbt Forge: Build Modified + Downstream (vs reference)"
+      },
+      {
+        "command": "dbtForge.buildDeferred",
+        "title": "dbt Forge: Build Model, Deferring Upstream to the Reference"
+      },
+      {
         "command": "dbtForge.toggleLineageLocation",
         "title": "dbt Forge: Switch Lineage Placement (Editor / Panel)",
         "icon": "$(layout)"
@@ -324,6 +346,11 @@
           "command": "dbtForge.testModel",
           "when": "dbtForge.activeFileCompilable",
           "group": "2_build@4"
+        },
+        {
+          "command": "dbtForge.buildDeferred",
+          "when": "dbtForge.activeFileCompilable",
+          "group": "2_build@5"
         },
         {
           "command": "dbtForge.compileFile",

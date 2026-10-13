@@ -114,6 +114,7 @@ function toLineageNode(
       // Said only of the version a bare ref() goes to; the others carry no mark, so the one that
       // is latest is the one that stands out.
       latestVersion: node ? isLatestVersion(node) === true : undefined,
+      stateChange: index.getStateChange(id)?.kind,
       // The catalog, not the manifest: the manifest only carries the columns someone documented
       // in a .yml, so counting those would confidently report 4 on a 60-column model. Absent
       // until `dbt docs generate` has run, and absent for anything never built — in both cases

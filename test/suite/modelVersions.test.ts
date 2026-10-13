@@ -93,6 +93,7 @@ void test('the lineage draws two versions of a model as two distinct boxes', () 
     getGraph: () => graph,
     getLineageEntity: (id: string) => nodes[id],
     getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
 
   const { nodes: drawn } = buildInitialSubgraph(index, consumer.unique_id);

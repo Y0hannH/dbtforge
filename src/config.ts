@@ -2,6 +2,7 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import { DEFAULT_ROW_LIMIT, normalizeRowLimit } from './dbt/showCommand';
+import { resolveStateDir } from './dbt/stateArgs';
 
 export interface DbtForgeConfig {
   projectDir: string; // absolute
@@ -9,6 +10,9 @@ export interface DbtForgeConfig {
   manifestPath: string; // absolute
   catalogPath: string; // absolute
   runResultsPath: string; // absolute
+  // Directory holding the reference manifest.json (a `main` build, a CI artefact) that state-aware
+  // builds compare against, or empty when none is set. The feature is off until it is.
+  stateDir: string; // absolute or empty
   compiledDir: string; // absolute
   // Directory holding profiles.yml, or empty to search where dbt itself would (DBT_PROFILES_DIR,
   // the project dir, then ~/.dbt). Kept as the configured value, not a resolved location, so a
@@ -36,6 +40,7 @@ export async function resolveConfig(
   const manifestPathSetting = cfg.get<string>('manifestPath', 'target/manifest.json');
   const catalogPathSetting = cfg.get<string>('catalogPath', 'target/catalog.json');
   const runResultsPathSetting = cfg.get<string>('runResultsPath', 'target/run_results.json');
+  const stateDirSetting = cfg.get<string>('stateDir', '');
   const compiledDirSetting = cfg.get<string>('compiledDir', 'target/compiled');
   const profilesDirSetting = cfg.get<string>('profilesDir', '');
   const previewRowLimitSetting = cfg.get<number>('previewRowLimit', DEFAULT_ROW_LIMIT);
@@ -46,6 +51,7 @@ export async function resolveConfig(
     manifestPath: path.join(projectDir, manifestPathSetting),
     catalogPath: path.join(projectDir, catalogPathSetting),
     runResultsPath: path.join(projectDir, runResultsPathSetting),
+    stateDir: resolveStateDir(projectDir, stateDirSetting),
     compiledDir: path.join(projectDir, compiledDirSetting),
     profilesDir: profilesDirSetting
       ? path.isAbsolute(profilesDirSetting)
