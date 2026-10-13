@@ -19,6 +19,19 @@ export interface DocumentedColumn {
   length: number;
 }
 
+/**
+ * One entry of a model's `versions:`. Its columns are the ones that apply to that version alone;
+ * the entity's own top-level columns apply to all of them.
+ */
+export interface DocumentedVersion {
+  /** The `v:` value as text — a version is a number or a string in a .yml, never compared as either. */
+  version: string;
+  /** Where the `v:` value sits, which is where a finding about the version as a whole is anchored. */
+  offset: number;
+  length: number;
+  columns: DocumentedColumn[];
+}
+
 export interface DocumentedEntity {
   /** What the entity is, which decides how it resolves against the manifest. */
   kind: 'model' | 'seed' | 'snapshot' | 'source';
@@ -29,6 +42,8 @@ export interface DocumentedEntity {
   offset: number;
   length: number;
   columns: DocumentedColumn[];
+  /** Present on a model that declares `versions:`. */
+  versions?: DocumentedVersion[];
 }
 
 /** Top-level keys that hold entities the catalog can also describe. */
@@ -91,18 +106,56 @@ function readEntity(map: YAMLMap, kind: DocumentedEntity['kind']): DocumentedEnt
   const name = readName(map);
   if (!name) return undefined;
 
+  const versions = readVersions(map);
+
+  return {
+    kind,
+    name: name.value,
+    offset: name.offset,
+    length: name.length,
+    columns: readColumns(map),
+    ...(versions.length > 0 ? { versions } : {}),
+  };
+}
+
+/**
+ * The columns a mapping documents by name. An entry that is not a plain `name:` — the
+ * `include: all` / `exclude: […]` form versions use — documents no one column, so it is skipped.
+ */
+function readColumns(map: YAMLMap): DocumentedColumn[] {
   const columns: DocumentedColumn[] = [];
   const columnsNode = map.get('columns', true);
-  if (isSeq(columnsNode)) {
-    for (const item of columnsNode.items) {
-      if (!isMap(item)) continue;
-      const column = readName(item);
-      if (column)
-        columns.push({ name: column.value, offset: column.offset, length: column.length });
-    }
-  }
+  if (!isSeq(columnsNode)) return columns;
 
-  return { kind, name: name.value, offset: name.offset, length: name.length, columns };
+  for (const item of columnsNode.items) {
+    if (!isMap(item)) continue;
+    const column = readName(item);
+    if (column) columns.push({ name: column.value, offset: column.offset, length: column.length });
+  }
+  return columns;
+}
+
+function readVersions(map: YAMLMap): DocumentedVersion[] {
+  const versions: DocumentedVersion[] = [];
+  const node = map.get('versions', true);
+  if (!isSeq(node)) return versions;
+
+  for (const item of node.items) {
+    if (!isMap(item)) continue;
+    const v = item.get('v', true);
+    // dbt writes a version as a number (`v: 2`) or a string (`v: "2024-01"`); both are text here.
+    if (!isScalar(v) || !v.range || (typeof v.value !== 'number' && typeof v.value !== 'string')) {
+      continue;
+    }
+    const [start, end] = v.range;
+    versions.push({
+      version: String(v.value),
+      offset: start,
+      length: Math.max(end - start, 1),
+      columns: readColumns(item),
+    });
+  }
+  return versions;
 }
 
 /**

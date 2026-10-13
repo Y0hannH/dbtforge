@@ -183,17 +183,54 @@ void test('addColumnsEdit has nothing to add, and declines a columns: that is no
   assert.equal(addColumnsEdit(text, text.indexOf('name: a') + 6, ['id']), undefined);
 });
 
-void test('neither edit touches a model that declares versions', () => {
-  // Top-level columns apply to every version, while the catalog describes one table.
-  const text = `models:
+const VERSIONED = `models:
   - name: a
     columns:
       - name: shared
-      - name: only_in_v2
+      - name: gone_everywhere
     versions:
       - v: 1
+        columns:
+          - name: only_v1
+          - name: stale_v1
       - v: 2
+        columns:
+          - name: only_v2
 `;
-  assert.equal(removeColumnEdit(text, text.indexOf('name: only_in_v2') + 6), undefined);
-  assert.equal(addColumnsEdit(text, text.indexOf('name: a') + 6, ['x']), undefined);
+
+void test('removeColumnEdit removes a column listed under one version', () => {
+  const result = apply(VERSIONED, removeColumnEdit(VERSIONED, VERSIONED.indexOf('stale_v1')));
+
+  const parsed = parse(result).models[0];
+  assert.deepEqual(
+    parsed.versions[0].columns.map((c: { name: string }) => c.name),
+    ['only_v1'],
+  );
+  assert.deepEqual(
+    parsed.versions[1].columns.map((c: { name: string }) => c.name),
+    ['only_v2'],
+  );
+});
+
+void test('removeColumnEdit removes a top-level column of a versioned model', () => {
+  const result = apply(
+    VERSIONED,
+    removeColumnEdit(VERSIONED, VERSIONED.indexOf('gone_everywhere')),
+  );
+
+  assert.deepEqual(
+    parse(result).models[0].columns.map((c: { name: string }) => c.name),
+    ['shared'],
+  );
+});
+
+void test('removeColumnEdit drops a version’s columns: key when it was that version’s only column', () => {
+  const result = apply(VERSIONED, removeColumnEdit(VERSIONED, VERSIONED.indexOf('only_v2')));
+
+  assert.deepEqual(parse(result).models[0].versions[1], { v: 2 });
+});
+
+void test('addColumnsEdit declines a model that declares versions', () => {
+  // Which version's table to follow is the author's to say.
+  assert.equal(addColumnsEdit(VERSIONED, VERSIONED.indexOf('name: a') + 6, ['x']), undefined);
 });

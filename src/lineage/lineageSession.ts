@@ -1,6 +1,8 @@
 import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
+import type { DbtNode } from '../index/manifestTypes';
+import { versionedName } from '../index/modelVersions';
 import { buildScopedSubgraph, expandNode } from './buildLineageGraph';
 import type { LineageLocation } from './lineagePlacement';
 import type { LineageScope } from './lineageScope';
@@ -34,7 +36,11 @@ export class LineageSession {
   }
 
   get rootName(): string {
-    return this.index.getLineageEntity(this.rootId)?.name ?? this.rootId;
+    const entity = this.index.getLineageEntity(this.rootId);
+    if (!entity) return this.rootId;
+    return entity.resource_type === 'source' || entity.resource_type === 'exposure'
+      ? entity.name
+      : versionedName(entity as DbtNode);
   }
 
   /**

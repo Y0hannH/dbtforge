@@ -12,9 +12,10 @@ import { isMap, isScalar, isSeq, parseDocument } from 'yaml';
  * sharing its line with something else). Offering a fix that might mangle the file is worse than
  * offering none.
  *
- * They also decline a model that declares `versions:`. The columns listed at its top level apply
- * to every version, while the catalog describes one table — so "the table has no such column" is
- * a claim about one version, and a fix built on it could break the others.
+ * Adding columns declines a model that declares `versions:`: which version's table to follow, and
+ * whether the column belongs at the top or under a version, is the author's to say. Removing is
+ * safe there, because the warning it follows only fires for a column no version has (top level) or
+ * one the version it is listed under lacks.
  */
 
 export interface SchemaEdit {
@@ -33,9 +34,8 @@ export function removeColumnEdit(text: string, columnNameOffset: number): Schema
   const doc = parseDocument(text);
   if (doc.errors.length > 0 || !isMap(doc.contents)) return undefined;
 
-  for (const entity of entityMaps(doc.contents)) {
-    if (entity.has('versions')) continue;
-    const columns = entity.get('columns', true);
+  for (const owner of columnOwners(doc.contents)) {
+    const columns = owner.get('columns', true);
     if (!isSeq(columns) || columns.flow) continue;
 
     const item = columns.items.find(
@@ -51,7 +51,7 @@ export function removeColumnEdit(text: string, columnNameOffset: number): Schema
       return { offset: entryStart, deleteLength: entryEnd - entryStart, insert: '' };
     }
 
-    const pair = entity.items.find((p) => isScalar(p.key) && p.key.value === 'columns');
+    const pair = owner.items.find((p) => isScalar(p.key) && p.key.value === 'columns');
     const keyStart = pair && isScalar(pair.key) && pair.key.range ? pair.key.range[0] : undefined;
     if (keyStart === undefined) return undefined;
     const keyLineStart = ownLineStart(text, keyStart, /^[ \t]*$/);
@@ -114,6 +114,21 @@ export function addColumnsEdit(
     `${keyIndent}columns:\n` +
       names.map((name) => `${keyIndent}  - name: ${yamlScalar(name)}\n`).join(''),
   );
+}
+
+/**
+ * Every mapping that can hold a `columns:` list: each entity, and each entry of its `versions:`
+ * — a version's own columns are removable just like the entity's.
+ */
+function columnOwners(root: YAMLMap): YAMLMap[] {
+  const owners: YAMLMap[] = [];
+  for (const entity of entityMaps(root)) {
+    owners.push(entity);
+    const versions = entity.get('versions', true);
+    if (!isSeq(versions)) continue;
+    for (const version of versions.items) if (isMap(version)) owners.push(version);
+  }
+  return owners;
 }
 
 /** Every mapping that can carry `columns:` — models, seeds, snapshots and source tables. */

@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode, LineageEntity } from '../index/manifestTypes';
+import { versionedName } from '../index/modelVersions';
 import type { RunOutcome } from '../index/runResults';
 import type { RunStatusView } from '../lineage/runStatus';
 import { runStatusOf } from '../lineage/runStatus';
@@ -24,7 +25,7 @@ class NodeItem extends vscode.TreeItem {
     uri: vscode.Uri,
     run?: RunStatusView,
   ) {
-    super(node.name, vscode.TreeItemCollapsibleState.None);
+    super(isBuilt(node) ? versionedName(node) : node.name, vscode.TreeItemCollapsibleState.None);
     const kind = node.resource_type === 'model' ? node.package_name : node.resource_type;
     // The last run, when there is one, replaces the kind of node as the description: the icon
     // already says which kind it is, and the run is the news.
@@ -40,6 +41,11 @@ ${run.title}`;
     };
     this.contextValue = 'dbtForge.node';
   }
+}
+
+// A source or an exposure has no version; the rest are nodes dbt builds.
+function isBuilt(node: LineageEntity): node is DbtNode {
+  return node.resource_type !== 'source' && node.resource_type !== 'exposure';
 }
 
 // Theme colours the Testing view already uses for the same four states, so a failed test reads
