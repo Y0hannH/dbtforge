@@ -22,6 +22,16 @@ void test('resolveCteColumns: a CTE with no star answers from the text alone', (
   assert.deepEqual(resolveCteColumns(cte, NEVER), [{ name: 'x' }, { name: 'z' }]);
 });
 
+void test('resolveCteColumns: a declared column list answers alone, whatever the star would add', () => {
+  const cte = cteOf(`with a (x, y) as (select * from {{ ref('t') }}) select * from a`);
+  assert.deepEqual(resolveCteColumns(cte, NEVER), [{ name: 'x' }, { name: 'y' }]);
+});
+
+void test('resolveCteColumns: an unreadable column list offers nothing, not the SELECT list', () => {
+  const cte = cteOf(`with a ({{ var('c') }}) as (select p, q from {{ ref('t') }}) select * from a`);
+  assert.equal(resolveCteColumns(cte, NEVER), undefined);
+});
+
 void test('resolveCteColumns: a star adds the table columns to the ones the text names', () => {
   const cte = cteOf(`with a as (select 1 as gmv_id, * from {{ ref('gmv') }}) select * from a`);
   const asked: SourceRef[] = [];

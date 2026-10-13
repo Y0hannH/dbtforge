@@ -115,6 +115,8 @@ Two things trip people up:
 
 **A CTE that selects `*`.** `my_cte.` is the way to complete a CTE you don't alias, since its name is already unique. When its `SELECT` list holds a `*` (or `alias.*`), the columns the `*` adds can only come from the catalog, so they are offered only when the `*` is unambiguous: the CTE's first `SELECT` (a `UNION` takes its column names from it) reads exactly one `ref()`/`source()`, with no join, comma, subquery, `pivot` or other CTE behind it. Anything else — a join, `* exclude (…)`, a macro such as `dbt_utils.star()`, a model never built — gives **no suggestions at all**, never just the few columns the text names, which would read as the whole list.
 
+**A CTE that declares its columns.** `with a (x, y) as (…)` names `a`'s columns `x` and `y`, whatever its `SELECT` list calls them, and that is what `a.` completes to — in full, without the catalog, and without reading the `SELECT` list. A list holding anything but plain names (a Jinja expression, say) gives no suggestions rather than the `SELECT` list's names.
+
 Also note that the alias must sit right after a single-argument `ref()`/`source()` call — `ref('package', 'model')`, `ref('model', version=2)`, and calls split across lines aren't detected yet.
 
 If nothing is suggested, dbt Forge stays silent rather than guessing. Check those conditions in order.

@@ -139,6 +139,43 @@ void test('parseCtes: an explicit CTE column list is accepted', () => {
   assert.equal(ctes[0].name, 'a');
 });
 
+void test('parseCtes: an explicit column list names the columns, not the SELECT list', () => {
+  const [cte] = parseCtes("with a (x, y) as (select p, q from {{ ref('t') }}) select * from a");
+  assert.deepEqual(cte.columns, ['x', 'y']);
+  assert.equal(cte.expansion, undefined);
+});
+
+void test('parseCtes: an explicit column list replaces a star rather than adding to it', () => {
+  const [cte] = parseCtes("with a (x, y) as (select * from {{ ref('t') }}) select * from a");
+  assert.deepEqual(cte.columns, ['x', 'y']);
+  assert.equal(cte.expansion, undefined);
+});
+
+void test('parseCtes: a column list may be quoted, bracketed, commented and multi-line', () => {
+  const [cte] = parseCtes(
+    'with a ("Order Id", [cust id], -- who\n  total /* sum */) as (select 1, 2, 3) select * from a',
+  );
+  assert.deepEqual(cte.columns, ['Order Id', 'cust id', 'total']);
+});
+
+void test('parseCtes: a column list that cannot be read in full names nothing', () => {
+  const [cte] = parseCtes(
+    "with a (x, {{ var('second') }}) as (select p, q from {{ ref('t') }}) select * from a",
+  );
+  assert.deepEqual(cte.columns, []);
+  assert.equal(cte.expansion, undefined);
+});
+
+void test('parseCtes: each CTE keeps its own column list', () => {
+  const ctes = parseCtes(
+    'with a (x) as (select p from t), b as (select q from u) select * from a, b',
+  );
+  assert.deepEqual(
+    ctes.map((cte) => cte.columns),
+    [['x'], ['q']],
+  );
+});
+
 void test('parseCtes: commas inside function calls do not split columns', () => {
   const sql = `
     with a as (
