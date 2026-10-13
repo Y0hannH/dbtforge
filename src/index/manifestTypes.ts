@@ -8,7 +8,9 @@ export interface DbtManifest {
     project_name: string;
   };
   nodes: Record<string, DbtNode>;
-  sources: Record<string, DbtSourceNode>;
+  // dbt always writes it, but a partial or hand-edited manifest can omit it — read like the
+  // other sections below, so a missing one means "none" rather than a crash on load.
+  sources?: Record<string, DbtSourceNode>;
   // Downstream consumers declared in a .yml (dashboards, notebooks, apps). Kept apart from `nodes`
   // by dbt, and optional here because older manifests do not have the section.
   exposures?: Record<string, DbtExposureNode>;

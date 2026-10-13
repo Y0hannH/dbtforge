@@ -33,3 +33,6 @@ anonymised `target/manifest.json` in here.
 
 An assertion in the test file marked `todo` describes the behaviour a roadmap item should deliver;
 it is reported but doesn't fail the run until it does. Remove the `todo` option when the item ships.
+None is open at the moment.
+
+Each fixture is also run a second time with its `sources` key removed.

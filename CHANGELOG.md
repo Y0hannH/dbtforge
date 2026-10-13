@@ -5,6 +5,7 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Fixed
+- **A manifest with no `sources` key crashed the index on load.** dbt always writes the section, but a partial or hand-edited manifest can omit it, and tags, source resolution and the lineage all read it unguarded. A missing `sources` now means no sources, like a missing `exposures`, `macros` or `docs` already did.
 - **A `ref()` to a versioned model went to whichever version the manifest listed last.** A model with versions is several nodes sharing one `name`, and the ref index was keyed by name alone, so they overwrote each other. A bare `ref('dim_orders')` now resolves to the model's `latest_version` — which is what dbt does, and not necessarily the highest version, since a newer one can be a prerelease — whatever order the manifest lists them in.
   - **A call that names a version resolves to exactly that version.** `ref('dim_orders', v=1)` and `version=1` go to v1 for Go to Definition, hover and the broken-ref warning, which now says `No version "3" of "dim_orders"` when it is the version that is missing. Hover shows the version.
   - **Find All References tells the versions apart.** From v1, a bare call counts only when v1 is the latest, and a `v=2` call is left out.

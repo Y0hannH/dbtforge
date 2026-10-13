@@ -159,7 +159,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       }
     }
 
-    for (const node of Object.values(manifest.sources)) {
+    for (const node of Object.values(manifest.sources ?? {})) {
       const key = sourceKey(node.source_name, node.name);
       this.sourcesByKey.set(key, {
         uniqueId: node.unique_id,
@@ -282,7 +282,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   getLineageEntity(uniqueId: string): LineageEntity | undefined {
     return (
       this.manifest?.nodes[uniqueId] ??
-      this.manifest?.sources[uniqueId] ??
+      this.manifest?.sources?.[uniqueId] ??
       this.manifest?.exposures?.[uniqueId]
     );
   }
@@ -292,7 +292,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   getSourceNode(uniqueId: string): DbtSourceNode | undefined {
-    return this.manifest?.sources[uniqueId];
+    return this.manifest?.sources?.[uniqueId];
   }
 
   /** Resolves a caller unique_id from getChildren()/getMacroCallers() to its node or macro. */

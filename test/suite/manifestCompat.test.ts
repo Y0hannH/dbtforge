@@ -29,7 +29,7 @@ function load(file: string): DbtManifest {
   return JSON.parse(readFileSync(file, 'utf8')) as DbtManifest;
 }
 
-const fixtures: Array<{ name: string; manifest: DbtManifest }> = [
+const onDisk: Array<{ name: string; manifest: DbtManifest }> = [
   { name: 'manifest.sample.json', manifest: load(SAMPLE) },
   ...readdirSync(FIXTURES_DIR)
     .filter((file) => file.endsWith('.json'))
@@ -37,13 +37,23 @@ const fixtures: Array<{ name: string; manifest: DbtManifest }> = [
     .map((file) => ({ name: file, manifest: load(join(FIXTURES_DIR, file)) })),
 ];
 
+// Every manifest again with its `sources` key gone: dbt always writes it, but a partial or
+// hand-edited one can omit it, and it is the one section the types used to promise.
+const fixtures = onDisk.flatMap(({ name, manifest }) => {
+  const { sources: _omitted, ...withoutSources } = manifest;
+  return [
+    { name, manifest },
+    { name: `${name}, without sources`, manifest: withoutSources as DbtManifest },
+  ];
+});
+
 // Mirrors DbtProjectIndex.getLineageEntity without the VS Code host the real class needs.
 function indexFor(manifest: DbtManifest): DbtProjectIndex {
   const graph = buildDependencyGraph(manifest);
   return {
     getGraph: () => graph,
     getLineageEntity: (id: string): LineageEntity | undefined =>
-      manifest.nodes[id] ?? manifest.sources[id] ?? manifest.exposures?.[id],
+      manifest.nodes[id] ?? manifest.sources?.[id] ?? manifest.exposures?.[id],
     getCatalogColumns: () => undefined,
   } as unknown as DbtProjectIndex;
 }
@@ -127,18 +137,3 @@ void test('a bare ref() on a versioned model resolves to its latest_version', ()
 
   assert.equal(resolved?.uniqueId, 'model.versioned_project.dim_customers.v1');
 });
-
-// --- Known gap. `todo` keeps it in the report without failing the run; it is on the roadmap,
-// --- and the assertion is the behaviour the item should deliver.
-
-void test(
-  'a manifest with no `sources` section is read like one with no `exposures` section',
-  { todo: 'treat every section other than `nodes` as optional' },
-  () => {
-    const { sources: _omitted, ...withoutSources } = load(
-      join(FIXTURES_DIR, 'legacy-no-optional-sections.json'),
-    );
-
-    assert.doesNotThrow(() => collectTags(withoutSources as unknown as DbtManifest));
-  },
-);
