@@ -249,8 +249,21 @@ Data preview: `dbt show` for the open model or any of its CTEs, rendered in a Da
 ### ✅ v0.12
 Lineage scope controls (depth up and down, hide tests, exclude materializations), doc block autocomplete / Go to Definition / diagnostics, lineage in the bottom panel, and build actions in the editor title bar with keyboard shortcuts.
 
+### ✅ v0.13 – v0.15
+`Ctrl+Enter` previews the CTE the cursor is in; column autocomplete without an alias when a model reads a single table; `.yml` columns checked against the real table (documented-but-missing, documented twice); `target_lag` and column count on lineage nodes; separate **Preview** and **Lineage** tabs in the bottom panel.
+
+### ✅ v0.16 – v0.19
+Completion scoped to the enclosing CTE's body, and from a single CTE as well as a `ref()`; a CTE's explicit column list and its `*` handled all-or-nothing; sources and exposures in the lineage graph; the lineage follows the active editor; the shortest lag a `downstream` dynamic table can be held to; a **Full lineage** view from the panel.
+
 ### 🔲 Next
-- Multi-project workspace polish (multiple dbt projects in one workspace)
+Planned in this order — an order, not a promise of dates. Every item passes the same test as the rest: it needs to know your dbt project.
+
+1. **Run results.** Read `run_results.json` after a run: last status and duration on the lineage and the relatives panel, failing tests in the Problems panel on the line that declares them. Today a build runs in the terminal and dbt Forge learns nothing from it. Alongside it, quick fixes on a schema `.yml` — generate a model's `columns:` from `catalog.json`, drop a documented column the table no longer has.
+2. **dbt resources it doesn't know yet.** Model versions (`ref('m', v=2)`, `latest_version`), `ref('package', 'model')` in alias detection, unit tests, and metrics / semantic models / saved queries in the lineage. Groups and `access`: warn on a `ref()` to a private model from outside its group. Every manifest section other than `nodes` read as optional.
+3. **State-aware builds.** Point at a reference manifest (`main`'s, or a CI artefact) and build `state:modified+` or with `--defer`; modified nodes and their downstream impact marked in the lineage. This is also the second half of [#4](https://github.com/Y0hannH/dbtforge/issues/4): a `dbt ls` selection from the larger lineage view.
+4. **Column-level lineage.** The largest item, and the one where being wrong costs the most, so it starts as a measured spike: how much of a real project's compiled SQL resolves with certainty. Same rule as completion — an edge is drawn when it is certain and left out when it is not, never approximated. Whether it ships follows from that number.
+
+Not yet placed: renaming a model across its `ref()` call sites and `.yml`; a project-hygiene panel (models with no test, no description, no tested key); multi-project workspaces and cross-project refs.
 
 ---
 
