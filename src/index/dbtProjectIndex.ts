@@ -23,6 +23,8 @@ import type {
 } from './manifestTypes';
 import type { ModelRef } from './refIndex';
 import { buildRefIndex, buildVersionedRefIndex, versionKey } from './refIndex';
+import type { NodeRunResult } from './runResults';
+import { parseRunResults } from './runResults';
 import type { TagRef } from './tags';
 import { collectTags } from './tags';
 
@@ -43,6 +45,10 @@ export type { DocRef, MacroRef, ModelRef };
 export class DbtProjectIndex implements vscode.Disposable {
   private manifest: DbtManifest | undefined;
   private catalog: DbtCatalog | undefined;
+  // The latest result of each node, across invocations: dbt rewrites run_results.json in full on
+  // every command, so `dbt run --select a` would otherwise erase everything said about `b`. Each
+  // entry keeps the time of the invocation it came from, so what is shown says how old it is.
+  private runResults = new Map<string, NodeRunResult>();
   private graph: DependencyGraph | undefined;
 
   // name -> node, for ref() resolution — models, seeds and snapshots alike. See refIndex.
@@ -70,11 +76,12 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.disposables.push(
       watchFile(this.config.manifestPath, () => this.reloadManifest()),
       watchFile(this.config.catalogPath, () => this.reloadCatalog()),
+      watchFile(this.config.runResultsPath, () => this.reloadRunResults()),
     );
   }
 
   async initialize(): Promise<void> {
-    await Promise.all([this.reloadManifest(), this.reloadCatalog()]);
+    await Promise.all([this.reloadManifest(), this.reloadCatalog(), this.reloadRunResults()]);
   }
 
   private async reloadManifest(): Promise<void> {
@@ -133,6 +140,33 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.catalogMissingWarned = false;
     }
     this.catalog = parsed ?? undefined;
+    this.changeEmitter.fire();
+  }
+
+  private async reloadRunResults(): Promise<void> {
+    let raw: unknown;
+    try {
+      raw = await readJsonIfExists<unknown>(this.config.runResultsPath);
+    } catch {
+      // The same partial-write race as the manifest: keep what is known and retry on the next
+      // change event.
+      return;
+    }
+
+    if (raw === undefined) {
+      // The file is gone — a `dbt clean`. Whatever was remembered described a run nobody can
+      // look at any more.
+      if (this.runResults.size === 0) return;
+      this.runResults.clear();
+      this.changeEmitter.fire();
+      return;
+    }
+
+    // An invocation that executed nothing (a compile) parses to nothing and leaves what was
+    // known as it was.
+    const parsed = parseRunResults(raw);
+    if (parsed.size === 0) return;
+    for (const [uniqueId, result] of parsed) this.runResults.set(uniqueId, result);
     this.changeEmitter.fire();
   }
 
@@ -304,6 +338,15 @@ export class DbtProjectIndex implements vscode.Disposable {
     const entry = this.catalog?.nodes?.[uniqueId] ?? this.catalog?.sources?.[uniqueId];
     if (!entry) return undefined;
     return Object.values(entry.columns).sort((a, b) => a.index - b.index);
+  }
+
+  /** What the last invocation that executed this node said about it, if one ever did. */
+  getRunResult(uniqueId: string): NodeRunResult | undefined {
+    return this.runResults.get(uniqueId);
+  }
+
+  getAllRunResults(): ReadonlyMap<string, NodeRunResult> {
+    return this.runResults;
   }
 
   getGraph(): DependencyGraph | undefined {

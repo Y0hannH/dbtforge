@@ -57,6 +57,34 @@ body,
   text-overflow: ellipsis;
 }
 
+/* The last run. An explicit height because dagre reserved exactly RUN_ROW_HEIGHT for it
+   (nodeSize.ts) — a row that grew would overlap the node below. */
+.lineage-node-run {
+  display: block;
+  height: 14px;
+  line-height: 14px;
+  font-size: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lineage-node-run.is-passed {
+  color: var(--vscode-testing-iconPassed, #73c991);
+}
+
+.lineage-node-run.is-failed {
+  color: var(--vscode-testing-iconFailed, #f14c4c);
+}
+
+.lineage-node-run.is-warned {
+  color: var(--vscode-editorWarning-foreground, #cca700);
+}
+
+.lineage-node-run.is-skipped {
+  color: var(--vscode-descriptionForeground, #9d9d9d);
+}
+
 .lineage-expand-btn {
   position: absolute;
   top: 50%;

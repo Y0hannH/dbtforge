@@ -2,7 +2,14 @@ import { test } from 'node:test';
 
 import { strict as assert } from 'assert';
 
-import { lineageNodeWidth, MAX_NODE_WIDTH, MIN_NODE_WIDTH } from '../../src/lineage/nodeSize';
+import {
+  lineageNodeHeight,
+  lineageNodeWidth,
+  MAX_NODE_WIDTH,
+  MIN_NODE_WIDTH,
+  NODE_HEIGHT,
+  RUN_ROW_HEIGHT,
+} from '../../src/lineage/nodeSize';
 
 void test('a short name gets the floor width, not a box that hugs the text', () => {
   assert.equal(lineageNodeWidth('orders'), MIN_NODE_WIDTH);
@@ -40,4 +47,15 @@ void test('widths are whole pixels', () => {
   for (const name of ['a', 'stg_customers', 'int_orders_joined_to_customers', 'y'.repeat(60)]) {
     assert.equal(lineageNodeWidth(name) % 1, 0, name);
   }
+});
+
+void test('a last-run row makes the box taller by exactly its own height', () => {
+  assert.equal(lineageNodeHeight(false), NODE_HEIGHT);
+  assert.equal(lineageNodeHeight(true), NODE_HEIGHT + RUN_ROW_HEIGHT);
+});
+
+void test('a long last-run label widens the box even when the name is short', () => {
+  const label = '2.0s · 12 tests failing';
+  assert.ok(lineageNodeWidth('orders', 'model · table', label) > MIN_NODE_WIDTH);
+  assert.equal(lineageNodeWidth('orders', 'model · table', ''), MIN_NODE_WIDTH);
 });

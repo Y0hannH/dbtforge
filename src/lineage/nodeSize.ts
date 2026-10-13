@@ -4,6 +4,14 @@
 
 export const NODE_HEIGHT = 44;
 
+/** What the last-run row adds to a box that carries one. Fixed, so dagre can reserve it. */
+export const RUN_ROW_HEIGHT = 14;
+
+/** A node's height: the two rows every node has, plus the last-run row when there is one. */
+export function lineageNodeHeight(hasRun: boolean): number {
+  return hasRun ? NODE_HEIGHT + RUN_ROW_HEIGHT : NODE_HEIGHT;
+}
+
 /** Floor: short names still get a box wide enough to read the resource-type row above them. */
 export const MIN_NODE_WIDTH = 170;
 
@@ -36,8 +44,11 @@ const META_CHAR_WIDTH = 6.6;
  * Both rows are measured because either can be the longest: a short name under a long
  * type-and-materialization label would otherwise be sized off the wrong one.
  */
-export function lineageNodeWidth(name: string, metaLabel = ''): number {
+export function lineageNodeWidth(name: string, metaLabel = '', runLabel = ''): number {
+  // The last-run row is set like the meta row, plus a glyph and its gap in front.
+  const runWidth = runLabel ? (runLabel.length + 2) * META_CHAR_WIDTH : 0;
   const contentWidth =
-    Math.max(name.length * NAME_CHAR_WIDTH, metaLabel.length * META_CHAR_WIDTH) + HORIZONTAL_CHROME;
+    Math.max(name.length * NAME_CHAR_WIDTH, metaLabel.length * META_CHAR_WIDTH, runWidth) +
+    HORIZONTAL_CHROME;
   return Math.round(Math.min(Math.max(contentWidth, MIN_NODE_WIDTH), MAX_NODE_WIDTH));
 }

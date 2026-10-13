@@ -6,6 +6,7 @@ import type { LineageLocation } from './lineagePlacement';
 import type { LineageScope } from './lineageScope';
 import { DEFAULT_SCOPE, sanitizeScope } from './lineageScope';
 import type { HostToWebviewMessage, LineageBootstrap, WebviewToHostMessage } from './messages';
+import { buildRunStatuses } from './runStatus';
 
 /**
  * One lineage view's behaviour: which node it is rooted on, how much of the DAG it is showing,
@@ -53,6 +54,7 @@ export class LineageSession {
       scope: this.scope,
       subgraph: buildScopedSubgraph(this.index, this.rootId, this.scope),
       materializations: this.index.getAllMaterializations(),
+      runStatuses: buildRunStatuses(this.index),
     };
   }
 
@@ -63,7 +65,18 @@ export class LineageSession {
    * knows how to do: only the panel offers the action, and only its host has somewhere to send it.
    */
   attach(webview: vscode.Webview, onOpenFull?: () => void): vscode.Disposable {
-    return webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
+    // A run finishing is the one thing that changes what is drawn without the user touching the
+    // graph, and the index already says when it happened. Only the statuses are re-sent: a
+    // rebuilt subgraph would collapse whatever was expanded by hand.
+    const statusSubscription = this.index.onDidChange(() => {
+      const update: HostToWebviewMessage = {
+        type: 'runStatuses',
+        statuses: buildRunStatuses(this.index),
+      };
+      void webview.postMessage(update);
+    });
+
+    const messageSubscription = webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'expand': {
           const response: HostToWebviewMessage = {
@@ -100,5 +113,7 @@ export class LineageSession {
         }
       }
     });
+
+    return vscode.Disposable.from(statusSubscription, messageSubscription);
   }
 }

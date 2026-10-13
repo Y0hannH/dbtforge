@@ -8,6 +8,7 @@ export interface DbtForgeConfig {
   pythonPath: string; // absolute or empty (fallback to PATH `dbt`)
   manifestPath: string; // absolute
   catalogPath: string; // absolute
+  runResultsPath: string; // absolute
   compiledDir: string; // absolute
   // Directory holding profiles.yml, or empty to search where dbt itself would (DBT_PROFILES_DIR,
   // the project dir, then ~/.dbt). Kept as the configured value, not a resolved location, so a
@@ -34,6 +35,7 @@ export async function resolveConfig(
   const cfg = vscode.workspace.getConfiguration('dbtForge', workspaceFolder.uri);
   const manifestPathSetting = cfg.get<string>('manifestPath', 'target/manifest.json');
   const catalogPathSetting = cfg.get<string>('catalogPath', 'target/catalog.json');
+  const runResultsPathSetting = cfg.get<string>('runResultsPath', 'target/run_results.json');
   const compiledDirSetting = cfg.get<string>('compiledDir', 'target/compiled');
   const profilesDirSetting = cfg.get<string>('profilesDir', '');
   const previewRowLimitSetting = cfg.get<number>('previewRowLimit', DEFAULT_ROW_LIMIT);
@@ -43,6 +45,7 @@ export async function resolveConfig(
     pythonPath: cfg.get<string>('pythonPath', ''), // empty string means "fall back to `dbt` on PATH"
     manifestPath: path.join(projectDir, manifestPathSetting),
     catalogPath: path.join(projectDir, catalogPathSetting),
+    runResultsPath: path.join(projectDir, runResultsPathSetting),
     compiledDir: path.join(projectDir, compiledDirSetting),
     profilesDir: profilesDirSetting
       ? path.isAbsolute(profilesDirSetting)
