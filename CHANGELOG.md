@@ -12,6 +12,9 @@ All notable changes to the dbt Forge extension are documented in this file.
   - A final `SELECT` that reads a single `ref()`/`source()` after CTEs now completes too; it used to be refused because a CTE existed somewhere in the file.
 
 ### Fixed
+- **A CTE's explicit column list was ignored** ([#36](https://github.com/Y0hannH/dbtforge/issues/36)). For `with orders_renamed (order_id, customer_id) as (select id, cust from …)`, `orders_renamed.` offered `id` and `cust` — names the CTE doesn't have. The list is now the CTE's columns, in full, and the `SELECT` list is not read: a `*` in the body no longer pulls the table's columns in under their old names either.
+  - **A list that can't be read in full gives no suggestions** (a Jinja expression inside the parentheses), rather than falling back to the `SELECT` list's names.
+  - No catalog needed: the list is in the file.
 - **A CTE joined to a `ref()` was treated as reading only the `ref()`.** In `from {{ ref('b') }} join a on …` inside a CTE body, the unprefixed completion resolved against `b` alone, although `a` is a second table. The FROM clause is now read as a whole, so a join to a CTE, a comma join to one, a subquery, or a `pivot` after the table stands it down.
 - **A file that opens with `WITH` but can't be parsed** (an unbalanced parenthesis mid-edit) is no longer read as a file with no CTEs; it gets no unprefixed suggestions until it parses again.
 

@@ -41,6 +41,9 @@ export interface CteDefinition {
    * Output columns of the CTE's own outer-most SELECT that the text names; empty when they can't be
    * resolved. When `expansion` is set this is only part of the answer, and must not be presented
    * as the CTE's columns on its own — the rest are the ones the expansion adds.
+   *
+   * A CTE that declares a column list (`with a (x, y) as (...)`) is the exception on both counts:
+   * the list is the answer, in full, and the SELECT list is not read at all.
    */
   columns: string[];
   /** Present when the SELECT list also expands into columns that aren't named in the text. */
@@ -117,10 +120,17 @@ function parseWithClause(sql: string): WithClause | undefined {
     if (!name) return undefined;
     i = skipIgnorable(sql, name.endIndex);
 
-    // `with a (x, y) as (...)`: an explicit column list sits between the name and AS.
+    // `with a (x, y) as (...)`: an explicit column list sits between the name and AS. It names
+    // the CTE's columns whatever its SELECT list calls them, so it replaces that list rather than
+    // sitting beside it. Unreadable (a Jinja expression in it, say) is still declared: the
+    // SELECT list's names are not the CTE's, so falling back to them would be a wrong answer.
+    let hasColumnList = false;
+    let declaredColumns: string[] | undefined;
     if (sql[i] === '(') {
       const listEnd = findMatchingParen(sql, i);
       if (listEnd === -1) return undefined;
+      hasColumnList = true;
+      declaredColumns = readColumnList(sql.slice(i + 1, listEnd));
       i = skipIgnorable(sql, listEnd + 1);
     }
 
@@ -132,7 +142,9 @@ function parseWithClause(sql: string): WithClause | undefined {
     const bodyEnd = findMatchingParen(sql, i);
     if (bodyEnd === -1) return undefined;
 
-    const output = describeOutput(sql.slice(bodyStart, bodyEnd));
+    const output: SelectOutput = hasColumnList
+      ? { columns: declaredColumns ?? [] }
+      : describeOutput(sql.slice(bodyStart, bodyEnd));
     ctes.push({
       name: stripDelimiters(name.value),
       rawName: name.value,
@@ -189,6 +201,26 @@ const SINGLE_TABLE = new RegExp(
 interface SelectOutput {
   columns: string[];
   expansion?: CteExpansion;
+}
+
+/**
+ * The names in a CTE's `(x, y)` list, or undefined when any entry is not a plain identifier —
+ * a half-read list would read as the whole of it.
+ */
+function readColumnList(list: string): string[] | undefined {
+  const names: string[] = [];
+  const plainIdentifier = new RegExp(`^${IDENT}$`);
+
+  for (const item of splitTopLevel(list, ',')) {
+    const entry = item
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/--[^\n]*/g, '')
+      .trim();
+    if (!plainIdentifier.test(entry)) return undefined;
+    names.push(stripDelimiters(entry));
+  }
+
+  return names.length > 0 ? names : undefined;
 }
 
 function describeOutput(body: string): SelectOutput {
