@@ -20,6 +20,7 @@ import {
 import { selectProfile } from './commands/selectProfile';
 import type { DbtForgeConfig } from './config';
 import { resolveConfig } from './config';
+import { buildDeferredArgs, buildModifiedArgs, resolveStateDir } from './dbt/stateArgs';
 import { DbtProjectIndex } from './index/dbtProjectIndex';
 import type { DbtNode } from './index/manifestTypes';
 import { nodeSelector } from './index/modelVersions';
@@ -47,6 +48,7 @@ import type { TagItem } from './providers/tagsTreeView';
 import { TagsTreeProvider } from './providers/tagsTreeView';
 import { TestResultDiagnostics } from './providers/testResultDiagnostics';
 import { cteNameAtOffset } from './sql/ctePreview';
+import { StateFolderStore } from './state/stateFolderStore';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
 const indexes = new Map<string, DbtProjectIndex>();
@@ -81,6 +83,8 @@ const DBT_MARKDOWN_SELECTOR: vscode.DocumentSelector = { scheme: 'file', pattern
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
   const output = vscode.window.createOutputChannel('dbt Forge');
   context.subscriptions.push(output);
+
+  stateFolders = new StateFolderStore(context.workspaceState);
 
   const diagnostics = new DbtDiagnosticsController(getIndexForResource);
   context.subscriptions.push(diagnostics);
@@ -286,6 +290,34 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       withModelNode(uri, (index, node) => void previewController.previewCte(index, node, cteName)),
     ),
     vscode.commands.registerCommand('dbtForge.rerunPreview', () => previewController.rerun()),
+    vscode.commands.registerCommand('dbtForge.setReferenceState', async () => {
+      const index = await resolveAnyIndex();
+      if (index) await chooseReferenceFolder(index);
+    }),
+    vscode.commands.registerCommand('dbtForge.clearReferenceState', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      const projectDir = index.getConfig().projectDir;
+      await stateFolders?.set(projectDir, undefined);
+      // Back to whatever the setting says, which may be nothing.
+      const setting = vscode.workspace
+        .getConfiguration('dbtForge', vscode.Uri.file(projectDir))
+        .get<string>('stateDir', '');
+      await index.setStateDir(resolveStateDir(projectDir, setting));
+      vscode.window.showInformationMessage('dbt Forge: reference manifest cleared.');
+    }),
+    vscode.commands.registerCommand('dbtForge.buildModified', async () => {
+      const index = await resolveAnyIndex();
+      if (!index) return;
+      const stateDir = await ensureReferenceFolder(index);
+      if (stateDir) runDbt(index, buildModifiedArgs(stateDir));
+    }),
+    vscode.commands.registerCommand('dbtForge.buildDeferred', (uri?: vscode.Uri) =>
+      withModelNode(uri, async (index, node) => {
+        const stateDir = await ensureReferenceFolder(index);
+        if (stateDir) runDbt(index, buildDeferredArgs(nodeSelector(node), stateDir));
+      }),
+    ),
     vscode.commands.registerCommand('dbtForge.buildProject', async () => {
       const index = await resolveAnyIndex();
       if (!index) return;
@@ -628,6 +660,65 @@ async function resolveAnyIndex(): Promise<DbtProjectIndex | undefined> {
   return picked?.index;
 }
 
+/**
+ * Asks for the reference folder, remembers it for this project, and says what the comparison
+ * found against it — so the user sees at once whether the folder they picked is the right one.
+ */
+async function chooseReferenceFolder(index: DbtProjectIndex): Promise<boolean> {
+  const projectDir = index.getConfig().projectDir;
+  const picked = await vscode.window.showOpenDialog({
+    canSelectFolders: true,
+    canSelectFiles: false,
+    canSelectMany: false,
+    defaultUri: vscode.Uri.file(index.getStateDir() || projectDir),
+    openLabel: 'Use as reference',
+    title: 'Folder holding the reference manifest.json (a build of main, or a CI artefact)',
+  });
+  const folder = picked?.[0]?.fsPath;
+  if (!folder) return false;
+
+  await stateFolders?.set(projectDir, folder);
+  await index.setStateDir(folder);
+
+  if (!index.hasReferenceManifest()) {
+    vscode.window.showWarningMessage(
+      `dbt Forge: no manifest.json in ${folder}. Pick the folder that holds it — dbt's target/ of the reference build, or the downloaded CI artefact.`,
+    );
+    return false;
+  }
+
+  const found = index.getStateSummary();
+  vscode.window.showInformationMessage(
+    `dbt Forge: reference set. ${found.modified} modified, ${found.new} new, ` +
+      `${found.impacted} downstream of a change.`,
+  );
+  return true;
+}
+
+/**
+ * The reference folder, ready to hand to `--state`, or undefined after telling the user what is
+ * missing. A state-aware build against nothing would either fail or — worse — select everything.
+ */
+async function ensureReferenceFolder(index: DbtProjectIndex): Promise<string | undefined> {
+  if (!index.getStateDir()) {
+    const choice = await vscode.window.showInformationMessage(
+      'dbt Forge: no reference manifest is set. State-aware builds compare the project against ' +
+        'a build of main, or a CI artefact.',
+      'Choose folder…',
+    );
+    if (!choice || !(await chooseReferenceFolder(index))) return undefined;
+  }
+
+  if (!index.hasReferenceManifest()) {
+    vscode.window.showWarningMessage(
+      `dbt Forge: no manifest.json in ${index.getStateDir()}. Choose the reference folder again ` +
+        `with "dbt Forge: Set Reference Manifest Folder…".`,
+    );
+    return undefined;
+  }
+  return index.getStateDir();
+}
+
 function describeSelection(store: ProfileStore, index: DbtProjectIndex): string {
   const args = store.toCliArgs(index.getConfig().projectDir);
   return args.length > 0 ? args.join(' ') : 'the profiles.yml default (no --profile/--target)';
@@ -647,6 +738,10 @@ function activeProjectConfig(): DbtForgeConfig | undefined {
   return all.length === 1 ? all[0].getConfig() : undefined;
 }
 
+// Set in activate(), before any index exists. Module-level like `indexes`, since the workspace
+// folders can change after activation and the indexes are rebuilt then.
+let stateFolders: StateFolderStore | undefined;
+
 async function setupWorkspaceFolders(
   context: vscode.ExtensionContext,
   output: vscode.OutputChannel,
@@ -654,8 +749,12 @@ async function setupWorkspaceFolders(
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   for (const folder of folders) {
-    const config = await resolveConfig(folder, output);
-    if (!config) continue;
+    const resolved = await resolveConfig(folder, output);
+    if (!resolved) continue;
+
+    // A folder chosen from the command palette wins over the setting: it is this machine's.
+    const chosen = stateFolders?.get(resolved.projectDir);
+    const config = chosen ? { ...resolved, stateDir: chosen } : resolved;
 
     const index = new DbtProjectIndex(config);
     indexes.set(folder.uri.toString(), index);

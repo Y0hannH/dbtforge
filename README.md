@@ -37,6 +37,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
 | 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query — and `Ctrl+Enter` with the cursor inside a CTE previews that CTE rather than the whole model |
+| 🔀 | **State-aware builds** | Point dbt Forge at a reference `manifest.json` (a build of `main`, or a CI artefact) and the lineage and the relatives panel mark what differs: `modified` (its SQL or its config changed), `new`, and `impacted` (downstream of a change). *Build Modified + Downstream* runs `dbt build --select state:modified+ --defer --state …`, and *Build Model, Deferring Upstream to the Reference* builds the open model on top of the reference environment. The comparison is local — nothing is run to produce the marks |
 | 🚦 | **Last run status** | After a `dbt build`, `run` or `test`, each node shows how it went — `✓ 4.2s`, `✗ failed`, `– skipped` — in the lineage graph and in the Parents / Children / Tests panel. A model that built fine but fails a test reads as failing, with the count; hover for dbt's message and when it ran. A test that failed or warned also lands in the Problems panel, on the line of the `.yml` that declares it, and a model that errored on the first line of its file. Read from `run_results.json`, so it costs no extra dbt run |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
@@ -164,6 +165,10 @@ If nothing is suggested, dbt Forge stays silent rather than guessing. Check thos
 | `dbtForge.rerunPreview` | Re-run the last data preview |
 | `dbtForge.showLineage` | Open the interactive lineage graph for the open model, seed or snapshot |
 | `dbtForge.toggleLineageLocation` | Switch the lineage between an editor tab and the bottom panel (also a button in the Lineage view's title bar) |
+| `dbtForge.setReferenceState` | Choose the folder holding the reference `manifest.json` for state-aware builds, and say what differs from it |
+| `dbtForge.clearReferenceState` | Forget the chosen reference folder |
+| `dbtForge.buildModified` | `dbt build --select state:modified+ --defer --state <reference>` |
+| `dbtForge.buildDeferred` | `dbt build --select <model> --defer --state <reference>` for the open model |
 | `dbtForge.selectProfile` | Switch the profile/target dbt Forge runs dbt with (also on the status bar) |
 
 ---
@@ -198,6 +203,7 @@ The same actions are also under the **dbt Forge** icon in the editor's title bar
 | `dbtForge.projectDir` | `""` | Path to the dbt project root. Auto-detected (including nested inside a larger workspace) if left empty |
 | `dbtForge.manifestPath` | `target/manifest.json` | Path to manifest.json, relative to the project root |
 | `dbtForge.catalogPath` | `target/catalog.json` | Path to catalog.json, relative to the project root |
+| `dbtForge.stateDir` | `""` | Folder holding the reference `manifest.json` that state-aware builds compare against (`dbt --state`). Relative to the project root, or absolute. Empty turns the feature off. A folder chosen with *Set Reference Manifest Folder…* is remembered for this machine and wins over it |
 | `dbtForge.runResultsPath` | `target/run_results.json` | Path to run_results.json, relative to the project root. Read after each `dbt build`, `run` or `test` to show each node's last status and duration |
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
@@ -265,7 +271,7 @@ Run results: each node's last status and duration, in the lineage and the relati
 Planned in this order — an order, not a promise of dates. Every item passes the same test as the rest: it needs to know your dbt project.
 
 1. **dbt resources it doesn't know yet.** *Done:* model versions. *Still to do:* `ref('package', 'model')` and `ref('m', v=2)` in alias detection, unit tests, and metrics / semantic models / saved queries in the lineage. Groups and `access`: warn on a `ref()` to a private model from outside its group.
-2. **State-aware builds.** Point at a reference manifest (`main`'s, or a CI artefact) and build `state:modified+` or with `--defer`; modified nodes and their downstream impact marked in the lineage. This is also the second half of [#4](https://github.com/Y0hannH/dbtforge/issues/4): a `dbt ls` selection from the larger lineage view.
+2. **State-aware builds.** *Done:* a reference manifest, `modified` / `new` / `impacted` marks in the lineage, and the two deferred builds. *Still to do:* a `dbt ls` selection from the larger lineage view — the second half of [#4](https://github.com/Y0hannH/dbtforge/issues/4) — and using the current manifest as the reference with one command.
 3. **Column-level lineage.** The largest item, and the one where being wrong costs the most, so it starts as a measured spike: how much of a real project's compiled SQL resolves with certainty. Same rule as completion — an edge is drawn when it is certain and left out when it is not, never approximated. Whether it ships follows from that number.
 
 Not yet placed: renaming a model across its `ref()` call sites and `.yml`; a project-hygiene panel (models with no test, no description, no tested key); multi-project workspaces and cross-project refs.

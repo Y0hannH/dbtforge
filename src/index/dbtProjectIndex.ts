@@ -25,6 +25,8 @@ import type { ModelRef } from './refIndex';
 import { buildRefIndex, buildVersionedRefIndex, versionKey } from './refIndex';
 import type { NodeRunResult } from './runResults';
 import { parseRunResults } from './runResults';
+import type { StateChange } from './stateComparison';
+import { compareToReference } from './stateComparison';
 import type { TagRef } from './tags';
 import { collectTags } from './tags';
 
@@ -51,6 +53,13 @@ export class DbtProjectIndex implements vscode.Disposable {
   private runResults = new Map<string, NodeRunResult>();
   private graph: DependencyGraph | undefined;
 
+  // The manifest state-aware builds compare against, and what that comparison found. Both are
+  // empty until a reference folder is set — the feature is off, not failing.
+  private stateDir: string;
+  private referenceManifest: DbtManifest | undefined;
+  private stateChanges = new Map<string, StateChange>();
+  private referenceWatcher: vscode.Disposable | undefined;
+
   // name -> node, for ref() resolution — models, seeds and snapshots alike. See refIndex.
   private refsByName = new Map<string, ModelRef>();
   private refsByVersion = new Map<string, ModelRef>();
@@ -73,6 +82,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   private catalogMissingWarned = false;
 
   constructor(private readonly config: DbtForgeConfig) {
+    this.stateDir = config.stateDir;
     this.disposables.push(
       watchFile(this.config.manifestPath, () => this.reloadManifest()),
       watchFile(this.config.catalogPath, () => this.reloadCatalog()),
@@ -81,7 +91,12 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   async initialize(): Promise<void> {
-    await Promise.all([this.reloadManifest(), this.reloadCatalog(), this.reloadRunResults()]);
+    await Promise.all([
+      this.reloadManifest(),
+      this.reloadCatalog(),
+      this.reloadRunResults(),
+      this.reloadReference(),
+    ]);
   }
 
   private async reloadManifest(): Promise<void> {
@@ -117,6 +132,7 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.manifest = parsed;
     this.graph = buildDependencyGraph(parsed);
     this.indexModelsAndSources(parsed);
+    this.recomputeStateChanges();
     this.changeEmitter.fire();
   }
 
@@ -141,6 +157,65 @@ export class DbtProjectIndex implements vscode.Disposable {
     }
     this.catalog = parsed ?? undefined;
     this.changeEmitter.fire();
+  }
+
+  /** Points state-aware builds at another reference folder, or at none (empty). */
+  async setStateDir(stateDir: string): Promise<void> {
+    this.stateDir = stateDir;
+    await this.reloadReference();
+  }
+
+  getStateDir(): string {
+    return this.stateDir;
+  }
+
+  /** What differs from the reference for a node, when a reference is set and something does. */
+  getStateChange(uniqueId: string): StateChange | undefined {
+    return this.stateChanges.get(uniqueId);
+  }
+
+  /** How many nodes the comparison found in each state — for telling the user what it found. */
+  getStateSummary(): Record<'new' | 'modified' | 'impacted', number> {
+    const summary = { new: 0, modified: 0, impacted: 0 };
+    for (const change of this.stateChanges.values()) summary[change.kind] += 1;
+    return summary;
+  }
+
+  /** Whether a reference manifest is loaded — the folder may be set and still hold nothing. */
+  hasReferenceManifest(): boolean {
+    return this.referenceManifest !== undefined;
+  }
+
+  private async reloadReference(): Promise<void> {
+    this.referenceWatcher?.dispose();
+    this.referenceWatcher = undefined;
+
+    if (!this.stateDir) {
+      this.referenceManifest = undefined;
+      this.recomputeStateChanges();
+      this.changeEmitter.fire();
+      return;
+    }
+
+    const file = path.join(this.stateDir, 'manifest.json');
+    this.referenceWatcher = watchFile(file, () => this.reloadReference());
+
+    try {
+      this.referenceManifest = await readJsonIfExists<DbtManifest>(file);
+    } catch {
+      // Mid-write, like the project's own manifest: keep what was loaded and retry on the next
+      // change event.
+      return;
+    }
+    this.recomputeStateChanges();
+    this.changeEmitter.fire();
+  }
+
+  private recomputeStateChanges(): void {
+    this.stateChanges =
+      this.manifest && this.referenceManifest
+        ? compareToReference(this.manifest, this.referenceManifest)
+        : new Map();
   }
 
   private async reloadRunResults(): Promise<void> {
@@ -381,6 +456,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   dispose(): void {
+    this.referenceWatcher?.dispose();
     this.changeEmitter.dispose();
     for (const d of this.disposables) d.dispose();
   }

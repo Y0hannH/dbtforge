@@ -37,6 +37,10 @@ export interface DbtNode {
   file_key_name?: string | null;
   column_name?: string | null;
   test_metadata?: { name?: string; namespace?: string | null } | null;
+  // What dbt compares to decide a node is `state:modified`. The checksum is of the file's content;
+  // `unrendered_config` is the config as written, before Jinja — see stateComparison.
+  checksum?: { name?: string; checksum?: string } | null;
+  unrendered_config?: Record<string, unknown> | null;
   // Model versions share a `name` and differ by `version` (the unique_id ends in `.v<version>`).
   // `latest_version` is what a bare `ref('name')` resolves to; dbt writes it on every version.
   // Both are int, float or string in a yml, hence the union — and null on an unversioned model.

@@ -1,4 +1,5 @@
 import type { DbtNode } from '../index/manifestTypes';
+import type { StateChangeKind } from '../index/stateComparison';
 
 /**
  * What a lineage node says about itself beyond its name, and how it is coloured.
@@ -13,6 +14,11 @@ export interface NodeMetaFacts {
   materialization?: string;
   /** `config.target_lag`, verbatim — a duration or the word 'downstream'. */
   targetLag?: string;
+  /**
+   * How the node differs from the reference manifest, when one is set and a difference was found.
+   * Absent means nothing found — never "unchanged", which this cannot know: see stateComparison.
+   */
+  stateChange?: StateChangeKind;
   /** The version a bare `ref('name')` goes to. Only worth saying of a versioned model. */
   latestVersion?: boolean;
   /** How many columns the warehouse reports, or undefined when the catalog cannot say. */
@@ -50,6 +56,7 @@ export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): 
     targetLagUnresolved,
     inheritedTargetLag,
     latestVersion,
+    stateChange,
   } = facts;
   let label = resourceType;
 
@@ -69,6 +76,7 @@ export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): 
   }
 
   if (latestVersion) label += ' · latest';
+  if (stateChange) label += ` · ${stateChange}`;
 
   // A count of zero is treated as no answer rather than shown: catalog.json only describes
   // relations that exist in the warehouse, and one of those never has zero columns — so a zero

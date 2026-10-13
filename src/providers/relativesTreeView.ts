@@ -4,6 +4,7 @@ import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode, LineageEntity } from '../index/manifestTypes';
 import { versionedName } from '../index/modelVersions';
 import type { RunOutcome } from '../index/runResults';
+import type { StateChange } from '../index/stateComparison';
 import type { RunStatusView } from '../lineage/runStatus';
 import { runStatusOf } from '../lineage/runStatus';
 
@@ -24,16 +25,18 @@ class NodeItem extends vscode.TreeItem {
     public readonly node: LineageEntity,
     uri: vscode.Uri,
     run?: RunStatusView,
+    change?: StateChange,
   ) {
     super(isBuilt(node) ? versionedName(node) : node.name, vscode.TreeItemCollapsibleState.None);
     const kind = node.resource_type === 'model' ? node.package_name : node.resource_type;
     // The last run, when there is one, replaces the kind of node as the description: the icon
     // already says which kind it is, and the run is the news.
-    this.description = run ? run.label : kind;
+    this.description = [run ? run.label : kind, change?.kind].filter(Boolean).join(' · ');
     this.iconPath = run ? statusIcon(run.outcome) : new vscode.ThemeIcon(iconFor(node));
-    if (run)
-      this.tooltip = `${node.name}
-${run.title}`;
+    const lines = [node.name];
+    if (run) lines.push(run.title);
+    if (change) lines.push(`${change.kind}: ${change.reasons.join(', ')}`);
+    if (lines.length > 1) this.tooltip = lines.join(String.fromCharCode(10));
     this.command = {
       command: 'vscode.open',
       title: 'Open',
@@ -132,7 +135,15 @@ export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElemen
       return element.nodeIds
         .map((id) => index.getLineageEntity(id))
         .filter((n): n is LineageEntity => n !== undefined)
-        .map((n) => new NodeItem(n, index.getFileUri(n), runStatusOf(index, n.unique_id)));
+        .map(
+          (n) =>
+            new NodeItem(
+              n,
+              index.getFileUri(n),
+              runStatusOf(index, n.unique_id),
+              index.getStateChange(n.unique_id),
+            ),
+        );
     }
 
     return [];
