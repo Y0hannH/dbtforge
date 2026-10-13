@@ -120,9 +120,11 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       .getConfiguration('dbtForge', document.uri)
       .get<boolean>('flagUndocumentedColumns', false);
 
-    const findings = reconcileColumns(entities, (entity) => catalogColumnNames(index, entity), {
-      flagUndocumented,
-    });
+    const findings = reconcileColumns(
+      entities,
+      (entity, version) => catalogColumnNames(index, entity, version),
+      { flagUndocumented },
+    );
 
     return findings.map((finding) => {
       const range = new vscode.Range(

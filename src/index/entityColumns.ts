@@ -7,15 +7,19 @@ import type { DbtProjectIndex } from './dbtProjectIndex';
  *
  * Shared by the warnings and their fixes: both must agree on what "the table's columns" means, or
  * a fix could be offered for a warning the file never showed.
+ *
+ * `version` names one version of a versioned model — each is its own table with its own columns.
+ * Without it a versioned model resolves to its latest, which is what a bare ref() goes to.
  */
 export function catalogColumnNames(
   index: Pick<DbtProjectIndex, 'resolveRef' | 'resolveSource' | 'getCatalogColumns'>,
   entity: DocumentedEntity,
+  version?: string,
 ): string[] | undefined {
   const uniqueId =
     entity.kind === 'source'
       ? index.resolveSource(entity.sourceName ?? '', entity.name)?.uniqueId
-      : index.resolveRef(entity.name)?.uniqueId;
+      : index.resolveRef(entity.name, version)?.uniqueId;
   if (!uniqueId) return undefined;
 
   return index.getCatalogColumns(uniqueId)?.map((column) => column.name);

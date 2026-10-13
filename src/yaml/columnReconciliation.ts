@@ -1,4 +1,4 @@
-import type { DocumentedEntity } from './schemaColumns';
+import type { DocumentedColumn, DocumentedEntity, DocumentedVersion } from './schemaColumns';
 
 /**
  * Compares what a schema .yml claims about an entity's columns with what the warehouse actually
@@ -33,11 +33,12 @@ const MAX_NAMED_COLUMNS = 6;
  * either because `dbt docs generate` has never run or because the entity was never built. Undefined
  * silences every catalog-based check for that entity: an absent catalog is not evidence of
  * anything, and warning from the manifest's documented columns instead would compare the file
- * against itself.
+ * against itself. Called with a version for each entry of a model's `versions:`, since each is its
+ * own table.
  */
 export function reconcileColumns(
   entities: DocumentedEntity[],
-  catalogColumns: (entity: DocumentedEntity) => string[] | undefined,
+  catalogColumns: (entity: DocumentedEntity, version?: string) => string[] | undefined,
   options: ReconciliationOptions,
 ): ColumnFinding[] {
   const findings: ColumnFinding[] = [];
@@ -48,62 +49,167 @@ export function reconcileColumns(
     // Duplicates are checked whether or not the catalog knows this entity: the mistake is inside
     // the file, and it is invisible everywhere else — dbt reads the columns into a mapping keyed
     // by name, so the second entry silently overwrites the first.
-    const seen = new Set<string>();
-    for (const column of entity.columns) {
-      const key = column.name.toLowerCase();
-      if (seen.has(key)) {
-        findings.push({
-          kind: 'duplicate-column',
-          offset: column.offset,
-          length: column.length,
-          message:
-            `Column "${column.name}" is documented twice under "${label}". dbt keeps the last ` +
-            `entry, so the description above this one is dropped.`,
-        });
-      }
-      seen.add(key);
+    findings.push(...duplicates(entity.columns, label));
+    for (const version of entity.versions ?? []) {
+      findings.push(...duplicates(version.columns, `${label} v${version.version}`));
     }
 
-    const real = catalogColumns(entity);
-    if (!real) continue;
+    findings.push(
+      ...(entity.versions
+        ? reconcileVersions(entity, entity.versions, label, catalogColumns, options)
+        : reconcileTable(entity.columns, catalogColumns(entity), label, entity, options)),
+    );
+  }
 
-    // Compared case-insensitively on purpose: warehouses disagree about the case they report —
-    // Snowflake stores unquoted identifiers upper case, others lower — while a .yml is written
-    // however the author types. Matching exactly would flag every column of a whole project.
-    const realByKey = new Map(real.map((name) => [name.toLowerCase(), name]));
+  return findings.sort((a, b) => a.offset - b.offset);
+}
 
+function duplicates(columns: DocumentedColumn[], label: string): ColumnFinding[] {
+  const findings: ColumnFinding[] = [];
+  const seen = new Set<string>();
+  for (const column of columns) {
+    const key = column.name.toLowerCase();
+    if (seen.has(key)) {
+      findings.push({
+        kind: 'duplicate-column',
+        offset: column.offset,
+        length: column.length,
+        message:
+          `Column "${column.name}" is documented twice under "${label}". dbt keeps the last ` +
+          `entry, so the description above this one is dropped.`,
+      });
+    }
+    seen.add(key);
+  }
+  return findings;
+}
+
+/** One table, one list of documented columns: the whole check for a model with no versions. */
+function reconcileTable(
+  documentedColumns: DocumentedColumn[],
+  real: string[] | undefined,
+  label: string,
+  anchor: { offset: number; length: number },
+  options: ReconciliationOptions,
+): ColumnFinding[] {
+  if (!real) return [];
+  const findings: ColumnFinding[] = [];
+
+  // Compared case-insensitively on purpose: warehouses disagree about the case they report —
+  // Snowflake stores unquoted identifiers upper case, others lower — while a .yml is written
+  // however the author types. Matching exactly would flag every column of a whole project.
+  const realByKey = new Map(real.map((name) => [name.toLowerCase(), name]));
+
+  for (const column of documentedColumns) {
+    if (realByKey.has(column.name.toLowerCase())) continue;
+    findings.push({
+      kind: 'unknown-column',
+      offset: column.offset,
+      length: column.length,
+      message:
+        `"${label}" has no column "${column.name}" in catalog.json, so this description ` +
+        `documents nothing. Run dbt docs generate if the column was just added or renamed.`,
+    });
+  }
+
+  if (options.flagUndocumented) {
+    findings.push(...undocumented(documentedColumns, realByKey, label, anchor));
+  }
+  return findings;
+}
+
+/**
+ * A model with `versions:` is several tables sharing one list of top-level columns, so a column's
+ * absence means different things in different places:
+ *
+ * - one listed under a version belongs to that version, and is wrong if *that* table lacks it;
+ * - one listed at the top applies to every version, and is only wrong when no version has it —
+ *   one version missing it is what `exclude:` is for, and is not an error.
+ *
+ * The top-level check also waits until every version's table is known: a version that was never
+ * built might be the one that has the column.
+ */
+function reconcileVersions(
+  entity: DocumentedEntity,
+  versions: DocumentedVersion[],
+  label: string,
+  catalogColumns: (entity: DocumentedEntity, version?: string) => string[] | undefined,
+  options: ReconciliationOptions,
+): ColumnFinding[] {
+  const findings: ColumnFinding[] = [];
+  const tables = versions.map((version) => ({
+    version,
+    real: catalogColumns(entity, version.version),
+  }));
+
+  if (tables.every((table) => table.real !== undefined)) {
+    const known = tables.map((table) => new Set(table.real!.map((name) => name.toLowerCase())));
     for (const column of entity.columns) {
-      if (realByKey.has(column.name.toLowerCase())) continue;
+      if (known.some((set) => set.has(column.name.toLowerCase()))) continue;
       findings.push({
         kind: 'unknown-column',
         offset: column.offset,
         length: column.length,
         message:
-          `"${label}" has no column "${column.name}" in catalog.json, so this description ` +
-          `documents nothing. Run dbt docs generate if the column was just added or renamed.`,
+          `"${label}" has no column "${column.name}" in any of its versions in catalog.json, so ` +
+          `this description documents nothing. Run dbt docs generate if the column was just ` +
+          `added or renamed.`,
       });
     }
+  }
 
-    if (!options.flagUndocumented) continue;
+  for (const { version, real } of tables) {
+    // What the version documents is its own columns and the ones every version shares.
+    findings.push(
+      ...reconcileTable(
+        version.columns,
+        real,
+        `${label} v${version.version}`,
+        version,
+        // The undocumented check needs the shared columns too, which reconcileTable can't see.
+        { flagUndocumented: false },
+      ),
+    );
 
-    const documented = new Set(entity.columns.map((column) => column.name.toLowerCase()));
-    const missing = [...realByKey].filter(([key]) => !documented.has(key)).map(([, name]) => name);
-    if (missing.length === 0) continue;
+    if (options.flagUndocumented && real) {
+      const realByKey = new Map(real.map((name) => [name.toLowerCase(), name]));
+      findings.push(
+        ...undocumented(
+          [...entity.columns, ...version.columns],
+          realByKey,
+          `${label} v${version.version}`,
+          version,
+        ),
+      );
+    }
+  }
 
-    // One finding for the whole entity rather than one per column, and anchored on the entity's
-    // own name: the point is "this file is incomplete", which is said once. A warning per column
-    // would bury the two checks above under its own noise.
-    findings.push({
+  return findings;
+}
+
+function undocumented(
+  documentedColumns: DocumentedColumn[],
+  realByKey: Map<string, string>,
+  label: string,
+  anchor: { offset: number; length: number },
+): ColumnFinding[] {
+  const documented = new Set(documentedColumns.map((column) => column.name.toLowerCase()));
+  const missing = [...realByKey].filter(([key]) => !documented.has(key)).map(([, name]) => name);
+  if (missing.length === 0) return [];
+
+  // One finding for the whole entity rather than one per column, and anchored on the entity's
+  // own name: the point is "this file is incomplete", which is said once. A warning per column
+  // would bury the two checks above under its own noise.
+  return [
+    {
       kind: 'undocumented-columns',
-      offset: entity.offset,
-      length: entity.length,
+      offset: anchor.offset,
+      length: anchor.length,
       message:
         `${missing.length} column${missing.length > 1 ? 's' : ''} of "${label}" ` +
         `${missing.length > 1 ? 'are' : 'is'} not documented here: ${nameList(missing)}.`,
-    });
-  }
-
-  return findings.sort((a, b) => a.offset - b.offset);
+    },
+  ];
 }
 
 function entityLabel(entity: DocumentedEntity): string {

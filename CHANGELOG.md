@@ -5,6 +5,15 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **The versions of a model are told apart.** Two versions of `dim_customers` used to be two boxes with the same name in the lineage and two identical rows in the Parents / Children / Tests panel. They now read `dim_customers (v1)` and `dim_customers (v2)`, and the version a bare `ref()` goes to carries `· latest` on its row above the name. The lineage tab, the data preview's header and the relatives panel use the same name.
+- **A schema `.yml` is read version by version.** `versions:` entries and the columns listed under each are now understood, and each version is compared against its own table in `catalog.json`:
+  - **A column listed under a version** is wrong when *that* version's table lacks it.
+  - **A column listed at the top** applies to every version, so it is only reported when *no* version has it — one version missing it is what `exclude:` is for. It is not judged at all while any version's table is unknown, since a version never built might be the one that has it.
+  - **`include:` / `exclude:` entries** document no one column and are skipped.
+  - **`dbtForge.flagUndocumentedColumns`** names the version (`"dim_customers v2" has 1 column not documented here`) and counts the shared top-level columns as documented for each.
+  - **A column documented twice** under one version is caught under that version.
+  - **Removing a stale column works there too**, under a version or at the top. *Adding* columns is still not offered on a versioned model: which version's table to follow is the author's to say.
+- **Build, Test and Data Preview select a versioned model by its file.** `--select dim_customers` picks every version of a model, so Build Model on `dim_customers_v2.sql` also built v1, and the data preview — which dbt only runs on a single node — refused. They now pass `path:models/marts/dim_customers_v2.sql`, the selector the folder and compile commands already use.
 - **Quick fixes on a schema `.yml`**, for what the column warnings point out. Both work on the text, touching only the lines they are about — comments, blank lines and quoting are left alone.
   - **Remove a documented column the table doesn't have.** The warning on it offers *Remove column "x" from this file*, which takes the whole entry — name, description, tests. When it was the only column, the `columns:` key goes too: an empty one is a null, which dbt reads as a malformed schema.
   - **Add the columns the file leaves out.** On a model's, seed's, snapshot's or source table's name, *Add the N undocumented columns from catalog.json* appends them as `- name:` stubs in table order, creating `columns:` when there is none.

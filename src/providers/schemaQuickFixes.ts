@@ -48,6 +48,10 @@ export class SchemaQuickFixProvider implements vscode.CodeActionProvider {
       // on every line of a model would be noise.
       if (cursor < entity.offset || cursor > entity.offset + entity.length) continue;
 
+      // A versioned model is several tables behind one list of top-level columns; which one to
+      // add to is the author's to say, so nothing is offered.
+      if (entity.versions) continue;
+
       const real = catalogColumnNames(index, entity);
       if (!real) continue;
       // Compared case-insensitively, as the warnings are: a warehouse's own casing is not a
