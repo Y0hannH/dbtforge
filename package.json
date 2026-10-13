@@ -64,6 +64,12 @@
           "scope": "resource",
           "description": "Path to catalog.json, relative to the dbt project root."
         },
+        "dbtForge.runResultsPath": {
+          "type": "string",
+          "default": "target/run_results.json",
+          "scope": "resource",
+          "description": "Path to run_results.json, relative to the dbt project root. Read after each dbt build, run or test to show each node's last status and duration."
+        },
         "dbtForge.compiledDir": {
           "type": "string",
           "default": "target/compiled",

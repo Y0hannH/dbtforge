@@ -24,7 +24,8 @@ import type {
   WebviewToHostMessage,
 } from '../lineage/messages';
 import { shouldShowMinimap } from '../lineage/minimapPolicy';
-import { lineageNodeWidth, NODE_HEIGHT } from '../lineage/nodeSize';
+import { lineageNodeHeight, lineageNodeWidth } from '../lineage/nodeSize';
+import type { RunStatusView } from '../lineage/runStatus';
 
 declare global {
   interface Window {
@@ -35,9 +36,19 @@ declare global {
 
 const vscode = acquireVsCodeApi();
 
+// One glyph per outcome, so the state is not carried by colour alone.
+const RUN_GLYPH: Record<RunStatusView['outcome'], string> = {
+  passed: '✓',
+  failed: '✗',
+  warned: '!',
+  skipped: '–',
+};
+
 interface LineageNodeViewData extends LineageNode {
   /** Same width dagre reserved for this node — see nodeSize. */
   width: number;
+  /** The last run's outcome for this node, when one has been seen. */
+  run?: RunStatusView;
   expandedUp: boolean;
   expandedDown: boolean;
   pendingUp: boolean;
@@ -85,6 +96,11 @@ function LineageNodeView({ id, data }: NodeProps<LineageNodeViewData>) {
       <span className="lineage-node-name" title={data.name}>
         {data.name}
       </span>
+      {data.run && (
+        <span className={`lineage-node-run is-${data.run.outcome}`} title={data.run.title}>
+          {RUN_GLYPH[data.run.outcome]} {data.run.label}
+        </span>
+      )}
       <Handle type="source" position={Position.Right} />
       {showDownButton && (
         <button
@@ -264,6 +280,7 @@ function layoutGraph(
   expandedUp: Set<string>,
   expandedDown: Set<string>,
   pending: Set<string>,
+  runStatuses: Record<string, RunStatusView>,
   onExpand: (nodeId: string, direction: ExpandDirection) => void,
   onOpen: (nodeId: string) => void,
 ): { nodes: Node<LineageNodeViewData>[]; edges: Edge[] } {
@@ -275,10 +292,19 @@ function layoutGraph(
   // while the box itself grew to fit its text, so a long-named model overflowed the slot dagre
   // had reserved and landed on top of the next rank.
   const widths = new Map(
-    [...rawNodes.values()].map((n) => [n.id, lineageNodeWidth(n.name, n.metaLabel)]),
+    [...rawNodes.values()].map((n) => [
+      n.id,
+      lineageNodeWidth(n.name, n.metaLabel, runStatuses[n.id]?.label),
+    ]),
+  );
+  // A node that has a last-run row is taller by exactly that row, and dagre has to know it.
+  const heights = new Map(
+    [...rawNodes.keys()].map((id) => [id, lineageNodeHeight(runStatuses[id] !== undefined)]),
   );
 
-  for (const id of rawNodes.keys()) g.setNode(id, { width: widths.get(id), height: NODE_HEIGHT });
+  for (const id of rawNodes.keys()) {
+    g.setNode(id, { width: widths.get(id), height: heights.get(id) });
+  }
   // An edge can outlive the node at its other end — a scope change drops nodes but the webview
   // keeps edges it was told about. dagre would invent a node for the missing end and lay out an
   // empty box, so those edges are skipped here and again when the React Flow edges are built.
@@ -306,11 +332,12 @@ function layoutGraph(
       // dagre reports a node's centre; React Flow positions by its top-left corner.
       position: {
         x: rankLeft.get(Math.round(pos.x)) ?? pos.x - width / 2,
-        y: pos.y - NODE_HEIGHT / 2,
+        y: pos.y - (heights.get(n.id) ?? 0) / 2,
       },
       data: {
         ...n,
         width,
+        run: runStatuses[n.id],
         expandedUp: n.parentCount === 0 || expandedUp.has(n.id),
         expandedDown: n.childCount === 0 || expandedDown.has(n.id),
         pendingUp: pending.has(`${n.id}:up`),
@@ -402,6 +429,7 @@ const EMPTY_BOOTSTRAP: LineageBootstrap = {
   },
   subgraph: { nodes: [], edges: [] },
   materializations: [],
+  runStatuses: {},
 };
 
 function App() {
@@ -418,6 +446,7 @@ function App() {
   const [expandedUp, setExpandedUp] = useState<Set<string>>(new Set());
   const [expandedDown, setExpandedDown] = useState<Set<string>>(new Set());
   const [pending, setPending] = useState<Set<string>>(new Set());
+  const [runStatuses, setRunStatuses] = useState(bootstrap.runStatuses);
 
   const handleExpand = useCallback((nodeId: string, direction: ExpandDirection) => {
     setPending((prev) => new Set(prev).add(`${nodeId}:${direction}`));
@@ -458,6 +487,11 @@ function App() {
         return;
       }
 
+      if (message.type === 'runStatuses') {
+        setRunStatuses(message.statuses);
+        return;
+      }
+
       if (message.type !== 'expandResult') return;
 
       setRawNodes((prev) => {
@@ -492,8 +526,17 @@ function App() {
 
   const { nodes, edges } = useMemo(
     () =>
-      layoutGraph(rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen),
-    [rawNodes, rawEdges, expandedUp, expandedDown, pending, handleExpand, handleOpen],
+      layoutGraph(
+        rawNodes,
+        rawEdges,
+        expandedUp,
+        expandedDown,
+        pending,
+        runStatuses,
+        handleExpand,
+        handleOpen,
+      ),
+    [rawNodes, rawEdges, expandedUp, expandedDown, pending, runStatuses, handleExpand, handleOpen],
   );
 
   if (!bootstrap.rootId) {

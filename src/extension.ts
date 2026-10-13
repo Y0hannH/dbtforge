@@ -43,6 +43,7 @@ import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
 import type { TagItem } from './providers/tagsTreeView';
 import { TagsTreeProvider } from './providers/tagsTreeView';
+import { TestResultDiagnostics } from './providers/testResultDiagnostics';
 import { cteNameAtOffset } from './sql/ctePreview';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
@@ -76,6 +77,9 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const diagnostics = new DbtDiagnosticsController(getIndexForResource);
   context.subscriptions.push(diagnostics);
 
+  const testResults = new TestResultDiagnostics();
+  context.subscriptions.push(testResults);
+
   const relativesTree = new RelativesTreeProvider(getIndexForResource);
   const tagsTree = new TagsTreeProvider(getActiveIndex);
   const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
@@ -89,6 +93,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     codeLensProvider.refresh();
     refreshActiveEditorViews(relativesTree);
     tagsTree.refresh();
+    // Cheap when nothing failed, and the one place that hears of a finished run.
+    for (const index of indexes.values()) void testResults.update(index);
   };
 
   await setupWorkspaceFolders(context, output, onIndexChanged);
@@ -136,6 +142,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       disposeAllIndexes();
+      testResults.clear();
       await setupWorkspaceFolders(context, output, onIndexChanged);
       onIndexChanged();
       profileStatusBar.refresh();

@@ -4,6 +4,19 @@ All notable changes to the dbt Forge extension are documented in this file.
 
 ## [Unreleased]
 
+### Added
+- **Each node shows what its last `dbt build`, `run` or `test` did.** In the lineage graph a row under the name reads `✓ 4.2s`, `✗ failed` or `– skipped`, and the Parents / Children / Tests panel swaps its icon and description for the same. Hover for the command, dbt's status, the duration, when it ran and dbt's own message.
+  - **A model that built fine but fails a test is shown as failing**, with the count: `3.4s · 1 test failing`. The graph hides tests by default, so without this a failing test would be invisible there. A model nothing was said about shows nothing — never a green mark.
+  - **A failed test says how many rows it returned** (`failed · 3 rows`); a `warn`-severity test is a warning, not a failure.
+  - **Read from `run_results.json`**, so it costs no dbt run, and an open graph updates when a run finishes without losing what you had expanded. `dbtForge.runResultsPath` moves the file.
+  - **Only commands that execute nodes are read** — `build`, `run`, `test`, `seed`, `snapshot`, `retry`. `compile`, `docs generate` and `show` write the same file with every node `success`, which would read as "ran fine" when only the SQL was rendered; they, and a file that doesn't say which command wrote it, are left out.
+  - **Results are kept per node across invocations.** dbt rewrites the file in full each time, so `dbt run --select a` would otherwise erase everything said about `b`; each entry keeps the time of its own run. Deleting the file (`dbt clean`) clears them.
+- **A test that failed or warned appears in the Problems panel, on the line that declares it** — `Test "unique" on fct_orders.order_id failed — 3 rows returned. Last run: …`. A click opens the `.yml` on the test itself, so the failure no longer has to be found in the terminal output and looked up by name.
+  - **As precise as the file allows, and no more.** The test's own entry when exactly one entry could be it, otherwise the column it is attached to, otherwise the model. Two identical `- not_null` under one column stop at the column rather than pick one.
+  - **A failed test is an error, a `warn`-severity one a warning.** A singular test (a `.sql` under `tests/`) is shown on the first line of its file.
+  - **Present for files nobody has opened**, and replaced as a whole on every run: a test that passes next time simply disappears.
+  - Tests only. A model that errored shows on the node, not yet in the Problems panel.
+
 ### Fixed
 - **A manifest with no `sources` key crashed the index on load.** dbt always writes the section, but a partial or hand-edited manifest can omit it, and tags, source resolution and the lineage all read it unguarded. A missing `sources` now means no sources, like a missing `exposures`, `macros` or `docs` already did.
 - **A `ref()` to a versioned model went to whichever version the manifest listed last.** A model with versions is several nodes sharing one `name`, and the ref index was keyed by name alone, so they overwrote each other. A bare `ref('dim_orders')` now resolves to the model's `latest_version` — which is what dbt does, and not necessarily the highest version, since a newer one can be a prerelease — whatever order the manifest lists them in.

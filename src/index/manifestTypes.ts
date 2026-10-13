@@ -30,6 +30,13 @@ export interface DbtNode {
   path: string; // relative to the package's models dir
   original_file_path: string; // relative to project root
   description?: string;
+  // Only on a test. `attached_node` is what a generic test is declared on, `file_key_name` the
+  // yml section and name it sits under (`models.fct_orders`), and `test_metadata.name` the test as
+  // written (`unique`). A singular test — a .sql under tests/ — has none of them.
+  attached_node?: string | null;
+  file_key_name?: string | null;
+  column_name?: string | null;
+  test_metadata?: { name?: string; namespace?: string | null } | null;
   // Model versions share a `name` and differ by `version` (the unique_id ends in `.v<version>`).
   // `latest_version` is what a bare `ref('name')` resolves to; dbt writes it on every version.
   // Both are int, float or string in a yml, hence the union — and null on an unversioned model.

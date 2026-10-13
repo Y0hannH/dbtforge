@@ -36,6 +36,7 @@ Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Fo
 | 👁️ | **Compiled SQL preview** | Read-only, side-by-side preview of the compiled SQL dbt actually runs |
 | 📊 | **Data preview** | `Ctrl+Enter` on a model to run `dbt show` and read the rows in a **Data Preview tab in the bottom panel** — works on models that were never materialized, and on `ephemeral` ones |
 | 🧩 | **Per-CTE preview** | A preview button on every CTE, to inspect an intermediate step without commenting out the rest of the query — and `Ctrl+Enter` with the cursor inside a CTE previews that CTE rather than the whole model |
+| 🚦 | **Last run status** | After a `dbt build`, `run` or `test`, each node shows how it went — `✓ 4.2s`, `✗ failed`, `– skipped` — in the lineage graph and in the Parents / Children / Tests panel. A model that built fine but fails a test reads as failing, with the count; hover for dbt's message and when it ran. A test that failed or warned also lands in the Problems panel, on the line of the `.yml` that declares it. Read from `run_results.json`, so it costs no extra dbt run |
 | 🚀 | **Build / Test shortcuts** | CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test, and Build Project — run through your project's own venv |
 | 🔀 | **Environment switching** | Status bar picker over the profiles in your `profiles.yml` — every dbt command dbt Forge runs then carries that `--profile`/`--target`, so a dev branch can point at a different Fabric workspace than main |
 | 📄 | **Compile This File** | Compiles only the open model (`dbt compile --select path:<file>`) — the fast way to get a just-created model into the manifest, without a full-project compile |
@@ -196,6 +197,7 @@ The same actions are also under the **dbt Forge** icon in the editor's title bar
 | `dbtForge.projectDir` | `""` | Path to the dbt project root. Auto-detected (including nested inside a larger workspace) if left empty |
 | `dbtForge.manifestPath` | `target/manifest.json` | Path to manifest.json, relative to the project root |
 | `dbtForge.catalogPath` | `target/catalog.json` | Path to catalog.json, relative to the project root |
+| `dbtForge.runResultsPath` | `target/run_results.json` | Path to run_results.json, relative to the project root. Read after each `dbt build`, `run` or `test` to show each node's last status and duration |
 | `dbtForge.compiledDir` | `target/compiled` | Path to the compiled models directory, relative to the project root |
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
 | `dbtForge.previewRowLimit` | `100` | Rows a data preview asks dbt for (`dbt show --limit`). `-1` fetches every row |
@@ -258,7 +260,7 @@ Completion scoped to the enclosing CTE's body, and from a single CTE as well as 
 ### 🔲 Next
 Planned in this order — an order, not a promise of dates. Every item passes the same test as the rest: it needs to know your dbt project.
 
-1. **Run results.** Read `run_results.json` after a run: last status and duration on the lineage and the relatives panel, failing tests in the Problems panel on the line that declares them. Today a build runs in the terminal and dbt Forge learns nothing from it. Alongside it, quick fixes on a schema `.yml` — generate a model's `columns:` from `catalog.json`, drop a documented column the table no longer has.
+1. **Run results.** *Done:* each node's last status and duration, read from `run_results.json`, in the lineage and the relatives panel; failing and warning tests in the Problems panel, on the line that declares them. *Still to do:* quick fixes on a schema `.yml` — generate a model's `columns:` from `catalog.json`, drop a documented column the table no longer has — and a model's own run error in the Problems panel.
 2. **dbt resources it doesn't know yet.** `ref('package', 'model')` and `ref('m', v=2)` in alias detection (a pinned version already resolves everywhere else), unit tests, and metrics / semantic models / saved queries in the lineage. Groups and `access`: warn on a `ref()` to a private model from outside its group.
 3. **State-aware builds.** Point at a reference manifest (`main`'s, or a CI artefact) and build `state:modified+` or with `--defer`; modified nodes and their downstream impact marked in the lineage. This is also the second half of [#4](https://github.com/Y0hannH/dbtforge/issues/4): a `dbt ls` selection from the larger lineage view.
 4. **Column-level lineage.** The largest item, and the one where being wrong costs the most, so it starts as a measured spike: how much of a real project's compiled SQL resolves with certainty. Same rule as completion — an edge is drawn when it is certain and left out when it is not, never approximated. Whether it ships follows from that number.

@@ -2,6 +2,9 @@ import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode, LineageEntity } from '../index/manifestTypes';
+import type { RunOutcome } from '../index/runResults';
+import type { RunStatusView } from '../lineage/runStatus';
+import { runStatusOf } from '../lineage/runStatus';
 
 type TreeElement = CategoryItem | NodeItem;
 
@@ -19,16 +22,38 @@ class NodeItem extends vscode.TreeItem {
   constructor(
     public readonly node: LineageEntity,
     uri: vscode.Uri,
+    run?: RunStatusView,
   ) {
     super(node.name, vscode.TreeItemCollapsibleState.None);
-    this.description = node.resource_type === 'model' ? node.package_name : node.resource_type;
-    this.iconPath = new vscode.ThemeIcon(iconFor(node));
+    const kind = node.resource_type === 'model' ? node.package_name : node.resource_type;
+    // The last run, when there is one, replaces the kind of node as the description: the icon
+    // already says which kind it is, and the run is the news.
+    this.description = run ? run.label : kind;
+    this.iconPath = run ? statusIcon(run.outcome) : new vscode.ThemeIcon(iconFor(node));
+    if (run)
+      this.tooltip = `${node.name}
+${run.title}`;
     this.command = {
       command: 'vscode.open',
       title: 'Open',
       arguments: [uri],
     };
     this.contextValue = 'dbtForge.node';
+  }
+}
+
+// Theme colours the Testing view already uses for the same four states, so a failed test reads
+// the same here as it does there.
+function statusIcon(outcome: RunOutcome): vscode.ThemeIcon {
+  switch (outcome) {
+    case 'passed':
+      return new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'));
+    case 'failed':
+      return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+    case 'warned':
+      return new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'));
+    case 'skipped':
+      return new vscode.ThemeIcon('circle-slash', new vscode.ThemeColor('testing.iconSkipped'));
   }
 }
 
@@ -101,7 +126,7 @@ export class RelativesTreeProvider implements vscode.TreeDataProvider<TreeElemen
       return element.nodeIds
         .map((id) => index.getLineageEntity(id))
         .filter((n): n is LineageEntity => n !== undefined)
-        .map((n) => new NodeItem(n, index.getFileUri(n)));
+        .map((n) => new NodeItem(n, index.getFileUri(n), runStatusOf(index, n.unique_id)));
     }
 
     return [];
