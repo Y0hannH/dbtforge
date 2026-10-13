@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
-import type { TestFinding } from '../index/testFindings';
-import { collectTestFindings } from '../index/testFindings';
+import type { RunFinding } from '../index/testFindings';
+import { collectRunFindings } from '../index/testFindings';
 import { readFileLines } from '../index/textFiles';
 import { locateTest } from '../yaml/testLocation';
 
 /**
- * Puts the tests that failed in the last run into the Problems panel, on the line that declares
- * each one.
+ * Puts what the last run got wrong into the Problems panel: each failed test on the line that
+ * declares it, and each model that errored on the first line of its file.
  *
  * Kept apart from the diagnostics that follow the open editor: those are computed from the text
  * of a document as it is typed, whereas these come from a run that already happened and have to
@@ -27,8 +27,8 @@ export class TestResultDiagnostics implements vscode.Disposable {
     const mine = (this.generation.get(index) ?? 0) + 1;
     this.generation.set(index, mine);
 
-    const byFile = new Map<string, { uri: vscode.Uri; findings: TestFinding[] }>();
-    for (const finding of collectTestFindings(index)) {
+    const byFile = new Map<string, { uri: vscode.Uri; findings: RunFinding[] }>();
+    for (const finding of collectRunFindings(index)) {
       const uri = index.getFileUri(finding.node);
       const entry = byFile.get(uri.toString()) ?? { uri, findings: [] };
       entry.findings.push(finding);
@@ -53,7 +53,7 @@ export class TestResultDiagnostics implements vscode.Disposable {
   }
 
   private toDiagnostic(
-    finding: TestFinding,
+    finding: RunFinding,
     uri: vscode.Uri,
     lines: string[] | undefined,
   ): vscode.Diagnostic {
@@ -72,11 +72,7 @@ export class TestResultDiagnostics implements vscode.Disposable {
    * The test's own entry when it can be found; otherwise the first line of the file, which is
    * where a singular test lives and the least a .yml can be pinned to.
    */
-  private rangeOf(
-    finding: TestFinding,
-    uri: vscode.Uri,
-    lines: string[] | undefined,
-  ): vscode.Range {
+  private rangeOf(finding: RunFinding, uri: vscode.Uri, lines: string[] | undefined): vscode.Range {
     const firstLine = new vscode.Range(0, 0, 0, lines?.[0]?.length ?? 0);
     if (!finding.target || !lines || !/\.ya?ml$/i.test(uri.fsPath)) return firstLine;
 

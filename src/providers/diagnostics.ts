@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
+import { catalogColumnNames } from '../index/entityColumns';
 import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
 import { reconcileColumns } from '../yaml/columnReconciliation';
-import type { DocumentedEntity } from '../yaml/schemaColumns';
 import { parseSchemaEntities } from '../yaml/schemaColumns';
 
 const VALIDATE_DEBOUNCE_MS = 400;
@@ -120,11 +120,9 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       .getConfiguration('dbtForge', document.uri)
       .get<boolean>('flagUndocumentedColumns', false);
 
-    const findings = reconcileColumns(
-      entities,
-      (entity) => this.catalogColumnNames(index, entity),
-      { flagUndocumented },
-    );
+    const findings = reconcileColumns(entities, (entity) => catalogColumnNames(index, entity), {
+      flagUndocumented,
+    });
 
     return findings.map((finding) => {
       const range = new vscode.Range(
@@ -137,22 +135,10 @@ export class DbtDiagnosticsController implements vscode.Disposable {
         vscode.DiagnosticSeverity.Warning,
       );
       diagnostic.source = 'dbt Forge';
+      // What the quick fixes key on — see schemaQuickFixes.
+      diagnostic.code = finding.kind;
       return diagnostic;
     });
-  }
-
-  /** The entity's real columns, or undefined when neither the manifest nor the catalog can say. */
-  private catalogColumnNames(
-    index: DbtProjectIndex,
-    entity: DocumentedEntity,
-  ): string[] | undefined {
-    const uniqueId =
-      entity.kind === 'source'
-        ? index.resolveSource(entity.sourceName ?? '', entity.name)?.uniqueId
-        : index.resolveRef(entity.name)?.uniqueId;
-    if (!uniqueId) return undefined;
-
-    return index.getCatalogColumns(uniqueId)?.map((column) => column.name);
   }
 
   /** Debounced re-validation while typing, so a call mid-edit doesn't flash a warning. */

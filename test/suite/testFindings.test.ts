@@ -4,7 +4,11 @@ import { strict as assert } from 'assert';
 
 import type { DbtNode, LineageEntity } from '../../src/index/manifestTypes';
 import type { NodeRunResult, RunOutcome } from '../../src/index/runResults';
-import { collectTestFindings } from '../../src/index/testFindings';
+import {
+  collectModelFindings,
+  collectRunFindings,
+  collectTestFindings,
+} from '../../src/index/testFindings';
 
 const result = (outcome: RunOutcome, extra: Partial<NodeRunResult> = {}): NodeRunResult => ({
   outcome,
@@ -48,6 +52,17 @@ const entities: Record<string, DbtNode | LineageEntity> = {
   }),
   'test.p.assert_positive_totals': node('test.p.assert_positive_totals', {
     original_file_path: 'tests/assert_positive_totals.sql',
+  }),
+  'model.p.dim_customers.v2': node('model.p.dim_customers.v2', {
+    resource_type: 'model',
+    name: 'dim_customers',
+    version: 2,
+    original_file_path: 'models/dim_customers_v2.sql',
+  }),
+  'seed.p.country_codes': node('seed.p.country_codes', {
+    resource_type: 'seed',
+    name: 'country_codes',
+    original_file_path: 'seeds/country_codes.csv',
   }),
   'test.p.legacy': node('test.p.legacy', {
     file_key_name: 'models.fct_orders',
@@ -157,4 +172,59 @@ void test('findings come back in a stable order', () => {
     findings.map((f) => f.node.name),
     ['assert_positive_totals', 'not_null_orders_id', 'unique_fct_orders_order_id'],
   );
+});
+
+void test('a model that errored is an error carrying dbt’s own message', () => {
+  const [finding] = collectModelFindings(
+    sourceWith({
+      'model.p.fct_orders': result('failed', {
+        status: 'error',
+        message:
+          'Database Error in model fct_orders: Binder Error:' +
+          String.fromCharCode(10) +
+          '  column "x" not found',
+      }),
+    }),
+  );
+
+  assert.equal(finding.severity, 'error');
+  assert.equal(finding.target, undefined);
+  assert.match(
+    finding.message,
+    /^Model "fct_orders" failed — Database Error in model fct_orders: Binder Error: column "x" not found\./,
+  );
+});
+
+void test('a versioned model names its version, so two versions are not confused', () => {
+  const [finding] = collectModelFindings(
+    sourceWith({ 'model.p.dim_customers.v2': result('failed', { message: 'boom' }) }),
+  );
+
+  assert.match(finding.message, /^Model "dim_customers" \(v2\) failed — boom\./);
+});
+
+void test('a seed that failed is reported as a seed', () => {
+  const [finding] = collectModelFindings(
+    sourceWith({ 'seed.p.country_codes': result('failed', { message: 'bad csv' }) }),
+  );
+
+  assert.match(finding.message, /^Seed "country_codes" failed/);
+});
+
+void test('a skipped model is a consequence, not a finding', () => {
+  assert.deepEqual(
+    collectModelFindings(sourceWith({ 'model.p.fct_orders': result('skipped') })),
+    [],
+  );
+});
+
+void test('collectRunFindings holds the tests and the models together', () => {
+  const findings = collectRunFindings(
+    sourceWith({
+      'test.p.unique_fct_orders_order_id': result('failed', { failures: 3 }),
+      'model.p.dim_customers.v2': result('failed', { message: 'boom' }),
+    }),
+  );
+
+  assert.equal(findings.length, 2);
 });

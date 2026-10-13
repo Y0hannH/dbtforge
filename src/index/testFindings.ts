@@ -4,15 +4,15 @@ import type { NodeRunResult } from './runResults';
 import { formatWhen } from './runResults';
 
 /**
- * A test that failed or warned in the last run, with what a Problems entry needs: the file it is
- * declared in, how to find it there, and what to say.
+ * Something the last run got wrong, with what a Problems entry needs: the file it lives in, how
+ * to find it there, and what to say. A test that failed or warned, or a model that errored.
  */
-export interface TestFinding {
-  /** The test's manifest node — the caller resolves its file from it. */
+export interface RunFinding {
+  /** The manifest node — the caller resolves its file from it. */
   node: DbtNode;
   severity: 'error' | 'warning';
   message: string;
-  /** Absent for a singular test, which is a whole .sql file: its first line is the location. */
+  /** Absent for a singular test or a model, which are whole files: the first line is the location. */
   target?: TestTarget;
 }
 
@@ -34,11 +34,10 @@ const SECTION_BY_RESOURCE: Record<string, TestSection> = {
  * Every test whose last result was a failure or a warning, ordered by name so the Problems panel
  * doesn't reshuffle between two runs of the same project.
  *
- * Only tests: a model that errored is a different kind of finding, and its message is dbt's own
- * database error rather than a rule the project wrote.
+ * Tests only; a model that errored is collectModelFindings().
  */
-export function collectTestFindings(source: TestFindingSource): TestFinding[] {
-  const findings: TestFinding[] = [];
+export function collectTestFindings(source: TestFindingSource): RunFinding[] {
+  const findings: RunFinding[] = [];
 
   for (const [uniqueId, result] of source.getAllRunResults()) {
     if (result.outcome !== 'failed' && result.outcome !== 'warned') continue;
@@ -113,10 +112,63 @@ function describe(test: DbtNode, result: NodeRunResult, target: TestTarget | und
     ? ` Last run: ${formatWhen(result.generatedAt)} (dbt ${result.command}).`
     : '';
 
-  return `${subject} ${what}.${when}`;
+  return `${endSentence(`${subject} ${what}`)}${when}`;
 }
 
-function flatten(text: string): string {
+// dbt's own messages often end in their own punctuation ("…not found in FROM clause!"), and a
+// full stop after that reads as a typo.
+function endSentence(text: string): string {
+  return /[.!?…]$/.test(text) ? text : `${text}.`;
+}
+
+function flatten(text: string, max = 200): string {
   const flat = text.replace(/\s+/g, ' ').trim();
-  return flat.length > 200 ? `${flat.slice(0, 200)}…` : flat;
+  return flat.length > max ? `${flat.slice(0, max)}…` : flat;
+}
+
+// What a node that is built, rather than tested, can be called in a message.
+const BUILT_KINDS: ReadonlySet<string> = new Set(['model', 'seed', 'snapshot']);
+
+/**
+ * Every model, seed or snapshot that errored or partly failed in the last run.
+ *
+ * Skipped is not a finding: a node is skipped because something upstream failed, and that
+ * upstream node is the one worth a Problems entry. Listing both would bury the cause under its
+ * consequences.
+ */
+export function collectModelFindings(source: TestFindingSource): RunFinding[] {
+  const findings: RunFinding[] = [];
+
+  for (const [uniqueId, result] of source.getAllRunResults()) {
+    if (result.outcome !== 'failed' && result.outcome !== 'warned') continue;
+    const node = source.getAnyEntity(uniqueId);
+    if (!node || !BUILT_KINDS.has(node.resource_type)) continue;
+
+    const built = node as DbtNode;
+    findings.push({
+      node: built,
+      severity: result.outcome === 'failed' ? 'error' : 'warning',
+      message: describeBuilt(built, result),
+    });
+  }
+
+  return findings.sort((a, b) => a.node.unique_id.localeCompare(b.node.unique_id));
+}
+
+/** Tests and built nodes together — everything the last run has to say. */
+export function collectRunFindings(source: TestFindingSource): RunFinding[] {
+  return [...collectTestFindings(source), ...collectModelFindings(source)];
+}
+
+function describeBuilt(node: DbtNode, result: NodeRunResult): string {
+  const kind = node.resource_type.charAt(0).toUpperCase() + node.resource_type.slice(1);
+  const version = node.version !== undefined && node.version !== null ? ` (v${node.version})` : '';
+  const verb = result.outcome === 'warned' ? 'partly failed' : 'failed';
+  // dbt's own message is the whole point here: a database error names the column or the table.
+  const detail = result.message ? ` — ${flatten(result.message, 300)}` : '';
+  const when = result.generatedAt
+    ? ` Last run: ${formatWhen(result.generatedAt)} (dbt ${result.command}).`
+    : '';
+
+  return `${endSentence(`${kind} "${node.name}"${version} ${verb}${detail}`)}${when}`;
 }

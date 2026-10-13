@@ -5,6 +5,13 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Quick fixes on a schema `.yml`**, for what the column warnings point out. Both work on the text, touching only the lines they are about — comments, blank lines and quoting are left alone.
+  - **Remove a documented column the table doesn't have.** The warning on it offers *Remove column "x" from this file*, which takes the whole entry — name, description, tests. When it was the only column, the `columns:` key goes too: an empty one is a null, which dbt reads as a malformed schema.
+  - **Add the columns the file leaves out.** On a model's, seed's, snapshot's or source table's name, *Add the N undocumented columns from catalog.json* appends them as `- name:` stubs in table order, creating `columns:` when there is none.
+  - **Neither is offered on a model that declares `versions:`.** Top-level columns apply to every version while the catalog describes one table, so a fix built on it could break another version.
+  - Offered only where `catalog.json` can answer, like the warnings they follow.
+- **A model, seed or snapshot that errored is in the Problems panel too**, on the first line of its file, carrying dbt's own message — `Model "dim_customers" (v2) failed — Runtime Error in model dim_customers_v2: Binder Error: Referenced column "country_code" not found…`. The version is named, so two versions of a model are not confused.
+  - **A skipped node is not listed.** It was skipped because something upstream failed, and that upstream node is the entry worth having; listing both would bury the cause under its consequences.
 - **Each node shows what its last `dbt build`, `run` or `test` did.** In the lineage graph a row under the name reads `✓ 4.2s`, `✗ failed` or `– skipped`, and the Parents / Children / Tests panel swaps its icon and description for the same. Hover for the command, dbt's status, the duration, when it ran and dbt's own message.
   - **A model that built fine but fails a test is shown as failing**, with the count: `3.4s · 1 test failing`. The graph hides tests by default, so without this a failing test would be invisible there. A model nothing was said about shows nothing — never a green mark.
   - **A failed test says how many rows it returned** (`failed · 3 rows`); a `warn`-severity test is a warning, not a failure.
