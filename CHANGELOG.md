@@ -2,6 +2,19 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Column autocomplete without a prefix now reads from a CTE** ([#14](https://github.com/Y0hannH/dbtforge/issues/14)). In a final `SELECT` that reads exactly one CTE, or in a CTE body that reads exactly one other CTE, columns are suggested with nothing typed before them: `select |  from cte3` offers `cte3`'s columns. Until now only a `ref()`/`source()` could be the one table, so a model written the way a style guide without aliases writes it got nothing outside a CTE's own body.
+  - **One table, unaliased, unjoined, one `SELECT`.** A join, a comma, a subquery or a `UNION` stands it down, as does an alias — `cte3.` is still the way there.
+  - **A CTE can only be read by the ones written after it.** A body never resolves against itself or a later CTE.
+  - **A CTE with a `*`** is answered whole or not at all, by the same rule as `my_cte.`.
+  - A final `SELECT` that reads a single `ref()`/`source()` after CTEs now completes too; it used to be refused because a CTE existed somewhere in the file.
+
+### Fixed
+- **A CTE joined to a `ref()` was treated as reading only the `ref()`.** In `from {{ ref('b') }} join a on …` inside a CTE body, the unprefixed completion resolved against `b` alone, although `a` is a second table. The FROM clause is now read as a whole, so a join to a CTE, a comma join to one, a subquery, or a `pivot` after the table stands it down.
+- **A file that opens with `WITH` but can't be parsed** (an unbalanced parenthesis mid-edit) is no longer read as a file with no CTEs; it gets no unprefixed suggestions until it parses again.
+
 ## [0.18.0] - 2026-10-12
 
 ### Added
