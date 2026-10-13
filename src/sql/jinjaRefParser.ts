@@ -67,8 +67,27 @@ export function parseCompletionContext(
   return undefined;
 }
 
+/**
+ * The version a `ref()` pins, when it does: `ref('model', v=2)` or `version=2`.
+ *
+ * `version` holds it when written as a literal. `versionUnreadable` is the other case — a keyword
+ * is there but its value is an expression (`v=var('v')`), so the call is pinned to something this
+ * scan can't see. That is not the same as unpinned, and callers must not treat it as the latest.
+ * Neither key is present on a plain call.
+ */
+export interface RefVersion {
+  version?: string;
+  versionUnreadable?: true;
+}
+
 export type CallMatch =
-  | { kind: 'ref'; name: string; packageName?: string; argStart: number; argEnd: number }
+  | ({
+      kind: 'ref';
+      name: string;
+      packageName?: string;
+      argStart: number;
+      argEnd: number;
+    } & RefVersion)
   | { kind: 'source'; sourceName: string; tableName: string; argStart: number; argEnd: number };
 
 // The `d` flag (match indices) gives exact per-group offsets, so short names that happen to
@@ -76,8 +95,18 @@ export type CallMatch =
 // confused with the call syntax the way a match[0].indexOf(match[1]) search would.
 // ref() is matched in all the shapes dbt accepts: ref('model'), the cross-package
 // ref('package', 'model'), and either of those with a trailing kwarg (ref('model', version=2)).
-// Group 1 is the package (absent for the one-arg form), group 2 is always the model name.
-const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,[^)]*)?\)/dg;
+// Group 1 is the package (absent for the one-arg form), group 2 is always the model name, and
+// group 3 is whatever keyword arguments trail it.
+const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,([^)]*))?\)/dg;
+const VERSION_LITERAL = /\b(?:v|version)\s*=\s*(?:['"]([^'"]+)['"]|(\d[\w.-]*))/;
+const VERSION_KEYWORD = /\b(?:v|version)\s*=/;
+
+function versionOf(keywordArguments: string | undefined): RefVersion {
+  if (!keywordArguments) return {};
+  const literal = VERSION_LITERAL.exec(keywordArguments);
+  if (literal) return { version: literal[1] ?? literal[2] };
+  return VERSION_KEYWORD.test(keywordArguments) ? { versionUnreadable: true } : {};
+}
 const SOURCE_CALL = /\bsource\(\s*['"]([^'"]+)['"]\s*,\s*['"]([^'"]+)['"]\s*\)/dg;
 
 // `indices` entries are undefined for optional groups that didn't participate in the match.
@@ -107,6 +136,7 @@ export function findCallAtPosition(lineText: string, character: number): CallMat
         packageName: match[1],
         argStart: span[0],
         argEnd: span[1],
+        ...versionOf(match[3]),
       };
     }
   }
@@ -143,7 +173,7 @@ export interface CallLocation {
   end: number;
 }
 
-export interface RefCallMatch extends CallLocation {
+export interface RefCallMatch extends CallLocation, RefVersion {
   name: string;
   /** Package named explicitly in `ref('package', 'model')`, absent for a plain `ref('model')`. */
   packageName?: string;
@@ -162,7 +192,7 @@ export function findAllRefCalls(lineText: string): RefCallMatch[] {
   const results: RefCallMatch[] = [];
   for (const match of lineText.matchAll(REF_CALL) as IterableIterator<RegExpMatchWithIndices>) {
     const [start, end] = match.indices[2]!;
-    results.push({ name: match[2], packageName: match[1], start, end });
+    results.push({ name: match[2], packageName: match[1], start, end, ...versionOf(match[3]) });
   }
   return results;
 }
@@ -186,11 +216,24 @@ export function findAllRefCallLocations(
   lineText: string,
   modelName: string,
   packageName?: string,
+  version?: { value: string; isLatest: boolean },
 ): CallLocation[] {
   return findAllRefCalls(lineText)
     .filter((call) => call.name === modelName)
     .filter((call) => !call.packageName || !packageName || call.packageName === packageName)
+    .filter((call) => callsVersion(call, version))
     .map(({ start, end }) => ({ start, end }));
+}
+
+// Whether a call is to the given version of a model: one that names a version is a call to that
+// version, a bare one is a call to the latest. A version the scan can't read is kept — a call
+// site that might be this one beats a silent omission, as for a multi-line ref().
+function callsVersion(
+  call: RefCallMatch,
+  target: { value: string; isLatest: boolean } | undefined,
+): boolean {
+  if (!target || call.versionUnreadable) return true;
+  return call.version === undefined ? target.isLatest : call.version === target.value;
 }
 
 /** Every source() call to (sourceName, tableName) on a line, pointing at the table-name arg. */

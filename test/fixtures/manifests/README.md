@@ -31,5 +31,5 @@ anonymised `target/manifest.json` in here.
 
 ## Known gaps, tracked as `todo` tests
 
-Two assertions in the test file are marked `todo`: they describe the behaviour the roadmap item
-should deliver and don't fail the run until it does. Remove the `todo` option when the item ships.
+An assertion in the test file marked `todo` describes the behaviour a roadmap item should deliver;
+it is reported but doesn't fail the run until it does. Remove the `todo` option when the item ships.

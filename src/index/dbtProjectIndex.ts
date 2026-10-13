@@ -22,7 +22,7 @@ import type {
   LineageEntity,
 } from './manifestTypes';
 import type { ModelRef } from './refIndex';
-import { buildRefIndex } from './refIndex';
+import { buildRefIndex, buildVersionedRefIndex, versionKey } from './refIndex';
 import type { TagRef } from './tags';
 import { collectTags } from './tags';
 
@@ -47,6 +47,7 @@ export class DbtProjectIndex implements vscode.Disposable {
 
   // name -> node, for ref() resolution — models, seeds and snapshots alike. See refIndex.
   private refsByName = new Map<string, ModelRef>();
+  private refsByVersion = new Map<string, ModelRef>();
   // "source_name.table_name" -> node, for source() resolution.
   private sourcesByKey = new Map<string, SourceRef>();
   // Macro names collide across packages, so this one needs real resolution rules — see macroIndex.
@@ -96,6 +97,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.manifest = undefined;
       this.graph = undefined;
       this.refsByName.clear();
+      this.refsByVersion.clear();
       this.sourcesByKey.clear();
       this.macros = undefined;
       this.docs = undefined;
@@ -137,6 +139,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   private indexModelsAndSources(manifest: DbtManifest): void {
     this.sourcesByKey.clear();
     this.refsByName = buildRefIndex(manifest);
+    this.refsByVersion = buildVersionedRefIndex(manifest);
     this.macros = buildMacroIndex(manifest);
     this.docs = buildDocIndex(manifest);
     this.uniqueIdByFilePath.clear();
@@ -222,9 +225,14 @@ export class DbtProjectIndex implements vscode.Disposable {
     return [...found].sort();
   }
 
-  /** Resolves the argument of a `ref()` — a model, seed or snapshot name. */
-  resolveRef(name: string): ModelRef | undefined {
-    return this.refsByName.get(name);
+  /**
+   * Resolves the argument of a `ref()` — a model, seed or snapshot name. Without a `version` a
+   * versioned model resolves to its latest; with one, to exactly that version and no other.
+   */
+  resolveRef(name: string, version?: string): ModelRef | undefined {
+    return version === undefined
+      ? this.refsByName.get(name)
+      : this.refsByVersion.get(versionKey(name, version));
   }
 
   resolveSource(sourceName: string, tableName: string): SourceRef | undefined {

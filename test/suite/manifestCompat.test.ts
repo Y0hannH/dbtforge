@@ -9,7 +9,7 @@ import { buildDocIndex } from '../../src/index/docIndex';
 import { resolveEntityPath } from '../../src/index/entityPaths';
 import { buildDependencyGraph } from '../../src/index/graph';
 import { buildMacroIndex } from '../../src/index/macroIndex';
-import type { DbtManifest, DbtNode, LineageEntity } from '../../src/index/manifestTypes';
+import type { DbtManifest, LineageEntity } from '../../src/index/manifestTypes';
 import { buildRefIndex, isReferenceable } from '../../src/index/refIndex';
 import { collectTags } from '../../src/index/tags';
 import { buildScopedSubgraph } from '../../src/lineage/buildLineageGraph';
@@ -118,24 +118,18 @@ void test('resources the lineage does not draw yet are left out, not drawn dangl
   assert.ok(drawn.includes('test.modern_project.unique_fct_orders_order_id.9f8e7d'));
 });
 
-// --- Known gaps. `todo` keeps them in the report without failing the run; each one is on the
-// --- roadmap, and the assertion is the behaviour the item should deliver.
+void test('a bare ref() on a versioned model resolves to its latest_version', () => {
+  const versioned = fixtures.find((f) => f.name === 'versioned-models.json');
+  assert.ok(versioned);
 
-void test(
-  'an unversioned ref() resolves to the model version dbt resolves it to',
-  { todo: 'model versions — see the README roadmap' },
-  () => {
-    const versioned = fixtures.find((f) => f.name === 'versioned-models.json');
-    assert.ok(versioned);
+  // latest_version is 1 while v2 exists as a prerelease, and v2 is the one listed last.
+  const resolved = buildRefIndex(versioned.manifest).get('dim_customers');
 
-    // dbt sends a bare ref('dim_customers') to `latest_version`, which here is 1 while v2 is a
-    // prerelease. The index is keyed by name, so the two versions overwrite each other.
-    const resolved = buildRefIndex(versioned.manifest).get('dim_customers');
-    const latest = (resolved?.node as DbtNode & { latest_version?: number }).latest_version;
+  assert.equal(resolved?.uniqueId, 'model.versioned_project.dim_customers.v1');
+});
 
-    assert.equal(resolved?.uniqueId, `model.versioned_project.dim_customers.v${latest}`);
-  },
-);
+// --- Known gap. `todo` keeps it in the report without failing the run; it is on the roadmap,
+// --- and the assertion is the behaviour the item should deliver.
 
 void test(
   'a manifest with no `sources` section is read like one with no `exposures` section',

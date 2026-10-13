@@ -23,7 +23,9 @@ export class RefSourceDefinitionProvider implements vscode.DefinitionProvider {
     const call = findCallAtPosition(lineText, position.character);
     if (call) {
       if (call.kind === 'ref') {
-        const model = index.resolveRef(call.name);
+        // A version the scan can't read is answered with nothing, not with the latest.
+        if (call.versionUnreadable) return undefined;
+        const model = index.resolveRef(call.name, call.version);
         return model ? this.locateFile(index, model.node) : undefined;
       }
 

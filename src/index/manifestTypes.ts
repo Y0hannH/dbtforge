@@ -28,6 +28,11 @@ export interface DbtNode {
   path: string; // relative to the package's models dir
   original_file_path: string; // relative to project root
   description?: string;
+  // Model versions share a `name` and differ by `version` (the unique_id ends in `.v<version>`).
+  // `latest_version` is what a bare `ref('name')` resolves to; dbt writes it on every version.
+  // Both are int, float or string in a yml, hence the union — and null on an unversioned model.
+  version?: string | number | null;
+  latest_version?: string | number | null;
   // dbt resolves tags from dbt_project.yml, the schema .yml, and in-model config() into the
   // top-level `tags`, but older/partial manifests only carry them under `config.tags` —
   // both are read and unioned rather than trusting one.

@@ -17,7 +17,15 @@ import {
 } from '../sql/jinjaRefParser';
 
 type ReferenceTarget =
-  | { kind: 'model'; uniqueId: string; name: string; packageName: string; entity: DbtNode }
+  | {
+      kind: 'model';
+      uniqueId: string;
+      name: string;
+      packageName: string;
+      entity: DbtNode;
+      /** Set on a versioned model: which calls name it, and whether a bare call does too. */
+      version?: { value: string; isLatest: boolean };
+    }
   | {
       kind: 'source';
       uniqueId: string;
@@ -134,16 +142,9 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
 
     const call = findCallAtPosition(lineText, position.character);
     if (call?.kind === 'ref') {
-      const model = index.resolveRef(call.name);
-      if (model) {
-        return {
-          kind: 'model',
-          uniqueId: model.uniqueId,
-          name: model.name,
-          packageName: model.packageName,
-          entity: model.node,
-        };
-      }
+      // A version the scan can't read could be any of them, so it names no target at all.
+      const model = call.versionUnreadable ? undefined : index.resolveRef(call.name, call.version);
+      if (model) return modelTarget(index, model.node);
     }
     if (call?.kind === 'source') {
       const source = index.resolveSource(call.sourceName, call.tableName);
@@ -176,15 +177,7 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
     // invoking Find All References anywhere in it (not on a call) means "who references this".
     // Not offered for macro files since one file can define more than one macro.
     const node = index.getNodeByFileUri(document.uri);
-    if (node && isReferenceable(node)) {
-      return {
-        kind: 'model',
-        uniqueId: node.unique_id,
-        name: node.name,
-        packageName: node.package_name,
-        entity: node,
-      };
-    }
+    if (node && isReferenceable(node)) return modelTarget(index, node);
 
     return undefined;
   }
@@ -192,13 +185,32 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
   private findSpans(target: ReferenceTarget, lineText: string): CallLocation[] {
     switch (target.kind) {
       case 'model':
-        return findAllRefCallLocations(lineText, target.name, target.packageName);
+        return findAllRefCallLocations(lineText, target.name, target.packageName, target.version);
       case 'source':
         return findAllSourceCallLocations(lineText, target.sourceName, target.tableName);
       case 'macro':
         return findAllMacroCallLocations(lineText, target.name, target.packageName);
     }
   }
+}
+
+function modelTarget(index: DbtProjectIndex, node: DbtNode): ReferenceTarget {
+  const versioned = node.version !== undefined && node.version !== null;
+  return {
+    kind: 'model',
+    uniqueId: node.unique_id,
+    name: node.name,
+    packageName: node.package_name,
+    entity: node,
+    ...(versioned
+      ? {
+          version: {
+            value: String(node.version),
+            isLatest: index.resolveRef(node.name)?.uniqueId === node.unique_id,
+          },
+        }
+      : {}),
+  };
 }
 
 function macroTarget(macro: {
