@@ -169,6 +169,27 @@ body,
   outline-offset: 1px;
 }
 
+.lineage-action {
+  margin-left: auto;
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground, #cccccc));
+  border: 1px solid var(--vscode-panel-border, #454545);
+  border-radius: 3px;
+  padding: 2px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lineage-action:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-toolbar-hoverBackground));
+}
+
+.lineage-action:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
 .lineage-chips {
   display: flex;
   flex-wrap: wrap;

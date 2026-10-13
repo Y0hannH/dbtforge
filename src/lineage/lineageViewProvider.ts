@@ -26,6 +26,13 @@ export class LineageViewProvider implements vscode.WebviewViewProvider, vscode.D
   private session: LineageSession | undefined;
   private attached: vscode.Disposable | undefined;
   private readonly configListener: vscode.Disposable;
+  private readonly fullViewRequests = new vscode.EventEmitter<LineageSession>();
+
+  /**
+   * Fired with a copy of the session when the user asks for the larger view. The provider only
+   * hosts the panel; opening an editor tab is the editor host's job, wired in extension.ts.
+   */
+  readonly onDidRequestFullView = this.fullViewRequests.event;
 
   constructor(private readonly extensionUri: vscode.Uri) {
     // The empty state names the current placement, so it goes stale the moment that setting
@@ -81,12 +88,13 @@ export class LineageViewProvider implements vscode.WebviewViewProvider, vscode.D
       return;
     }
 
+    const session = this.session;
     view.webview.html = renderLineageHtml(
       view.webview,
       this.extensionUri,
-      this.session.bootstrap(),
+      session.bootstrap('panel'),
     );
-    this.attached = this.session.attach(view.webview);
+    this.attached = session.attach(view.webview, () => this.fullViewRequests.fire(session.fork()));
   }
 
   private detach(): void {
@@ -97,6 +105,7 @@ export class LineageViewProvider implements vscode.WebviewViewProvider, vscode.D
   dispose(): void {
     this.detach();
     this.configListener.dispose();
+    this.fullViewRequests.dispose();
   }
 }
 

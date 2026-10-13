@@ -51,6 +51,18 @@ export function followActiveEditor(
   }
 }
 
+/**
+ * Opens `session` in the editor tab, reusing it when one is open — the larger view of a lineage
+ * the user is looking at in the bottom panel. Unlike following the active editor this was asked
+ * for, so the tab takes focus.
+ */
+export function showLineageInEditor(
+  context: vscode.ExtensionContext,
+  session: LineageSession,
+): void {
+  showInEditor(context, session, false);
+}
+
 function attachToEditorPanel(
   context: vscode.ExtensionContext,
   panel: vscode.WebviewPanel,
@@ -60,11 +72,19 @@ function attachToEditorPanel(
   panel.title = lineageTitle(session);
   // Replacing the html tears down the old document, so the listener bound to it goes with it.
   editorAttachment?.dispose();
-  panel.webview.html = renderLineageHtml(panel.webview, context.extensionUri, session.bootstrap());
+  panel.webview.html = renderLineageHtml(
+    panel.webview,
+    context.extensionUri,
+    session.bootstrap('editor'),
+  );
   editorAttachment = session.attach(panel.webview);
 }
 
-function showInEditor(context: vscode.ExtensionContext, session: LineageSession): void {
+function showInEditor(
+  context: vscode.ExtensionContext,
+  session: LineageSession,
+  preserveFocus = true,
+): void {
   if (!editorPanel) {
     editorPanel = vscode.window.createWebviewPanel(
       'dbtForgeLineage',
@@ -79,7 +99,7 @@ function showInEditor(context: vscode.ExtensionContext, session: LineageSession)
       editorSession = undefined;
     });
   } else {
-    editorPanel.reveal(editorPanel.viewColumn ?? vscode.ViewColumn.Beside, true);
+    editorPanel.reveal(editorPanel.viewColumn ?? vscode.ViewColumn.Beside, preserveFocus);
   }
 
   attachToEditorPanel(context, editorPanel, session);

@@ -200,7 +200,7 @@ The same actions are also under the **dbt Forge** icon in the editor's title bar
 | `dbtForge.profilesDir` | `""` | Directory holding `profiles.yml`, for the environment picker. Empty looks where dbt does: `DBT_PROFILES_DIR`, the project root, then `~/.dbt`. When set, it is also passed as `--profiles-dir` |
 | `dbtForge.previewRowLimit` | `100` | Rows a data preview asks dbt for (`dbt show --limit`). `-1` fetches every row |
 | `dbtForge.flagUndocumentedColumns` | `false` | Also warn when the table has columns the `.yml` doesn't document. Off by default — documenting only the columns that need explaining is a legitimate house style |
-| `dbtForge.lineageLocation` | `editor` | Where the lineage graph opens: `editor` (a tab beside the model) or `panel` (its own **dbt Forge Lineage** tab in the bottom panel, beside **dbt Forge Preview** and Terminal) |
+| `dbtForge.lineageLocation` | `editor` | Where the lineage graph opens: `editor` (a tab beside the model) or `panel` (its own **dbt Forge Lineage** tab in the bottom panel, beside **dbt Forge Preview** and Terminal). From the panel, **Full lineage** in the graph's toolbar opens the same graph in an editor tab, where the minimap is |
 
 ---
 

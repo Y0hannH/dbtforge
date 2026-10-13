@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { buildScopedSubgraph, expandNode } from './buildLineageGraph';
+import type { LineageLocation } from './lineagePlacement';
 import type { LineageScope } from './lineageScope';
 import { DEFAULT_SCOPE, sanitizeScope } from './lineageScope';
 import type { HostToWebviewMessage, LineageBootstrap, WebviewToHostMessage } from './messages';
@@ -35,18 +36,33 @@ export class LineageSession {
     return this.index.getLineageEntity(this.rootId)?.name ?? this.rootId;
   }
 
-  bootstrap(): LineageBootstrap {
+  /**
+   * An independent session on the same root with the scope as it is now. The panel's lineage and
+   * the editor tab opened from it are two graphs the user then moves around separately, so they
+   * must not share a scope object that one of them reassigns.
+   */
+  fork(): LineageSession {
+    return new LineageSession(this.index, this.rootId, this.scope);
+  }
+
+  bootstrap(placement: LineageLocation): LineageBootstrap {
     return {
       rootId: this.rootId,
       rootName: this.rootName,
+      placement,
       scope: this.scope,
       subgraph: buildScopedSubgraph(this.index, this.rootId, this.scope),
       materializations: this.index.getAllMaterializations(),
     };
   }
 
-  /** Wires the webview's messages to this session; dispose to unwire. */
-  attach(webview: vscode.Webview): vscode.Disposable {
+  /**
+   * Wires the webview's messages to this session; dispose to unwire.
+   *
+   * `onOpenFull` is the host's to supply because opening an editor tab is not something a session
+   * knows how to do: only the panel offers the action, and only its host has somewhere to send it.
+   */
+  attach(webview: vscode.Webview, onOpenFull?: () => void): vscode.Disposable {
     return webview.onDidReceiveMessage((message: WebviewToHostMessage) => {
       switch (message.type) {
         case 'expand': {
@@ -70,6 +86,10 @@ export class LineageSession {
           void webview.postMessage(response);
           return;
         }
+
+        case 'openFull':
+          onOpenFull?.();
+          return;
 
         case 'open': {
           const target = this.index.getLineageEntity(message.nodeId);

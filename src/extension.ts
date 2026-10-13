@@ -6,7 +6,12 @@ import {
   compiledSqlContentProvider,
   previewCompiledSql,
 } from './commands/compiledSqlPreview';
-import { disposeLineagePanel, followActiveEditor, showLineage } from './commands/lineageFlow';
+import {
+  disposeLineagePanel,
+  followActiveEditor,
+  showLineage,
+  showLineageInEditor,
+} from './commands/lineageFlow';
 import {
   disposeSharedTerminal,
   handleTerminalClosed,
@@ -109,6 +114,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   const lineageView = new LineageViewProvider(context.extensionUri);
   context.subscriptions.push(
     lineageView,
+    lineageView.onDidRequestFullView((session) => showLineageInEditor(context, session)),
     vscode.window.registerWebviewViewProvider(LineageViewProvider.viewType, lineageView, {
       webviewOptions: { retainContextWhenHidden: true },
     }),
