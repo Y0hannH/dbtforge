@@ -11,7 +11,11 @@ All notable changes to the dbt Forge extension are documented in this file.
   - **Read from `run_results.json`**, so it costs no dbt run, and an open graph updates when a run finishes without losing what you had expanded. `dbtForge.runResultsPath` moves the file.
   - **Only commands that execute nodes are read** — `build`, `run`, `test`, `seed`, `snapshot`, `retry`. `compile`, `docs generate` and `show` write the same file with every node `success`, which would read as "ran fine" when only the SQL was rendered; they, and a file that doesn't say which command wrote it, are left out.
   - **Results are kept per node across invocations.** dbt rewrites the file in full each time, so `dbt run --select a` would otherwise erase everything said about `b`; each entry keeps the time of its own run. Deleting the file (`dbt clean`) clears them.
-  - Not in this release: failing tests in the Problems panel, on the line that declares them.
+- **A test that failed or warned appears in the Problems panel, on the line that declares it** — `Test "unique" on fct_orders.order_id failed — 3 rows returned. Last run: …`. A click opens the `.yml` on the test itself, so the failure no longer has to be found in the terminal output and looked up by name.
+  - **As precise as the file allows, and no more.** The test's own entry when exactly one entry could be it, otherwise the column it is attached to, otherwise the model. Two identical `- not_null` under one column stop at the column rather than pick one.
+  - **A failed test is an error, a `warn`-severity one a warning.** A singular test (a `.sql` under `tests/`) is shown on the first line of its file.
+  - **Present for files nobody has opened**, and replaced as a whole on every run: a test that passes next time simply disappears.
+  - Tests only. A model that errored shows on the node, not yet in the Problems panel.
 
 ### Fixed
 - **A manifest with no `sources` key crashed the index on load.** dbt always writes the section, but a partial or hand-edited manifest can omit it, and tags, source resolution and the lineage all read it unguarded. A missing `sources` now means no sources, like a missing `exposures`, `macros` or `docs` already did.

@@ -1,6 +1,6 @@
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { NodeRunResult, RunOutcome } from '../index/runResults';
-import { formatDuration, worseOutcome } from '../index/runResults';
+import { formatDuration, formatWhen, worseOutcome } from '../index/runResults';
 
 /**
  * What a node says about its last run, ready to draw. Plain data, because it crosses into the
@@ -112,11 +112,6 @@ function titleOf(own: NodeRunResult | undefined, failing: number, warning: numbe
   if (warning > 0) lines.push(`${warning} attached ${warning === 1 ? 'test' : 'tests'} warning`);
 
   return lines.join('\n');
-}
-
-function formatWhen(iso: string): string {
-  const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
 }
 
 function truncate(text: string): string {

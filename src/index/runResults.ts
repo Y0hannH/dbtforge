@@ -111,6 +111,12 @@ export function formatDuration(seconds: number): string {
   return `${minutes}m ${String(rest).padStart(2, '0')}s`;
 }
 
+/** A timestamp as the reader's locale writes it; dbt's own text if it isn't one. */
+export function formatWhen(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime()) ? iso : date.toLocaleString();
+}
+
 const SEVERITY: Record<RunOutcome, number> = { passed: 0, skipped: 1, warned: 2, failed: 3 };
 
 /** The worse of two outcomes — what a node shows when its own run and its tests disagree. */
