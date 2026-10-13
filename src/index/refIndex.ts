@@ -1,4 +1,5 @@
 import type { DbtManifest, DbtNode } from './manifestTypes';
+import { isVersioned } from './modelVersions';
 
 /**
  * Resource types `ref()` can resolve to. Seeds and snapshots are referenced exactly like models
@@ -37,10 +38,6 @@ function toModelRef(node: DbtNode): ModelRef {
     ...(isVersioned(node) ? { version: String(node.version) } : {}),
     node,
   };
-}
-
-function isVersioned(node: DbtNode): boolean {
-  return node.version !== undefined && node.version !== null;
 }
 
 /**

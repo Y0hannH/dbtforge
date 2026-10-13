@@ -13,6 +13,8 @@ export interface NodeMetaFacts {
   materialization?: string;
   /** `config.target_lag`, verbatim — a duration or the word 'downstream'. */
   targetLag?: string;
+  /** The version a bare `ref('name')` goes to. Only worth saying of a versioned model. */
+  latestVersion?: boolean;
   /** How many columns the warehouse reports, or undefined when the catalog cannot say. */
   columnCount?: number;
   /**
@@ -41,8 +43,14 @@ export interface NodeMetaFacts {
  * tables and no generated catalog sees exactly the row it saw before any of this was read.
  */
 export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): string {
-  const { materialization, targetLag, columnCount, targetLagUnresolved, inheritedTargetLag } =
-    facts;
+  const {
+    materialization,
+    targetLag,
+    columnCount,
+    targetLagUnresolved,
+    inheritedTargetLag,
+    latestVersion,
+  } = facts;
   let label = resourceType;
 
   if (materialization && materialization !== resourceType) {
@@ -59,6 +67,8 @@ export function nodeMetaLabel(resourceType: string, facts: NodeMetaFacts = {}): 
       else label += ` (${lag})`;
     }
   }
+
+  if (latestVersion) label += ' · latest';
 
   // A count of zero is treated as no answer rather than shown: catalog.json only describes
   // relations that exist in the warehouse, and one of those never has zero columns — so a zero

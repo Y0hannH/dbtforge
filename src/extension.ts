@@ -22,6 +22,7 @@ import type { DbtForgeConfig } from './config';
 import { resolveConfig } from './config';
 import { DbtProjectIndex } from './index/dbtProjectIndex';
 import type { DbtNode } from './index/manifestTypes';
+import { nodeSelector } from './index/modelVersions';
 import { isReferenceable } from './index/refIndex';
 import { toggleLineageLocation } from './lineage/lineagePlacement';
 import { LineageViewProvider } from './lineage/lineageViewProvider';
@@ -244,16 +245,20 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       vscode.window.showInformationMessage('dbt Forge: index refreshed.');
     }),
     vscode.commands.registerCommand('dbtForge.buildModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', node.name])),
+      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', nodeSelector(node)])),
     ),
     vscode.commands.registerCommand('dbtForge.buildUpstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `+${node.name}`])),
+      withModelNode(uri, (index, node) =>
+        runDbt(index, ['build', '--select', `+${nodeSelector(node)}`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.buildDownstream', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['build', '--select', `${node.name}+`])),
+      withModelNode(uri, (index, node) =>
+        runDbt(index, ['build', '--select', `${nodeSelector(node)}+`]),
+      ),
     ),
     vscode.commands.registerCommand('dbtForge.testModel', (uri?: vscode.Uri) =>
-      withModelNode(uri, (index, node) => runDbt(index, ['test', '--select', node.name])),
+      withModelNode(uri, (index, node) => runDbt(index, ['test', '--select', nodeSelector(node)])),
     ),
     vscode.commands.registerCommand('dbtForge.previewCompiledSql', (uri?: vscode.Uri) =>
       withModelNode(uri, (index, node) => previewCompiledSql(index.getConfig(), node)),

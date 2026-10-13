@@ -6,6 +6,7 @@ import type { ShowTarget } from '../dbt/showCommand';
 import { DbtShowCancelledError, DbtShowError, DbtShowRequest, runDbtShow } from '../dbt/showRunner';
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode } from '../index/manifestTypes';
+import { nodeSelector, versionedName } from '../index/modelVersions';
 import { resolveAdapterType } from '../profiles/adapterType';
 import type { ProfileStore } from '../profiles/profileStore';
 import { buildCtePreviewSql } from '../sql/ctePreview';
@@ -60,7 +61,8 @@ export class PreviewController implements vscode.Disposable {
   private async run(index: DbtProjectIndex, node: DbtNode, cteName?: string): Promise<void> {
     const config = index.getConfig();
     const profileArgs = this.profileStore.toCliArgs(config.projectDir);
-    const label = describeTarget(cteName ? `${node.name} › ${cteName}` : node.name, profileArgs);
+    const shown = versionedName(node);
+    const label = describeTarget(cteName ? `${shown} › ${cteName}` : shown, profileArgs);
 
     this.inFlight?.abort();
     const controller = new AbortController();
@@ -116,7 +118,7 @@ export class PreviewController implements vscode.Disposable {
     if (cteName) return this.planCtePreview(index, node, rowLimit, cteName);
 
     const ordinary: PreviewPlan = {
-      target: { kind: 'node', name: node.name },
+      target: { kind: 'node', name: nodeSelector(node) },
       dbtRowLimit: rowLimit,
     };
     if (rowLimit < 1) return ordinary; // no limit requested: dbt appends nothing to collide with

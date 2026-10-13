@@ -6,6 +6,7 @@ import type {
   DbtSourceNode,
   LineageEntity,
 } from '../index/manifestTypes';
+import { isLatestVersion, versionedName } from '../index/modelVersions';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
@@ -75,7 +76,9 @@ function isBuiltNode(entity: LineageEntity): entity is DbtNode {
  * routinely share a table name — so the bare name would draw two identical-looking boxes.
  */
 function displayName(entity: LineageEntity): string {
-  return isSource(entity) ? `${entity.source_name}.${entity.name}` : entity.name;
+  if (isSource(entity)) return `${entity.source_name}.${entity.name}`;
+  // Two versions of a model share a name; without the version they are two identical boxes.
+  return isBuiltNode(entity) ? versionedName(entity) : entity.name;
 }
 
 function toLineageNode(
@@ -108,6 +111,9 @@ function toLineageNode(
       // `exposure · dashboard`, as `model · view` says what a model is.
       materialization,
       targetLag,
+      // Said only of the version a bare ref() goes to; the others carry no mark, so the one that
+      // is latest is the one that stands out.
+      latestVersion: node ? isLatestVersion(node) === true : undefined,
       // The catalog, not the manifest: the manifest only carries the columns someone documented
       // in a .yml, so counting those would confidently report 4 on a 60-column model. Absent
       // until `dbt docs generate` has run, and absent for anything never built — in both cases
