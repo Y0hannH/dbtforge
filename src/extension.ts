@@ -41,6 +41,7 @@ import { ProfileStatusBar } from './providers/profileStatusBar';
 import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
+import { SchemaQuickFixProvider } from './providers/schemaQuickFixes';
 import type { TagItem } from './providers/tagsTreeView';
 import { TagsTreeProvider } from './providers/tagsTreeView';
 import { TestResultDiagnostics } from './providers/testResultDiagnostics';
@@ -64,6 +65,12 @@ const DBT_NODE_SELECTOR: vscode.DocumentSelector = [
 // are scoped to both rather than to models only. The blocks themselves are declared in .md.
 const DBT_DOC_SELECTOR: vscode.DocumentSelector = [
   { scheme: 'file', pattern: '**/*.sql' },
+  { scheme: 'file', pattern: '**/*.yml' },
+  { scheme: 'file', pattern: '**/*.yaml' },
+];
+
+// Quick fixes for a schema file's columns, so .yml only.
+const DBT_YAML_SELECTOR: vscode.DocumentSelector = [
   { scheme: 'file', pattern: '**/*.yml' },
   { scheme: 'file', pattern: '**/*.yaml' },
 ];
@@ -217,6 +224,11 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       new DbtHoverProvider(getIndexForResource),
     ),
     vscode.languages.registerCodeLensProvider(DBT_NODE_SELECTOR, codeLensProvider),
+    vscode.languages.registerCodeActionsProvider(
+      DBT_YAML_SELECTOR,
+      new SchemaQuickFixProvider(getIndexForResource),
+      SchemaQuickFixProvider.metadata,
+    ),
     vscode.workspace.registerTextDocumentContentProvider(
       COMPILED_SQL_SCHEME,
       compiledSqlContentProvider,

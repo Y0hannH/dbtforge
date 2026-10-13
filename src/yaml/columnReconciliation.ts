@@ -9,6 +9,8 @@ import type { DocumentedEntity } from './schemaColumns';
  */
 
 export interface ColumnFinding {
+  /** What the finding is, so a fix can be offered for the right one — see schemaQuickFixes. */
+  kind: 'duplicate-column' | 'unknown-column' | 'undocumented-columns';
   offset: number;
   length: number;
   message: string;
@@ -51,6 +53,7 @@ export function reconcileColumns(
       const key = column.name.toLowerCase();
       if (seen.has(key)) {
         findings.push({
+          kind: 'duplicate-column',
           offset: column.offset,
           length: column.length,
           message:
@@ -72,6 +75,7 @@ export function reconcileColumns(
     for (const column of entity.columns) {
       if (realByKey.has(column.name.toLowerCase())) continue;
       findings.push({
+        kind: 'unknown-column',
         offset: column.offset,
         length: column.length,
         message:
@@ -90,6 +94,7 @@ export function reconcileColumns(
     // own name: the point is "this file is incomplete", which is said once. A warning per column
     // would bury the two checks above under its own noise.
     findings.push({
+      kind: 'undocumented-columns',
       offset: entity.offset,
       length: entity.length,
       message:
