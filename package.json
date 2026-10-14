@@ -249,6 +249,10 @@
         "title": "dbt Forge: Set Reference Manifest Folder…"
       },
       {
+        "command": "dbtForge.useCurrentAsReference",
+        "title": "dbt Forge: Use Current Manifest as Reference"
+      },
+      {
         "command": "dbtForge.clearReferenceState",
         "title": "dbt Forge: Clear Reference Manifest"
       },

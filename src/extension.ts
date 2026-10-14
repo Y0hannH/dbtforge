@@ -1,3 +1,4 @@
+import { promises as fs } from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -48,7 +49,7 @@ import type { TagItem } from './providers/tagsTreeView';
 import { TagsTreeProvider } from './providers/tagsTreeView';
 import { TestResultDiagnostics } from './providers/testResultDiagnostics';
 import { cteNameAtOffset } from './sql/ctePreview';
-import { StateFolderStore } from './state/stateFolderStore';
+import { savedReferenceDir, StateFolderStore } from './state/stateFolderStore';
 
 // One DbtProjectIndex per workspace folder that actually contains a dbt project.
 const indexes = new Map<string, DbtProjectIndex>();
@@ -85,6 +86,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(output);
 
   stateFolders = new StateFolderStore(context.workspaceState);
+  extensionContext = context;
 
   const diagnostics = new DbtDiagnosticsController(getIndexForResource);
   context.subscriptions.push(diagnostics);
@@ -293,6 +295,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     vscode.commands.registerCommand('dbtForge.setReferenceState', async () => {
       const index = await resolveAnyIndex();
       if (index) await chooseReferenceFolder(index);
+    }),
+    vscode.commands.registerCommand('dbtForge.useCurrentAsReference', async () => {
+      const index = await resolveAnyIndex();
+      if (index) await useCurrentManifestAsReference(context, index);
     }),
     vscode.commands.registerCommand('dbtForge.clearReferenceState', async () => {
       const index = await resolveAnyIndex();
@@ -696,6 +702,69 @@ async function chooseReferenceFolder(index: DbtProjectIndex): Promise<boolean> {
 }
 
 /**
+ * Keeps a copy of the project's own manifest as the reference — for the common case where there is
+ * no CI artefact: be on main, compile, run this, switch to a branch, and what changes is marked.
+ *
+ * The copy matters: target/manifest.json is rewritten by every compile, so pointing at it would
+ * compare the project with itself. The copy is the one fixed thing.
+ */
+async function useCurrentManifestAsReference(
+  context: vscode.ExtensionContext,
+  index: DbtProjectIndex,
+): Promise<boolean> {
+  const { projectDir, manifestPath } = index.getConfig();
+
+  let written: Date;
+  try {
+    written = (await fs.stat(manifestPath)).mtime;
+  } catch {
+    vscode.window.showWarningMessage(
+      `dbt Forge: no manifest.json at ${manifestPath}. Run dbt compile first, on the code you want ` +
+        `to compare against.`,
+    );
+    return false;
+  }
+
+  // Not undoable by looking at the result, and the mistake that matters — saving the manifest of
+  // a branch that already has the changes — makes every comparison afterwards come out empty. So
+  // it is asked, with the one fact that lets the user check: when the file was written.
+  const confirmed = await vscode.window.showWarningMessage(
+    'Use the current manifest as the reference?',
+    {
+      modal: true,
+      detail:
+        `target/manifest.json was written ${written.toLocaleString()}.\n\n` +
+        `It should come from a compile of the code you want to compare against — main — made with ` +
+        `the environment you want --defer to read from. Everything you change from now on is marked ` +
+        `as modified once you compile.`,
+    },
+    'Use as reference',
+  );
+  if (confirmed !== 'Use as reference') return false;
+
+  const root = (context.storageUri ?? context.globalStorageUri).fsPath;
+  const folder = savedReferenceDir(root, projectDir);
+  try {
+    await fs.mkdir(folder, { recursive: true });
+    await fs.copyFile(manifestPath, path.join(folder, 'manifest.json'));
+  } catch (error) {
+    vscode.window.showErrorMessage(
+      `dbt Forge: could not save the reference (${(error as Error).message}).`,
+    );
+    return false;
+  }
+
+  await stateFolders?.set(projectDir, folder);
+  await index.setStateDir(folder);
+
+  vscode.window.showInformationMessage(
+    `dbt Forge: reference saved from the manifest written ${written.toLocaleString()}. ` +
+      `Switch branch and compile: what you changed will be marked modified.`,
+  );
+  return true;
+}
+
+/**
  * The reference folder, ready to hand to `--state`, or undefined after telling the user what is
  * missing. A state-aware build against nothing would either fail or — worse — select everything.
  */
@@ -704,9 +773,15 @@ async function ensureReferenceFolder(index: DbtProjectIndex): Promise<string | u
     const choice = await vscode.window.showInformationMessage(
       'dbt Forge: no reference manifest is set. State-aware builds compare the project against ' +
         'a build of main, or a CI artefact.',
+      'Use current manifest',
       'Choose folder…',
     );
-    if (!choice || !(await chooseReferenceFolder(index))) return undefined;
+    if (!choice) return undefined;
+    const done =
+      choice === 'Use current manifest'
+        ? await useCurrentManifestAsReference(extensionContext, index)
+        : await chooseReferenceFolder(index);
+    if (!done) return undefined;
   }
 
   if (!index.hasReferenceManifest()) {
@@ -737,6 +812,9 @@ function activeProjectConfig(): DbtForgeConfig | undefined {
   const all = [...indexes.values()];
   return all.length === 1 ? all[0].getConfig() : undefined;
 }
+
+// Needed by the prompt of a build command, which is not registered inside activate().
+let extensionContext: vscode.ExtensionContext;
 
 // Set in activate(), before any index exists. Module-level like `indexes`, since the workspace
 // folders can change after activation and the indexes are rebuilt then.
