@@ -69,7 +69,7 @@ The extension is also on the [Marketplace page](https://marketplace.visualstudio
 <summary><strong>From a .vsix</strong> (a release download, or your own build)</summary>
 
 ```bash
-code --install-extension dbtforge-0.19.0.vsix
+code --install-extension dbtforge-0.20.0.vsix
 ```
 
 </details>
@@ -265,7 +265,7 @@ Lineage scope controls (depth up and down, hide tests, exclude materializations)
 ### ✅ v0.16 – v0.19
 Completion scoped to the enclosing CTE's body, and from a single CTE as well as a `ref()`; a CTE's explicit column list and its `*` handled all-or-nothing; sources and exposures in the lineage graph; the lineage follows the active editor; the shortest lag a `downstream` dynamic table can be held to; a **Full lineage** view from the panel.
 
-### ✅ Next release
+### ✅ v0.20
 Run results: each node's last status and duration, in the lineage and the relatives panel; failing and warning tests, and models that errored, in the Problems panel on the line that declares them; quick fixes on a schema `.yml` — remove a documented column the table no longer has, add the columns it leaves out. Versioned models: resolved to the right version, shown as `(v1)` / `(v2)`, and their `versions:` read in a schema `.yml`. A manifest with no `sources` loads.
 
 ### 🔲 Next
