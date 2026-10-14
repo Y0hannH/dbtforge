@@ -5,6 +5,11 @@ All notable changes to the dbt Forge extension are documented in this file.
 ## [Unreleased]
 
 ### Added
+- **Use the project's own manifest as the reference, with one command.** Without a CI artefact, state-aware builds needed a folder you had to create by hand: compile on `main`, find `target/manifest.json`, copy it somewhere, point dbt Forge at it. **Use Current Manifest as Reference** does the copy.
+  - **The copy is the point.** `target/manifest.json` is rewritten by every compile, so pointing at it would compare the project with itself and find nothing. The copy is the one fixed thing: be on `main`, compile, run the command, switch to your branch, and what you change is marked `modified` once you compile.
+  - **It asks first, and says when the manifest was written.** The mistake that matters — saving the manifest of a branch that already has your changes — makes every later comparison come out empty and shows nothing wrong. The dialog also says the manifest should have been compiled with the environment you want `--defer` to read from, since that is where its relation names point.
+  - **The copy lives in the extension's storage**, never in the project: nothing appears in `git status`, and dbt Forge still adds no file to your project.
+  - **Offered when a build needs a reference and none is set**, beside *Choose folder…*.
 - **State-aware builds: build what changed, on top of the reference environment.** Point dbt Forge at a folder holding a reference `manifest.json` — a build of `main`, or a CI artefact — with **Set Reference Manifest Folder…** (or `dbtForge.stateDir`), and:
   - **The lineage and the relatives panel mark what differs**, on the row above the name: `modified` (its SQL or its config changed), `new` (not in the reference), and `impacted` (downstream of a change — what `state:modified+` would also build). Hover in the panel gives the reason. Setting the folder says at once what it found: *2 modified, 1 new, 5 downstream of a change*.
   - **Build Modified + Downstream** runs `dbt build --select state:modified+ --defer --state <folder>`.
