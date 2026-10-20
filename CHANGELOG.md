@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [0.20.0] - 2026-10-14
+## [0.20.0] - 2026-10-20
 
 ### Added
 - **Use the project's own manifest as the reference, with one command.** Without a CI artefact, state-aware builds needed a folder you had to create by hand: compile on `main`, find `target/manifest.json`, copy it somewhere, point dbt Forge at it. **Use Current Manifest as Reference** does the copy.
