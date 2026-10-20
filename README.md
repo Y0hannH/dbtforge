@@ -15,7 +15,7 @@
 
 dbt Forge is a VS Code extension for data engineers working on dbt projects (built and tested against `dbt-fabric` / Microsoft Fabric, but not tied to it). It fills the gaps left by existing dbt tooling — column-level autocomplete, an interactive lineage graph, and one-click build shortcuts — while keeping everything **100% local**.
 
-Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Forge only reads the files your own `dbt` already produces (`manifest.json`, `catalog.json`, compiled SQL) and runs `dbt` through your own project's Python environment.
+Nothing is sent anywhere. No account, no API key, no third-party backend. dbt Forge only reads the files your own `dbt` already produces (`manifest.json`, `catalog.json`, `run_results.json`, compiled SQL) and runs `dbt` through your own project's Python environment.
 
 ---
 
@@ -57,7 +57,7 @@ npm install
 npm run compile
 ```
 
-Then press `F5` in VS Code to launch an Extension Development Host with dbt Forge loaded, and open your dbt project in that window. `npm test` runs the unit suite; `npx vsce package` produces an installable `.vsix`.
+Then press `F5` in VS Code to launch an Extension Development Host with dbt Forge loaded, and open your dbt project in that window. `npm test` runs the unit suite; `npm run vsix` produces an installable `.vsix`.
 
 </details>
 
@@ -98,7 +98,8 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 
 - **Interactive lineage graph** — click-to-expand upstream/downstream graph (React Flow). It starts at the current model, seed or snapshot and shows sources upstream and exposures (dashboards, apps) downstream — no giant unreadable diagram dumped on you. Each node shows its materialization, its `target_lag` if it is a dynamic table (a `downstream` one also shows the shortest lag declared below it, as `≤ 10 minutes`), its column count once `catalog.json` exists, and wears the `node_color` your project declares.
 - **Scope controls** — how many hops of parents and children to draw (or *All* for the whole DAG), hide tests, drop whole materializations. Resolved from the manifest, so it redraws instantly.
-- **Model versions** — told apart everywhere: `dim_customers (v1)` and `dim_customers (v2)` in the lineage and the relatives panel, the version a bare `ref()` goes to marked `latest`, `ref('m', v=2)` resolved to exactly that version, and a schema `.yml`'s `versions:` read version by version against each version's own table. Build, Test and Data Preview select a versioned model by its file, so they act on one version.
+- **Last run status** — after a `dbt build`, `run` or `test`, each node shows `✓ 4.2s`, `✗ failed` or `– skipped` in the lineage and in the Parents / Children / Tests panel; a model that built but fails a test reads as failing. Read from `run_results.json`.
+- **Model versions** — told apart everywhere (`dim_customers (v1)`, `dim_customers (v2)`), with `latest` on the version a bare `ref()` goes to; `ref('m', v=2)` resolves to exactly that version. A schema `.yml`'s `versions:` is read version by version, and Build, Test and Data Preview act on one version.
 
 ### Preview
 
@@ -111,8 +112,7 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 - **Build / Test shortcuts** — CodeLens and sidebar buttons for Build Upstream, Build Downstream, Test and Build Project, run through your project's own venv.
 - **Environment switching** — a status bar picker over the profiles in your `profiles.yml`. Every dbt command dbt Forge runs then carries that `--profile` / `--target`, so a dev branch can point at a different Fabric workspace than `main`.
 - **Compile This File** — `dbt compile --select path:<file>` on the open model only: the fast way to get a just-created model into the manifest, without a full-project compile.
-- **State-aware builds** — point dbt Forge at a reference `manifest.json` (a CI artefact, or a copy of your own taken on `main`) and the lineage and the relatives panel mark what differs: `modified` (its SQL or config changed), `new`, and `impacted` (downstream of a change). **Build Modified + Downstream** runs `dbt build --select state:modified+ --defer --state …`; **Build Model, Deferring Upstream to the Reference** builds the open model on top of the reference environment. The comparison is local — nothing is run to produce the marks.
-- **Last run status** — after a `dbt build`, `run` or `test`, each node shows how it went (`✓ 4.2s`, `✗ failed`, `– skipped`) in the lineage graph and in the Parents / Children / Tests panel. A model that built fine but fails a test reads as failing, with the count; hover for dbt's message and when it ran. Read from `run_results.json`.
+- **State-aware builds** — point dbt Forge at a reference `manifest.json` (a CI artefact, or a copy of your own taken on `main`) and the lineage marks what is `modified`, `new` or `impacted`. **Build Modified + Downstream** and **Build Model, Deferring Upstream to the Reference** then build on top of that reference with `--defer`. The comparison is local.
 
 ---
 
@@ -247,9 +247,10 @@ The same actions are also under the **dbt Forge** icon in the editor's title bar
 
 dbt Forge does not collect any data and has no network calls of its own:
 
-- Reads `manifest.json`, `catalog.json`, and compiled SQL directly from your project's `target/` folder
+- Reads `manifest.json`, `catalog.json`, `run_results.json` and compiled SQL directly from your project's `target/` folder
+- State-aware builds read a second, *reference* `manifest.json` from a folder you choose. **Use Current Manifest as Reference** copies your project's own manifest into the extension's own storage — never into your project, so nothing appears in `git status` and dbt Forge still adds no file to your project
 - Reads `profiles.yml` to list the profiles and targets you can switch between. It is only ever read, never modified, and nothing from it — credentials included — leaves your machine or is written to your settings; switching environments only changes the `--profile`/`--target` flags on the command line
-- Your environment choice is stored in VS Code's workspace state, not in a committed `.vscode/settings.json`
+- Your environment choice, and the reference folder you pick, are stored in VS Code's workspace state, not in a committed `.vscode/settings.json`
 - Runs `dbt` through your own configured Python environment, in your own integrated terminal
 - **Data preview queries your warehouse** — it runs `dbt show` through your own venv and your own profile, so rows travel between your warehouse and your machine exactly as they would if you ran `dbt show` yourself. The extension stores no credentials and opens no connection of its own, but a preview is not an offline operation: it costs a query against whichever target you are pointed at
 - No telemetry, no backend, no external service — everything happens on your machine
@@ -295,7 +296,7 @@ Not yet placed: renaming a model across its `ref()` call sites and `.yml`; a pro
 |---|---|
 | Extension Host | TypeScript + VS Code Extension API |
 | Lineage Webview | React + React Flow + dagre (auto-layout), bundled locally — no CDN |
-| Data Source | Reads `manifest.json` / `catalog.json` / `target/compiled/*.sql` directly, with a file watcher to stay in sync. `profiles.yml` is read (never written) to list the environments you can switch between |
+| Data Source | Reads `manifest.json` / `catalog.json` / `run_results.json` / `target/compiled/*.sql` directly, plus a reference `manifest.json` for state-aware builds, with a file watcher to stay in sync. `profiles.yml` is read (never written) to list the environments you can switch between |
 | dbt Execution | Runs the `dbt` executable from your configured venv (`Scripts/`/`bin/`) in the integrated terminal — except data preview, which spawns `dbt show` directly so it can read the rows back |
 
 ## Contributing
