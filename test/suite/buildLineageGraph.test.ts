@@ -8,6 +8,7 @@ import type { DbtNode, LineageEntity } from '../../src/index/manifestTypes';
 import {
   buildInitialSubgraph,
   buildScopedSubgraph,
+  buildSelectionSubgraph,
   expandNode,
 } from '../../src/lineage/buildLineageGraph';
 import type { LineageScope } from '../../src/lineage/lineageScope';
@@ -509,4 +510,119 @@ void test('expandNode: expanding a model reveals its exposure', () => {
     result.map((n) => n.id),
     ['exposure.pkg.app'],
   );
+});
+
+const edgeKeys = (edges: Array<{ source: string; target: string }>) =>
+  edges.map((e) => `${e.source}->${e.target}`).sort();
+
+// A selection draws an edge from a node's parents, so it needs the manifest's `parent_map` to agree
+// with its `child_map` — which a real one always does, and the fixture above does not bother to.
+const symmetricParents: Record<string, string[]> = {};
+for (const [parent, kids] of Object.entries(children)) {
+  for (const kid of kids) (symmetricParents[kid] ??= []).push(parent);
+}
+const selectionGraph: DependencyGraph = {
+  ...fakeGraph,
+  getParents: (id) => symmetricParents[id] ?? [],
+};
+const selectionIndex = {
+  getGraph: () => selectionGraph,
+  getLineageEntity: (id: string) => nodes[id],
+  getCatalogColumns: () => undefined,
+  getStateChange: () => undefined,
+} as unknown as DbtProjectIndex;
+
+void test('buildSelectionSubgraph: draws exactly the selected nodes and the edges between them', () => {
+  const result = buildSelectionSubgraph(
+    selectionIndex,
+    ['model.pkg.a', 'model.pkg.b', 'model.pkg.c'],
+    DEFAULT_SCOPE,
+  );
+
+  assert.equal(result.kind, 'ok');
+  if (result.kind !== 'ok') return;
+  assert.deepEqual(result.subgraph.nodes.map((n) => n.id).sort(), [
+    'model.pkg.a',
+    'model.pkg.b',
+    'model.pkg.c',
+  ]);
+  assert.deepEqual(edgeKeys(result.subgraph.edges), [
+    'model.pkg.a->model.pkg.b',
+    'model.pkg.b->model.pkg.c',
+  ]);
+});
+
+void test('buildSelectionSubgraph: unrelated matches are separate islands, with no invented edge', () => {
+  const result = buildSelectionSubgraph(
+    selectionIndex,
+    ['model.pkg.z', 'model.pkg.d'],
+    DEFAULT_SCOPE,
+  );
+
+  assert.equal(result.kind, 'ok');
+  if (result.kind !== 'ok') return;
+  assert.equal(result.subgraph.nodes.length, 2);
+  assert.deepEqual(result.subgraph.edges, []);
+});
+
+void test('buildSelectionSubgraph: nothing is expandable and nothing is the root', () => {
+  const result = buildSelectionSubgraph(
+    selectionIndex,
+    ['model.pkg.a', 'model.pkg.b'],
+    DEFAULT_SCOPE,
+  );
+
+  assert.equal(result.kind, 'ok');
+  if (result.kind !== 'ok') return;
+  for (const node of result.subgraph.nodes) {
+    assert.equal(node.parentCount, 0);
+    assert.equal(node.childCount, 0);
+    assert.equal(node.isRoot, false);
+  }
+});
+
+void test('buildSelectionSubgraph: the depths of the scope do not apply, its filters do', () => {
+  const withTest: Record<string, DbtNode> = {
+    ...nodes,
+    'test.pkg.t': { ...makeNode('test.pkg.t', 't'), resource_type: 'test' },
+  };
+  const index = {
+    getGraph: () => ({
+      ...selectionGraph,
+      getParents: (id: string) =>
+        id === 'test.pkg.t' ? ['model.pkg.b'] : selectionGraph.getParents(id),
+    }),
+    getLineageEntity: (id: string) => withTest[id],
+    getCatalogColumns: () => undefined,
+    getStateChange: () => undefined,
+  } as unknown as DbtProjectIndex;
+  const ids = ['model.pkg.b', 'model.pkg.c', 'model.pkg.a', 'test.pkg.t'];
+
+  const hidden = buildSelectionSubgraph(index, ids, {
+    ...DEFAULT_SCOPE,
+    upstreamDepth: 0,
+    downstreamDepth: 0,
+    excludedMaterializations: ['view'],
+  });
+  assert.equal(hidden.kind, 'ok');
+  if (hidden.kind !== 'ok') return;
+  // Depth 0/0 would be just the root; the selection ignores that. The test and the view are the
+  // filters' doing.
+  assert.deepEqual(hidden.subgraph.nodes.map((n) => n.id).sort(), ['model.pkg.b', 'model.pkg.c']);
+  assert.equal(hidden.filteredOut, 2);
+
+  const shown = buildSelectionSubgraph(index, ids, { ...DEFAULT_SCOPE, includeTests: true });
+  assert.equal(shown.kind, 'ok');
+  if (shown.kind !== 'ok') return;
+  assert.ok(shown.subgraph.nodes.some((n) => n.id === 'test.pkg.t'));
+  assert.ok(edgeKeys(shown.subgraph.edges).includes('model.pkg.b->test.pkg.t'));
+});
+
+void test('buildSelectionSubgraph: past the ceiling it reports the count instead of truncating', () => {
+  const ids = ['model.pkg.a', 'model.pkg.b', 'model.pkg.c', 'model.pkg.d'];
+
+  const over = buildSelectionSubgraph(selectionIndex, ids, DEFAULT_SCOPE, 3);
+  assert.deepEqual(over, { kind: 'tooMany', nodeCount: 4, filteredOut: 0 });
+
+  assert.equal(buildSelectionSubgraph(selectionIndex, ids, DEFAULT_SCOPE, 4).kind, 'ok');
 });
