@@ -21,12 +21,14 @@ import {
 import { selectProfile } from './commands/selectProfile';
 import type { DbtForgeConfig } from './config';
 import { resolveConfig } from './config';
+import { DbtLsError, runDbtLs } from './dbt/lsRunner';
 import { buildDeferredArgs, buildModifiedArgs, resolveStateDir } from './dbt/stateArgs';
 import { DbtProjectIndex } from './index/dbtProjectIndex';
 import type { DbtNode } from './index/manifestTypes';
 import { nodeSelector } from './index/modelVersions';
 import { isReferenceable } from './index/refIndex';
 import { toggleLineageLocation } from './lineage/lineagePlacement';
+import type { SelectionRunner } from './lineage/lineageSession';
 import { LineageViewProvider } from './lineage/lineageViewProvider';
 import { PreviewController } from './preview/previewController';
 import { PreviewViewProvider } from './preview/previewViewProvider';
@@ -132,6 +134,27 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // The view is registered either way: registration only declares where it *could* render, and a
   // user flipping the setting shouldn't have to reload the window for the panel to exist.
   const lineageView = new LineageViewProvider(context.extensionUri);
+  // What the larger view's selector field runs. dbt's own words go to the output channel; the view
+  // gets the short message, as with the data preview.
+  const runLineageSelection: SelectionRunner = async (index, select, exclude, signal) => {
+    const config = index.getConfig();
+    try {
+      return await runDbtLs({
+        pythonPath: config.pythonPath,
+        projectDir: config.projectDir,
+        profilesDir: config.profilesDir,
+        profileArgs: profileStore.toCliArgs(config.projectDir),
+        select,
+        exclude,
+        signal,
+      });
+    } catch (error) {
+      if (error instanceof DbtLsError && error.details) {
+        output.appendLine(`dbt Forge: dbt ls failed:\n${error.details}`);
+      }
+      throw error;
+    }
+  };
   context.subscriptions.push(
     lineageView,
     lineageView.onDidRequestFullView((session) => showLineageInEditor(context, session)),
@@ -182,7 +205,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       // Which project the tags view describes follows the active editor in a multi-root
       // workspace, so it has to re-read on editor change too, not just on manifest reload.
       tagsTree.refresh();
-      followLineage(context, lineageView);
+      followLineage(context, lineageView, runLineageSelection);
     }),
   );
   refreshActiveEditorViews(relativesTree);
@@ -271,7 +294,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     ),
     vscode.commands.registerCommand('dbtForge.showLineage', (uri?: vscode.Uri) =>
       withRefTargetNode(uri, (index, node) =>
-        showLineage(context, index, node.unique_id, lineageView),
+        showLineage(context, index, node.unique_id, lineageView, runLineageSelection),
       ),
     ),
     vscode.commands.registerCommand('dbtForge.previewData', (uri?: vscode.Uri) => {
@@ -408,7 +431,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
       const index = uri ? getIndexForResource(uri) : undefined;
       const node = index?.getNodeByFileUri(uri!);
       if (index && node && isReferenceable(node)) {
-        showLineage(context, index, node.unique_id, lineageView);
+        showLineage(context, index, node.unique_id, lineageView, runLineageSelection);
         return;
       }
       vscode.window.showInformationMessage(
@@ -471,7 +494,11 @@ function cteUnderCursor(): string | undefined {
  * Only retargets: it never opens a lineage, and files that aren't a node (a yml, a CSV that isn't
  * a seed, focus moving to a webview) leave the graph where it was.
  */
-function followLineage(context: vscode.ExtensionContext, lineageView: LineageViewProvider): void {
+function followLineage(
+  context: vscode.ExtensionContext,
+  lineageView: LineageViewProvider,
+  runSelection: SelectionRunner,
+): void {
   const uri = vscode.window.activeTextEditor?.document.uri;
   if (!uri || uri.scheme !== 'file') return;
   if (
@@ -483,7 +510,7 @@ function followLineage(context: vscode.ExtensionContext, lineageView: LineageVie
   const node = index?.getNodeByFileUri(uri);
   if (!index || !node || !isReferenceable(node)) return;
 
-  followActiveEditor(context, index, node.unique_id, lineageView);
+  followActiveEditor(context, index, node.unique_id, lineageView, runSelection);
 }
 
 function withNode(

@@ -248,6 +248,85 @@ body,
   border-style: dashed;
 }
 
+/* The selector sits under the toolbar as a second strip, so the controls that act on the manifest
+   and the one that runs dbt read as two rows of one thing. */
+.lineage-selector {
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--vscode-panel-border, #454545);
+  background: var(--vscode-editorWidget-background, #252526);
+  font-size: 12px;
+}
+
+.lineage-selector-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.lineage-selector-field {
+  flex: 1 1 260px;
+}
+
+.lineage-selector-field input {
+  flex: 1;
+  min-width: 0;
+  background: var(--vscode-input-background, #3c3c3c);
+  color: var(--vscode-input-foreground, #cccccc);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 3px;
+  padding: 3px 6px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 12px;
+}
+
+.lineage-selector-field input::placeholder {
+  color: var(--vscode-input-placeholderForeground, #8a8a8a);
+}
+
+.lineage-selector input:disabled {
+  opacity: 0.55;
+}
+
+.lineage-selector input:focus-visible,
+.lineage-run:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.lineage-run {
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground, #cccccc));
+  border: 1px solid var(--vscode-panel-border, #454545);
+  border-radius: 3px;
+  padding: 2px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.lineage-run.is-primary {
+  background: var(--vscode-button-background, #0e639c);
+  color: var(--vscode-button-foreground, #ffffff);
+  border-color: transparent;
+}
+
+.lineage-run:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.lineage-selector-status {
+  margin-top: 5px;
+  color: var(--vscode-descriptionForeground, #9d9d9d);
+}
+
+/* Preformatted: dbt's error text is several lines and its own indentation matters. */
+.lineage-selector-status.is-error {
+  white-space: pre-wrap;
+  color: var(--vscode-errorForeground, #f48771);
+}
+
 .lineage-empty {
   padding: 16px;
   color: var(--vscode-descriptionForeground, #999999);

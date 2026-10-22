@@ -17,10 +17,12 @@ import ReactFlow, {
 
 import type { LineageEdge, LineageNode } from '../lineage/buildLineageGraph';
 import { type LineageScope, UNLIMITED_DEPTH } from '../lineage/lineageScope';
+import { describeSelectorOutcome, selectorFromScope } from '../lineage/lineageSelection';
 import type {
   ExpandDirection,
   HostToWebviewMessage,
   LineageBootstrap,
+  SelectorOutcome,
   WebviewToHostMessage,
 } from '../lineage/messages';
 import { shouldShowMinimap } from '../lineage/minimapPolicy';
@@ -168,20 +170,22 @@ const DEPTH_OPTIONS: Array<{ label: string; value: number }> = [
  * The controls for how much of the DAG is drawn: two depths, and what to leave out.
  *
  * Deliberately not a text field for dbt's selector syntax. Every option here resolves against the
- * manifest alone, so the graph redraws instantly; a selector string would eventually have to shell
- * out to `dbt ls` for the methods that aren't pure graph operators, and the control would then be
- * as slow as its slowest case.
+ * manifest alone, so the graph redraws instantly; the selection language that needs `dbt ls` lives
+ * in SelectorBar, behind an explicit Run, so it can't make these controls as slow as its slowest case.
  */
 function ScopeToolbar({
   scope,
   materializations,
   busy,
+  depthsLocked,
   onChange,
   onOpenFull,
 }: {
   scope: LineageScope;
   materializations: string[];
   busy: boolean;
+  /** A selection decides how far the graph reaches, so the depths have nothing to say. */
+  depthsLocked: boolean;
   onChange: (next: LineageScope) => void;
   /** Present only where there is a larger view to go to: the bottom panel. */
   onOpenFull?: () => void;
@@ -202,7 +206,8 @@ function ScopeToolbar({
         <span className="lineage-field-label">Upstream</span>
         <select
           value={scope.upstreamDepth}
-          disabled={busy}
+          disabled={busy || depthsLocked}
+          title={depthsLocked ? DEPTHS_LOCKED_HINT : undefined}
           onChange={(event) => onChange({ ...scope, upstreamDepth: Number(event.target.value) })}
         >
           {DEPTH_OPTIONS.map((option) => (
@@ -217,7 +222,8 @@ function ScopeToolbar({
         <span className="lineage-field-label">Downstream</span>
         <select
           value={scope.downstreamDepth}
-          disabled={busy}
+          disabled={busy || depthsLocked}
+          title={depthsLocked ? DEPTHS_LOCKED_HINT : undefined}
           onChange={(event) => onChange({ ...scope, downstreamDepth: Number(event.target.value) })}
         >
           {DEPTH_OPTIONS.map((option) => (
@@ -269,6 +275,107 @@ function ScopeToolbar({
         >
           Full lineage
         </button>
+      )}
+    </div>
+  );
+}
+
+const DEPTHS_LOCKED_HINT =
+  'The selection below decides how far the graph reaches. Clear it to use these.';
+
+/**
+ * The larger view's way into the rest of dbt's selection language. Nothing runs until Run is
+ * pressed: `dbt ls` re-parses the project, which takes seconds, so a field that ran as you typed
+ * would make every keystroke a wait.
+ *
+ * Until the user types in it the Select field follows the depth controls (`3+orders+1`), so the
+ * two views read as one continuous thing rather than an empty box beside a toolbar.
+ */
+function SelectorBar({
+  select,
+  exclude,
+  running,
+  active,
+  status,
+  onSelect,
+  onExclude,
+  onRun,
+  onCancel,
+  onClear,
+}: {
+  select: string;
+  exclude: string;
+  running: boolean;
+  /** A selection is on screen, so there is something to clear. */
+  active: boolean;
+  status: ReturnType<typeof describeSelectorOutcome>;
+  onSelect: (value: string) => void;
+  onExclude: (value: string) => void;
+  onRun: () => void;
+  onCancel: () => void;
+  onClear: () => void;
+}) {
+  const runOnEnter = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter' && !running && select.trim()) onRun();
+  };
+
+  return (
+    <div className="lineage-selector">
+      <div className="lineage-selector-row">
+        <label className="lineage-field lineage-selector-field">
+          <span className="lineage-field-label">Select</span>
+          <input
+            type="text"
+            value={select}
+            spellCheck={false}
+            placeholder="e.g. +orders+, tag:nightly, orders,config.materialized:table"
+            disabled={running}
+            onChange={(event) => onSelect(event.target.value)}
+            onKeyDown={runOnEnter}
+          />
+        </label>
+        <label className="lineage-field lineage-selector-field">
+          <span className="lineage-field-label">Exclude</span>
+          <input
+            type="text"
+            value={exclude}
+            spellCheck={false}
+            placeholder="e.g. tag:deprecated"
+            disabled={running}
+            onChange={(event) => onExclude(event.target.value)}
+            onKeyDown={runOnEnter}
+          />
+        </label>
+        {running ? (
+          <button type="button" className="lineage-run" onClick={onCancel}>
+            Cancel
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="lineage-run is-primary"
+            disabled={!select.trim()}
+            title="Run dbt ls with this selection and draw what it returns"
+            onClick={onRun}
+          >
+            Run
+          </button>
+        )}
+        {active && !running && (
+          <button
+            type="button"
+            className="lineage-run"
+            title="Back to the open model and the depth controls"
+            onClick={onClear}
+          >
+            Clear
+          </button>
+        )}
+      </div>
+      {(running || status) && (
+        <div className={`lineage-selector-status${status?.tone === 'error' ? ' is-error' : ''}`}>
+          {running ? 'Running dbt ls…' : status?.text}
+        </div>
       )}
     </div>
   );
@@ -432,6 +539,14 @@ const EMPTY_BOOTSTRAP: LineageBootstrap = {
   runStatuses: {},
 };
 
+/** The nodes and edges of a subgraph, keyed the way the webview holds them. */
+function toMaps(subgraph: { nodes: LineageNode[]; edges: LineageEdge[] }) {
+  return {
+    nodes: new Map(subgraph.nodes.map((n) => [n.id, n] as const)),
+    edges: new Map(subgraph.edges.map((e) => [`${e.source}->${e.target}`, e] as const)),
+  };
+}
+
 function App() {
   const bootstrap = window.__DBT_FORGE_LINEAGE__ ?? EMPTY_BOOTSTRAP;
 
@@ -448,6 +563,17 @@ function App() {
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [runStatuses, setRunStatuses] = useState(bootstrap.runStatuses);
 
+  // The selector field. `selectText` stays null until the user types, and until then the field is
+  // whatever the depth controls amount to.
+  const selectorRoot = bootstrap.selectorRoot;
+  const [selectText, setSelectText] = useState<string | null>(null);
+  const [excludeText, setExcludeText] = useState('');
+  const [selectorRunning, setSelectorRunning] = useState(false);
+  const [selectorActive, setSelectorActive] = useState(false);
+  const [selectorOutcome, setSelectorOutcome] = useState<SelectorOutcome | undefined>();
+  const selectValue =
+    selectText ?? (selectorRoot !== undefined ? selectorFromScope(selectorRoot, scope) : '');
+
   const handleExpand = useCallback((nodeId: string, direction: ExpandDirection) => {
     setPending((prev) => new Set(prev).add(`${nodeId}:${direction}`));
     vscode.postMessage({ type: 'expand', nodeId, direction });
@@ -459,6 +585,22 @@ function App() {
 
   const handleOpenFull = useCallback(() => {
     vscode.postMessage({ type: 'openFull' });
+  }, []);
+
+  const handleRunSelector = useCallback(() => {
+    setSelectorRunning(true);
+    vscode.postMessage({ type: 'runSelector', select: selectValue, exclude: excludeText });
+  }, [selectValue, excludeText]);
+
+  const handleCancelSelector = useCallback(() => {
+    vscode.postMessage({ type: 'cancelSelector' });
+  }, []);
+
+  const handleClearSelector = useCallback(() => {
+    // Back to mirroring the depth controls, rather than leaving a stale query in the field.
+    setSelectText(null);
+    setExcludeText('');
+    vscode.postMessage({ type: 'clearSelector' });
   }, []);
 
   // The control moves immediately and the graph follows. The host answers from the manifest it
@@ -474,7 +616,37 @@ function App() {
     function onMessage(event: MessageEvent<HostToWebviewMessage>) {
       const message = event.data;
 
+      if (message.type === 'selectorResult') {
+        const { outcome } = message;
+        setScope(message.scope);
+        setScopePending(false);
+        setSelectorRunning(false);
+
+        if (outcome.status === 'ok' || outcome.status === 'tooMany') {
+          // A selection replaces the graph wholesale, like a rescope: nothing hand-expanded
+          // survives it, and nothing in it is expandable.
+          const next = toMaps(
+            outcome.status === 'ok' ? outcome.subgraph : { nodes: [], edges: [] },
+          );
+          setRawNodes(next.nodes);
+          setRawEdges(next.edges);
+          setExpandedUp(new Set());
+          setExpandedDown(new Set());
+          setPending(new Set());
+          setSelectorActive(true);
+          setSelectorOutcome(outcome);
+        } else if (outcome.status === 'error') {
+          // The graph on screen is still the last good one; only the message changes.
+          setSelectorOutcome(outcome);
+        } else {
+          setSelectorOutcome((previous) => (previous?.status === 'error' ? undefined : previous));
+        }
+        return;
+      }
+
       if (message.type === 'scopeResult') {
+        setSelectorActive(false);
+        setSelectorOutcome(undefined);
         setRawNodes(new Map(message.subgraph.nodes.map((n) => [n.id, n])));
         setRawEdges(new Map(message.subgraph.edges.map((e) => [`${e.source}->${e.target}`, e])));
         // A rescope redraws from the root, so hand-expanded branches are gone and the record of
@@ -548,12 +720,33 @@ function App() {
       <ScopeToolbar
         scope={scope}
         materializations={bootstrap.materializations}
-        busy={scopePending}
+        busy={scopePending || selectorRunning}
+        depthsLocked={selectorActive}
         onChange={handleScopeChange}
         onOpenFull={bootstrap.placement === 'panel' ? handleOpenFull : undefined}
       />
+      {selectorRoot !== undefined && (
+        <SelectorBar
+          select={selectValue}
+          exclude={excludeText}
+          running={selectorRunning}
+          active={selectorActive}
+          status={selectorOutcome ? describeSelectorOutcome(selectorOutcome) : undefined}
+          onSelect={setSelectText}
+          onExclude={setExcludeText}
+          onRun={handleRunSelector}
+          onCancel={handleCancelSelector}
+          onClear={handleClearSelector}
+        />
+      )}
       <div className="lineage-canvas">
-        {rawNodes.size <= 1 && scope.upstreamDepth === 0 && scope.downstreamDepth === 0 ? (
+        {selectorActive && rawNodes.size === 0 ? (
+          // The line under the field says why: nothing selected, or too much to draw.
+          <div className="lineage-empty">Nothing to draw for this selection.</div>
+        ) : !selectorActive &&
+          rawNodes.size <= 1 &&
+          scope.upstreamDepth === 0 &&
+          scope.downstreamDepth === 0 ? (
           <div className="lineage-empty">
             Only <strong>{bootstrap.rootName}</strong> is in scope. Raise Upstream or Downstream to
             draw its neighbours.

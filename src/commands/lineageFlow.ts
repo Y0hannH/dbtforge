@@ -3,6 +3,7 @@ import * as vscode from 'vscode';
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { lineageWebviewOptions, renderLineageHtml } from '../lineage/lineageHtml';
 import { configuredLineageLocation } from '../lineage/lineagePlacement';
+import type { SelectionRunner } from '../lineage/lineageSession';
 import { LineageSession } from '../lineage/lineageSession';
 import type { LineageViewProvider } from '../lineage/lineageViewProvider';
 
@@ -17,8 +18,9 @@ export function showLineage(
   index: DbtProjectIndex,
   rootId: string,
   panelView: LineageViewProvider,
+  runSelection: SelectionRunner,
 ): void {
-  const session = new LineageSession(index, rootId);
+  const session = new LineageSession(index, rootId, undefined, runSelection);
 
   if (configuredLineageLocation(vscode.window.activeTextEditor?.document.uri) === 'panel') {
     void panelView.show(session);
@@ -33,21 +35,31 @@ export function showLineage(
  * focused, so following the active editor never steals the user's place. A no-op when no lineage
  * is open or it already shows this node. The depth/exclusion choices carry over, since the user
  * made them for the graph they are reading, not for one particular model.
+ *
+ * A tab showing the result of a `dbt ls` selection is left where it is: that graph is not about
+ * the open model, and clicking one of its nodes opens a file, which would otherwise retarget it
+ * on the spot.
  */
 export function followActiveEditor(
   context: vscode.ExtensionContext,
   index: DbtProjectIndex,
   rootId: string,
   panelView: LineageViewProvider,
+  runSelection: SelectionRunner,
 ): void {
-  if (editorPanel && editorSession && editorSession.rootId !== rootId) {
-    const session = new LineageSession(index, rootId, editorSession.currentScope);
+  if (
+    editorPanel &&
+    editorSession &&
+    editorSession.rootId !== rootId &&
+    !editorSession.hasSelection
+  ) {
+    const session = new LineageSession(index, rootId, editorSession.currentScope, runSelection);
     attachToEditorPanel(context, editorPanel, session);
   }
 
   const panelSession = panelView.currentSession;
   if (panelSession && panelSession.rootId !== rootId) {
-    panelView.retarget(new LineageSession(index, rootId, panelSession.currentScope));
+    panelView.retarget(new LineageSession(index, rootId, panelSession.currentScope, runSelection));
   }
 }
 

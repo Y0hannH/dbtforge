@@ -9,6 +9,7 @@ import type {
 import { isLatestVersion, versionedName } from '../index/modelVersions';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
+import { MAX_SELECTION_NODES } from './lineageSelection';
 import { nodeMetaLabel, readNodeColor } from './nodeDisplay';
 import type { InheritedTargetLag } from './targetLagResolution';
 import { isDownstreamLag, resolveInheritedTargetLag } from './targetLagResolution';
@@ -207,6 +208,56 @@ export function buildScopedSubgraph(
   walk(index, graph, rootId, 'down', scope.downstreamDepth, scope, nodes, edges, lagMemo);
 
   return { nodes: [...nodes.values()], edges: [...edges.values()] };
+}
+
+export type SelectionSubgraph =
+  | { kind: 'ok'; subgraph: LineageSubgraph; filteredOut: number }
+  | { kind: 'tooMany'; nodeCount: number; filteredOut: number };
+
+/**
+ * The graph of a selection `dbt ls` returned: exactly those nodes, joined by the manifest's edges
+ * between them and by no others.
+ *
+ * Nothing is expandable. A node's neighbours outside the selection are not part of what the user
+ * asked to see, and an expand button would quietly turn the result of a query back into a walk.
+ * That also means two unrelated matches are two islands, which is what the selection says.
+ *
+ * `scope` still filters — tests and hidden materializations stay display choices rather than
+ * something the user must rewrite into the selection — but its depths do not apply: the selection
+ * has already decided how far to reach.
+ */
+export function buildSelectionSubgraph(
+  index: DbtProjectIndex,
+  matchedIds: string[],
+  scope: LineageScope,
+  limit: number = MAX_SELECTION_NODES,
+): SelectionSubgraph {
+  const graph = index.getGraph();
+  const shown = matchedIds.filter((id) => {
+    const entity = index.getLineageEntity(id);
+    return entity !== undefined && isInScope(entity, scope);
+  });
+  const filteredOut = matchedIds.length - shown.length;
+
+  if (!graph) return { kind: 'ok', subgraph: { nodes: [], edges: [] }, filteredOut };
+  if (shown.length > limit) return { kind: 'tooMany', nodeCount: shown.length, filteredOut };
+
+  const shownSet = new Set(shown);
+  const lagMemo = new Map<string, InheritedTargetLag>();
+  const nodes: LineageNode[] = [];
+  const edges: LineageEdge[] = [];
+
+  for (const id of shown) {
+    const node = toLineageNode(index, id, false, scope, lagMemo);
+    if (!node) continue;
+    nodes.push({ ...node, parentCount: 0, childCount: 0 });
+
+    for (const parentId of graph.getParents(id)) {
+      if (shownSet.has(parentId)) edges.push({ source: parentId, target: id });
+    }
+  }
+
+  return { kind: 'ok', subgraph: { nodes, edges }, filteredOut };
 }
 
 /**
