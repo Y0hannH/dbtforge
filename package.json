@@ -190,6 +190,11 @@
         "icon": "$(refresh)"
       },
       {
+        "command": "dbtForge.searchModels",
+        "title": "dbt Forge: Search Models",
+        "icon": "$(search)"
+      },
+      {
         "command": "dbtForge.showLineage",
         "title": "dbt Forge: Show Lineage",
         "icon": "$(git-merge)"
@@ -380,6 +385,11 @@
         }
       ],
       "view/title": [
+        {
+          "command": "dbtForge.searchModels",
+          "when": "view == dbtForge.relatives",
+          "group": "navigation@0"
+        },
         {
           "command": "dbtForge.compileFile",
           "when": "view == dbtForge.relatives",

@@ -2,6 +2,14 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Search Models: find a model by name and open it.** A magnifier in the dbt Forge panel's title bar (and `dbt Forge: Search Models` in the Command Palette) opens a picker over every model, seed and snapshot in the project.
+  - **Matches the folder and the package as well as the name**, so `marts/fin` narrows to a folder and two `stg_orders` in different folders can be told apart.
+  - **Each version of a versioned model is listed on its own** (`dim_customers (v1)`, `dim_customers (v2)`), so an older version is as reachable as the latest.
+  - **Reads the manifest only.** If a file has moved since the last compile, it says so rather than opening an empty document.
+
 ## [0.21.0] - 2026-10-26
 
 ### Added

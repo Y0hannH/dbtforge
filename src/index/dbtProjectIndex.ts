@@ -3,6 +3,8 @@ import * as path from 'path';
 import * as vscode from 'vscode';
 
 import type { DbtForgeConfig } from '../config';
+import type { ModelSearchItem } from '../search/modelSearch';
+import { buildModelSearchItems } from '../search/modelSearch';
 import type { DbtCatalog, DbtCatalogColumn } from './catalogTypes';
 import type { DocIndex, DocRef } from './docIndex';
 import { buildDocIndex } from './docIndex';
@@ -309,6 +311,14 @@ export class DbtProjectIndex implements vscode.Disposable {
   /** Everything `ref()` can point at: models, seeds and snapshots. */
   getAllRefTargets(): ModelRef[] {
     return [...this.refsByName.values()];
+  }
+
+  /** Every model, seed and snapshot with each version of a versioned model, for the search. */
+  getSearchItems(): ModelSearchItem[] {
+    return buildModelSearchItems(
+      Object.values(this.manifest?.nodes ?? {}),
+      this.manifest?.metadata.project_name ?? '',
+    );
   }
 
   getAllSources(): SourceRef[] {
