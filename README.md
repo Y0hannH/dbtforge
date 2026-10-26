@@ -85,6 +85,7 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 - **Go to Definition** — `Ctrl+click` a `ref()` / `source()` / macro call to jump to the file it resolves to: a model's or macro's `.sql`, a seed's `.csv`.
 - **Find All References** — `Shift+F12` (or right-click) on a model, source or macro lists every call site across the project.
 - **Hover documentation** — hover a `ref()` / `source()` / macro call for its description (and a macro's argument signature), straight from the manifest.
+- **Search Models** — the magnifier in the dbt Forge panel's title bar (or `dbt Forge: Search Models` in the Command Palette) lists every model, seed and snapshot of the project; type part of a name, a folder (`marts/fin`) or a package, and Enter opens the file. Each version of a versioned model is its own entry.
 - **Parents / Children / Tests panel** — sidebar view of the current model's direct dependencies and dependents.
 - **Tags panel** — every tag declared in the project, expandable to its resources, with one-click Build / Build Upstream / Build Downstream / Test per tag.
 
@@ -179,6 +180,7 @@ Every command is in the Command Palette under **dbt Forge**; most are also on a 
 | `dbtForge.parseProject` | `dbt parse` — regenerates `manifest.json` without compiling SQL or hitting the warehouse |
 | `dbtForge.compileProject` | `dbt compile` for the whole project |
 | `dbtForge.generateDocs` | `dbt docs generate` — writes `catalog.json`, which column autocomplete reads |
+| `dbtForge.searchModels` | Quick Pick over the project's models, seeds and snapshots, opening the one you choose (also a magnifier in the dbt Forge panel's title bar) |
 | `dbtForge.refreshIndex` | Re-reads `manifest.json` / `catalog.json` from disk (does **not** run dbt) |
 | `dbtForge.refreshTags` | Re-reads the tag list from the loaded manifest |
 

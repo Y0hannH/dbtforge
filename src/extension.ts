@@ -18,6 +18,7 @@ import {
   handleTerminalClosed,
   runDbtCommand,
 } from './commands/runDbtCommand';
+import { searchModels } from './commands/searchModels';
 import { selectProfile } from './commands/selectProfile';
 import type { DbtForgeConfig } from './config';
 import { resolveConfig } from './config';
@@ -266,6 +267,10 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   );
 
   context.subscriptions.push(
+    vscode.commands.registerCommand('dbtForge.searchModels', async () => {
+      const index = await resolveAnyIndex();
+      if (index) await searchModels(index);
+    }),
     vscode.commands.registerCommand('dbtForge.refreshIndex', async () => {
       for (const index of indexes.values()) {
         await index.initialize();
