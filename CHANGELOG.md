@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.21.0] - 2026-10-26
 
 ### Added
 - **Select and Exclude in the larger lineage view: dbt's full selection language, run for real.** The editor tab's lineage gets two fields and a **Run** button. Type a selection — `tag:nightly`, `orders,config.materialized:table`, `@orders`, a union of two unrelated models — and the graph becomes what `dbt ls` returns for it, through your venv.
