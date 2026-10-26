@@ -2,6 +2,20 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Select and Exclude in the larger lineage view: dbt's full selection language, run for real.** The editor tab's lineage gets two fields and a **Run** button. Type a selection — `tag:nightly`, `orders,config.materialized:table`, `@orders`, a union of two unrelated models — and the graph becomes what `dbt ls` returns for it, through your venv.
+  - **Two fields, like dbt Docs and the CLI's `--select` / `--exclude`**, so an exclusion doesn't have to be written into the selection. Space-separated terms are a union, commas an intersection, exactly as in dbt.
+  - **Select starts from the depth controls.** With 3 up and 1 down on `orders` it reads `3+orders+1`, and follows the controls until you type in it; **Clear** puts it back.
+  - **Nothing runs while you type.** `dbt ls` re-parses the project, which takes seconds on a large one, so only **Run** (or Enter) starts it, and **Cancel** stops it. A failure shows dbt's message under the field and keeps the graph that was there; the full error goes to the dbt Forge output channel.
+  - **The graph is the selection and nothing else.** Only the manifest's edges *between* matched nodes are drawn, so two unrelated models are two separate islands, and no node offers to expand — that would quietly turn a query result back into a walk. The Tests and Hide-materialization filters still apply to the result; the depth controls are disabled, since the selection decides how far it reaches.
+  - **What can't be drawn is counted, never guessed.** A node `dbt ls` returns that the manifest doesn't know — it is older than your files — is reported (*"1 node not in the manifest — run `dbt compile`"*), as are metrics and other kinds the graph doesn't draw, and nodes hidden by the filters.
+  - **There is a ceiling: 300 nodes.** Past it the graph is not truncated; you get the count and a prompt to narrow the selection.
+  - **The lineage stops following the active editor while a selection is on screen.** Clicking a node opens its file, which would otherwise retarget the graph and throw the selection away the moment you used it.
+  - **Needs `dbt` in the configured venv and a profile that loads.** `dbt ls` reads the profile but never connects. The selected environment (`--profile` / `--target`) is passed, as for every other dbt command. A term starting with `-` is refused rather than handed to dbt as an option.
+  - Refs [#4](https://github.com/Y0hannH/dbtforge/issues/4).
+
 ## [0.20.0] - 2026-10-20
 
 ### Added
