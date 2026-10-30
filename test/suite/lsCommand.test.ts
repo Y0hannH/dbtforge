@@ -104,6 +104,30 @@ void test('parseLsOutput: ignores whatever on stdout is not a node', () => {
   assert.deepEqual(parseLsOutput(stdout), ['model.pkg.a', 'model.pkg.b']);
 });
 
+void test("parseLsOutput: reads nodes through dbt-core 1.11's log prefix", () => {
+  // As printed by `dbt --quiet --no-use-colors ls --output json` on 1.11.10.
+  const stdout = [
+    '08:36:49.670627 [info ] [MainThread]: {"name": "core_omni_models", "unique_id": "exposure.pkg.core_omni_models"}',
+    '08:36:49.671214 [info ] [MainThread]: {"name": "core_steno_employees", "unique_id": "model.pkg.core_steno_employees"}',
+    '08:36:49.671539 [warn ] [MainThread]: {"name": "x", "unique_id": "model.pkg.x"}',
+  ].join('\n');
+
+  assert.deepEqual(parseLsOutput(stdout), [
+    'exposure.pkg.core_omni_models',
+    'model.pkg.core_steno_employees',
+    'model.pkg.x',
+  ]);
+});
+
+void test('parseLsOutput: a brace in other text is still not a node', () => {
+  const stdout = [
+    '08:36:49.1 [info ] [MainThread]: Using vars {"unique_id": "model.pkg.a"}',
+    'note: {"unique_id": "model.pkg.b"}',
+  ].join('\n');
+
+  assert.deepEqual(parseLsOutput(stdout), []);
+});
+
 void test('parseLsOutput: no output is no nodes', () => {
   assert.deepEqual(parseLsOutput(''), []);
 });

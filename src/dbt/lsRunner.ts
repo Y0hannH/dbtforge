@@ -16,6 +16,8 @@ export interface DbtLsRequest {
   exclude: string;
   signal?: AbortSignal;
   timeoutMs?: number;
+  /** Where dbt's output goes when it can't be read; the output channel in the extension. */
+  log?: (text: string) => void;
 }
 
 /** A failure worth showing the user, with dbt's own words kept aside for the output channel. */
@@ -40,6 +42,9 @@ export class DbtLsCancelledError extends Error {
 // a large project, not on a query. It is long enough not to cut one off and short enough not to
 // leave the Run button spinning for good.
 const DEFAULT_TIMEOUT_MS = 120_000;
+
+// Enough to see the shape of what dbt printed; a node's JSON is long and a project has many.
+const UNREAD_OUTPUT_CHARS = 2000;
 
 export async function runDbtLs(request: DbtLsRequest): Promise<string[]> {
   const executable = resolveDbtExecutable(request.pythonPath);
@@ -83,5 +88,15 @@ export async function runDbtLs(request: DbtLsRequest): Promise<string[]> {
     );
   }
 
-  return parseLsOutput(result.stdout);
+  const ids = parseLsOutput(result.stdout);
+
+  // Nothing read from output that was not empty is not the same as dbt matching nothing: it means
+  // dbt printed in a shape we don't understand, and the user is otherwise told "no nodes".
+  if (ids.length === 0 && result.stdout.trim() && request.log) {
+    request.log(
+      `dbt ls printed output but no node could be read from it.\n` +
+        `command: ${executable} ${args.join(' ')}\n${result.stdout.slice(0, UNREAD_OUTPUT_CHARS)}`,
+    );
+  }
+  return ids;
 }
