@@ -148,6 +148,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
         select,
         exclude,
         signal,
+        log: (text) => output.appendLine(`dbt Forge: ${text}`),
       });
     } catch (error) {
       if (error instanceof DbtLsError && error.details) {

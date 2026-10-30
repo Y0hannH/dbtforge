@@ -2,6 +2,13 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **The larger lineage view's Select no longer answers "dbt selected no nodes" on dbt-core 1.11.** dbt 1.11 prints each node from `dbt ls` behind its log prefix (`08:36:49.670627 [info ] [MainThread]: {…}`), even with `--quiet`, and only lines starting with `{` were read, so every node was dropped. The prefix is now recognised; text that merely contains a `{` still isn't read as a node.
+  - **When dbt prints something that can't be read, the dbt Forge output channel now gets the command and the start of what dbt printed**, instead of the view saying nothing was selected.
+  - Refs [#4](https://github.com/Y0hannH/dbtforge/issues/4).
+
 ## [0.22.0] - 2026-10-26
 
 ### Added

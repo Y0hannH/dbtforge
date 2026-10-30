@@ -57,6 +57,11 @@ export function splitSelector(text: string): string[] {
   return terms;
 }
 
+// dbt-core 1.11 prints each node through its logger even with `--quiet`, so a line arrives as
+// `08:36:49.670627 [info ] [MainThread]: {...}`. Older versions print the bare JSON. This is the
+// logger's prefix and nothing else: a stray `{` in some other text must still not count.
+const LOG_PREFIX = /^\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+\[\s*\w+\s*\]\s+\[[^\]]*\]:\s*/;
+
 /**
  * The `unique_id` of every node in `dbt ls --output json`, in the order printed, once each.
  *
@@ -67,7 +72,7 @@ export function splitSelector(text: string): string[] {
 export function parseLsOutput(stdout: string): string[] {
   const seen = new Set<string>();
   for (const line of stdout.split(/\r?\n/)) {
-    const trimmed = line.trim();
+    const trimmed = line.trim().replace(LOG_PREFIX, '');
     if (!trimmed.startsWith('{')) continue;
 
     let parsed: unknown;
