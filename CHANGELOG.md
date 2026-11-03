@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.23.0] - 2026-11-03
 
 ### Added
 - **Metrics, semantic models, saved queries and unit tests appear in the lineage.** They were in the manifest's `child_map` all along and were skipped; they are now drawn like exposures, as `metric · ratio`, `semantic_model`, `saved_query` and `unit_test`, and clicking one opens the `.yml` that declares it.
