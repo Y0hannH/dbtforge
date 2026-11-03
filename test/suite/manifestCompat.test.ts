@@ -53,7 +53,13 @@ function indexFor(manifest: DbtManifest): DbtProjectIndex {
   return {
     getGraph: () => graph,
     getLineageEntity: (id: string): LineageEntity | undefined =>
-      manifest.nodes[id] ?? manifest.sources?.[id] ?? manifest.exposures?.[id],
+      manifest.nodes[id] ??
+      manifest.sources?.[id] ??
+      manifest.exposures?.[id] ??
+      manifest.semantic_models?.[id] ??
+      manifest.metrics?.[id] ??
+      manifest.saved_queries?.[id] ??
+      manifest.unit_tests?.[id],
     getCatalogColumns: () => undefined,
     getStateChange: () => undefined,
   } as unknown as DbtProjectIndex;
@@ -107,7 +113,7 @@ for (const { name, manifest } of fixtures) {
 
 const modern = fixtures.find((f) => f.name === 'recent-unit-tests-and-semantic-layer.json');
 
-void test('resources the lineage does not draw yet are left out, not drawn dangling', () => {
+void test('the semantic layer and unit tests that sit in child_map are drawn', () => {
   assert.ok(modern);
   const { nodes } = buildScopedSubgraph(
     indexFor(modern.manifest),
@@ -116,17 +122,33 @@ void test('resources the lineage does not draw yet are left out, not drawn dangl
   );
   const drawn = nodes.map((n) => n.id);
 
-  // Known limit, stated in the 0.17.0 changelog: they sit in child_map, and are skipped.
-  for (const prefix of ['unit_test.', 'semantic_model.', 'metric.', 'saved_query.']) {
-    assert.equal(
-      drawn.some((id) => id.startsWith(prefix)),
-      false,
-      `${prefix}* should not be drawn yet`,
-    );
+  for (const id of [
+    'unit_test.modern_project.fct_orders.test_totals_are_summed',
+    'semantic_model.modern_project.orders',
+    'metric.modern_project.revenue',
+    'saved_query.modern_project.weekly_revenue',
+    'exposure.modern_project.revenue_dashboard',
+    'test.modern_project.unique_fct_orders_order_id.9f8e7d',
+  ]) {
+    assert.ok(drawn.includes(id), `${id} should be drawn`);
   }
-  // What *is* drawn around a model with all of these attached.
+});
+
+void test('a manifest without the semantic sections draws what it always did', () => {
+  assert.ok(modern);
+  const { semantic_models, metrics, saved_queries, unit_tests, ...legacy } = modern.manifest;
+  void [semantic_models, metrics, saved_queries, unit_tests];
+
+  const { nodes } = buildScopedSubgraph(
+    indexFor(legacy as DbtManifest),
+    'model.modern_project.fct_orders',
+    wholeDag,
+  );
+  const drawn = nodes.map((n) => n.id);
+
+  // Their ids are still in child_map, but nothing resolves them, so none is drawn dangling.
+  assert.ok(!drawn.some((id) => id.startsWith('metric.') || id.startsWith('unit_test.')));
   assert.ok(drawn.includes('exposure.modern_project.revenue_dashboard'));
-  assert.ok(drawn.includes('test.modern_project.unique_fct_orders_order_id.9f8e7d'));
 });
 
 void test('a bare ref() on a versioned model resolves to its latest_version', () => {

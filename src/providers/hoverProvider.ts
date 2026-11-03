@@ -24,7 +24,7 @@ export class DbtHoverProvider implements vscode.HoverProvider {
     const call = findCallAtPosition(lineText, position.character);
     if (call?.kind === 'ref') {
       if (call.versionUnreadable) return undefined;
-      const model = index.resolveRef(call.name, call.version);
+      const model = index.resolveRef(call.name, call.version, call.packageName);
       if (!model) return undefined;
       return new vscode.Hover(
         modelMarkdown(model),

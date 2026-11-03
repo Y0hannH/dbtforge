@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 
 import { DbtLsCancelledError } from '../dbt/lsRunner';
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
-import type { DbtNode } from '../index/manifestTypes';
+import { isBuiltNode } from '../index/manifestTypes';
 import { versionedName } from '../index/modelVersions';
 import { buildScopedSubgraph, buildSelectionSubgraph, expandNode } from './buildLineageGraph';
 import type { LineageLocation } from './lineagePlacement';
@@ -76,9 +76,7 @@ export class LineageSession {
   get rootName(): string {
     const entity = this.index.getLineageEntity(this.rootId);
     if (!entity) return this.rootId;
-    return entity.resource_type === 'source' || entity.resource_type === 'exposure'
-      ? entity.name
-      : versionedName(entity as DbtNode);
+    return isBuiltNode(entity) ? versionedName(entity) : entity.name;
   }
 
   /**

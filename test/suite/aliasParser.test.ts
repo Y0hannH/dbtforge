@@ -2,7 +2,7 @@ import { test } from 'node:test';
 
 import { strict as assert } from 'assert';
 
-import { parseAliases, parseTableReferences } from '../../src/sql/aliasParser';
+import { parseAliases, parseTableReferences, withoutAlias } from '../../src/sql/aliasParser';
 
 void test('parseAliases: ref with explicit AS', () => {
   const sql = "select * from {{ ref('dim_customers') }} AS c";
@@ -56,4 +56,49 @@ void test('parseTableReferences: aliased and unaliased references, in document o
     { kind: 'source', sourceName: 'raw', tableName: 'orders' },
     { kind: 'ref', modelName: 'customers', alias: 'c' },
   ]);
+});
+
+void test('parseAliases: a cross-package ref carries its package', () => {
+  const sql = "select * from {{ ref('shared', 'dim_customers') }} c";
+  assert.deepEqual(parseAliases(sql), [
+    { kind: 'ref', modelName: 'dim_customers', packageName: 'shared', alias: 'c' },
+  ]);
+});
+
+void test('parseAliases: a pinned version is read from v= and version=', () => {
+  const sql = "from {{ ref('dim', v=2) }} a join {{ ref('dim', version='3') }} as b on 1=1";
+  assert.deepEqual(parseAliases(sql), [
+    { kind: 'ref', modelName: 'dim', version: '2', alias: 'a' },
+    { kind: 'ref', modelName: 'dim', version: '3', alias: 'b' },
+  ]);
+});
+
+void test('parseAliases: package and version together', () => {
+  const sql = "from {{ ref('shared', 'dim', v=2) }} d";
+  assert.deepEqual(parseAliases(sql), [
+    { kind: 'ref', modelName: 'dim', packageName: 'shared', version: '2', alias: 'd' },
+  ]);
+});
+
+void test('parseAliases: a version given as an expression is flagged, not dropped', () => {
+  const sql = "from {{ ref('dim', v=var('dim_version')) }} d";
+  assert.deepEqual(parseAliases(sql), [
+    { kind: 'ref', modelName: 'dim', versionUnreadable: true, alias: 'd' },
+  ]);
+});
+
+void test('parseTableReferences: an unaliased cross-package ref is still reported', () => {
+  assert.deepEqual(parseTableReferences("select * from {{ ref('shared', 'dim') }}\nwhere 1=1"), [
+    { kind: 'ref', modelName: 'dim', packageName: 'shared' },
+  ]);
+});
+
+void test('withoutAlias: keeps what points at the table and drops the alias', () => {
+  const [reference] = parseTableReferences("from {{ ref('shared', 'dim', v=2) }} d");
+  assert.deepEqual(withoutAlias(reference), {
+    kind: 'ref',
+    modelName: 'dim',
+    packageName: 'shared',
+    version: '2',
+  });
 });

@@ -71,6 +71,19 @@ void test('rootSelector: a source is qualified by its source, an exposure by kin
   };
   assert.equal(rootSelector(source), 'source:raw.customers');
   assert.equal(rootSelector(exposure), 'exposure:weekly');
+  for (const kind of ['metric', 'semantic_model', 'saved_query'] as const) {
+    assert.equal(
+      rootSelector({
+        unique_id: `${kind}.pkg.x`,
+        resource_type: kind,
+        name: 'x',
+        package_name: 'pkg',
+        path: 'x.yml',
+        original_file_path: 'models/x.yml',
+      }),
+      `${kind}:x`,
+    );
+  }
 });
 
 void test('partitionMatches: separates what the manifest knows from what it does not', () => {
@@ -87,12 +100,23 @@ void test('partitionMatches: separates what the manifest knows from what it does
 
 void test('partitionMatches: kinds the graph never draws are not "missing"', () => {
   const result = partitionMatches(
-    ['metric.pkg.revenue', 'semantic_model.pkg.orders', 'model.pkg.new'],
+    ['group.pkg.finance', 'group.pkg.sales', 'model.pkg.new'],
     () => false,
   );
 
   assert.equal(result.notDrawn, 2);
   assert.equal(result.missing, 1);
+});
+
+void test('partitionMatches: a metric the manifest knows is drawn, one it does not is missing', () => {
+  const result = partitionMatches(
+    ['metric.pkg.revenue', 'semantic_model.pkg.orders', 'unit_test.pkg.m.t'],
+    (id) => id === 'metric.pkg.revenue',
+  );
+
+  assert.deepEqual(result.known, ['metric.pkg.revenue']);
+  assert.equal(result.missing, 2);
+  assert.equal(result.notDrawn, 0);
 });
 
 const counts = (overrides: Partial<SelectorCounts> = {}): SelectorCounts => ({

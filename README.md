@@ -91,13 +91,14 @@ Then press `F5` in VS Code to launch an Extension Development Host with dbt Forg
 
 ### Catch mistakes
 
-- **Broken `ref()` / `source()` diagnostics** — a call that doesn't resolve against the manifest (a typo, a renamed or deleted model) is flagged in the Problems panel and inline.
+- **Broken `ref()` / `source()` diagnostics** — a call that doesn't resolve against the manifest (a typo, a renamed or deleted model, a package that doesn't have it) is flagged in the Problems panel and inline.
+- **Private models** — a `ref()` to a model declared `access: private` from a model outside its group is flagged, as dbt would refuse it. It only speaks when the model it is written in is known to the manifest.
 - **Column reconciliation** — in a schema `.yml`, warns when a documented column doesn't exist in the table, and when the same column is documented twice (the second silently overwrites the first in dbt). Quick fixes remove a stale column or add the ones the file leaves out. Reads `catalog.json`, so it stays quiet until `dbt docs generate` has run.
 - **Failing tests in Problems** — a test that failed or warned lands on the line of the `.yml` that declares it, and a model that errored on the first line of its file. Read from `run_results.json`, so it costs no extra dbt run.
 
 ### See the project
 
-- **Interactive lineage graph** — click-to-expand upstream/downstream graph (React Flow). It starts at the current model, seed or snapshot and shows sources upstream and exposures (dashboards, apps) downstream — no giant unreadable diagram dumped on you. Each node shows its materialization, its `target_lag` if it is a dynamic table (a `downstream` one also shows the shortest lag declared below it, as `≤ 10 minutes`), its column count once `catalog.json` exists, and wears the `node_color` your project declares.
+- **Interactive lineage graph** — click-to-expand upstream/downstream graph (React Flow). It starts at the current model, seed or snapshot and shows sources upstream and exposures (dashboards, apps) downstream, with the semantic layer — semantic models, metrics, saved queries — and unit tests where the manifest has them (unit tests with the tests, hidden until you ask for those) — no giant unreadable diagram dumped on you. Each node shows its materialization, its `target_lag` if it is a dynamic table (a `downstream` one also shows the shortest lag declared below it, as `≤ 10 minutes`), its column count once `catalog.json` exists, and wears the `node_color` your project declares.
 - **Scope controls** — how many hops of parents and children to draw (or *All* for the whole DAG), hide tests, drop whole materializations. Resolved from the manifest, so it redraws instantly.
 - **Select / Exclude, in the editor tab** — the rest of dbt's selection language (`tag:`, `config.*:`, intersections, `@model`), run through the real `dbt ls` in your venv when you press **Run**. The graph is exactly what dbt returns, drawn with the manifest's edges between those nodes. The Select field starts from the depth controls (`3+orders+1`) until you edit it. Things worth knowing: a node `dbt ls` returns that the manifest doesn't know yet is counted, not drawn — run `dbt compile`; past 300 nodes you get the count and a prompt to narrow instead of a truncated graph; unrelated matches show as separate islands; and the lineage stops following the editor while a selection is on screen (**Clear** goes back). `dbt ls` parses the project and loads your profile but never queries the warehouse.
 - **Last run status** — after a `dbt build`, `run` or `test`, each node shows `✓ 4.2s`, `✗ failed` or `– skipped` in the lineage and in the Parents / Children / Tests panel; a model that built but fails a test reads as failing. Read from `run_results.json`.
@@ -134,7 +135,7 @@ Two things trip people up:
 - **`catalog.json` is only written by `dbt docs generate`.** Neither `dbt compile`, nor `dbt run`, nor `dbt build` produces or refreshes it. A model can be perfectly compiled and still have no column suggestions. Use the **Generate Docs** button, then re-run it whenever columns change.
 - **The alias is mandatory as soon as the model reads more than one table.** `from {{ ref('orders') }} o` gives you `o.`; a second table with no alias gives you nothing to type before the dot, because a bare column could then have come from either.
 
-The alias must also sit right after a single-argument `ref()`/`source()` call — `ref('package', 'model')`, `ref('model', version=2)`, and calls split across lines aren't detected yet.
+The alias must sit right after the `ref()`/`source()` call, which is read in the shapes dbt accepts — `ref('model')`, `ref('package', 'model')`, and either with a pinned version (`ref('model', v=2)`). A version given as an expression (`v=var('v')`) gives no suggestions, since it could be any of them. Calls split across lines aren't detected yet.
 
 If nothing is suggested, dbt Forge stays silent rather than guessing. Check those conditions in order.
 
@@ -285,7 +286,7 @@ A request that falls on the wrong side of that line is not a bad idea — it is 
 
 What has shipped, version by version, is in the [CHANGELOG](CHANGELOG.md). What follows is planned in this order — an order, not a promise of dates. Every item passes the same test as the rest: it needs to know your dbt project.
 
-1. **dbt resources it doesn't know yet.** *Done:* model versions. *Still to do:* `ref('package', 'model')` and `ref('m', v=2)` in alias detection, unit tests, and metrics / semantic models / saved queries in the lineage. Groups and `access`: warn on a `ref()` to a private model from outside its group.
+1. **dbt resources it doesn't know yet.** *Done:* model versions; `ref('package', 'model')` and `ref('m', v=2)` in alias detection; unit tests, semantic models, metrics and saved queries in the lineage; a warning on a `ref()` to a private model from outside its group.
 2. **State-aware builds.** *Done:* a reference manifest — a folder, or a copy of the project's own taken on `main` — `modified` / `new` / `impacted` marks in the lineage, and the two deferred builds, plus a `dbt ls` selection from the larger lineage view ([#4](https://github.com/Y0hannH/dbtforge/issues/4)).
 3. **Column-level lineage.** The largest item, and the one where being wrong costs the most, so it starts as a measured spike: how much of a real project's compiled SQL resolves with certainty. Same rule as completion — an edge is drawn when it is certain and left out when it is not, never approximated. Whether it ships follows from that number.
 

@@ -50,44 +50,72 @@ function toModelRef(node: DbtNode): ModelRef {
  * by manifest order. A call that names a version is answered by buildVersionedRefIndex instead.
  */
 export function buildRefIndex(manifest: DbtManifest): Map<string, ModelRef> {
-  const byName = new Map<string, ModelRef>();
-  const versionsByName = new Map<string, DbtNode[]>();
+  return latestByKey(manifest, (node) => node.name);
+}
+
+/**
+ * package + name -> node, for `ref('package', 'name')`. Package-qualified because that is the one
+ * form that tells two same-named models of different packages apart, which buildRefIndex cannot:
+ * there, the second one written over the first.
+ */
+export function buildPackageRefIndex(manifest: DbtManifest): Map<string, ModelRef> {
+  return latestByKey(manifest, (node) => packageKey(node.package_name, node.name));
+}
+
+function latestByKey(
+  manifest: DbtManifest,
+  keyOf: (node: DbtNode) => string,
+): Map<string, ModelRef> {
+  const byKey = new Map<string, ModelRef>();
+  const versionsByKey = new Map<string, DbtNode[]>();
 
   for (const node of Object.values(manifest.nodes)) {
     if (!isReferenceable(node)) continue;
+    const key = keyOf(node);
     if (isVersioned(node)) {
-      versionsByName.set(node.name, [...(versionsByName.get(node.name) ?? []), node]);
+      versionsByKey.set(key, [...(versionsByKey.get(key) ?? []), node]);
       continue;
     }
-    byName.set(node.name, toModelRef(node));
+    byKey.set(key, toModelRef(node));
   }
 
-  for (const [name, versions] of versionsByName) {
+  for (const [key, versions] of versionsByKey) {
     const latest = latestVersion(versions);
-    if (latest) byName.set(name, toModelRef(latest));
+    if (latest) byKey.set(key, toModelRef(latest));
   }
 
-  return byName;
+  return byKey;
+}
+
+/** The key a `ref('package', 'name')` is looked up under in buildPackageRefIndex. */
+export function packageKey(packageName: string, name: string): string {
+  return `${packageName}\u0000${name}`;
 }
 
 /**
  * `name` + version -> node, for `ref('name', v=2)`. Holds versioned models only: pinning a version
  * on a model that has none is an error in dbt too, so it is left to resolve to nothing.
+ *
+ * Each version is also entered under its package, for `ref('package', 'name', v=2)`. The two kinds
+ * of key never collide, and the map is only ever read by key.
  */
 export function buildVersionedRefIndex(manifest: DbtManifest): Map<string, ModelRef> {
   const byVersion = new Map<string, ModelRef>();
 
   for (const node of Object.values(manifest.nodes)) {
     if (!isReferenceable(node) || !isVersioned(node)) continue;
-    byVersion.set(versionKey(node.name, String(node.version)), toModelRef(node));
+    const ref = toModelRef(node);
+    byVersion.set(versionKey(node.name, String(node.version)), ref);
+    byVersion.set(versionKey(node.name, String(node.version), node.package_name), ref);
   }
 
   return byVersion;
 }
 
 /** The key a `ref(name, v=version)` is looked up under in buildVersionedRefIndex. */
-export function versionKey(name: string, version: string): string {
-  return `${name}\u0000${version}`;
+export function versionKey(name: string, version: string, packageName?: string): string {
+  const base = `${name}\u0000${version}`;
+  return packageName === undefined ? base : `${packageName}\u0001${base}`;
 }
 
 // The version `latest_version` names, which dbt writes on every version of a model. Absent from

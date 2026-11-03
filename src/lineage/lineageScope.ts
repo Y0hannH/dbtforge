@@ -1,4 +1,5 @@
-import type { DbtNode, LineageEntity } from '../index/manifestTypes';
+import type { LineageEntity } from '../index/manifestTypes';
+import { isBuiltNode } from '../index/manifestTypes';
 
 /**
  * How much of the DAG the lineage view is currently showing, and what it leaves out.
@@ -17,7 +18,7 @@ export interface LineageScope {
   upstreamDepth: number;
   /** Hops of children to walk from the root. */
   downstreamDepth: number;
-  /** Tests are children of the node they test, so they arrive in the graph like any other child. */
+  /** Tests, unit tests included, are children of the node they test and arrive like any other child. */
   includeTests: boolean;
   /** Materializations to leave out, matched against `config.materialized`. */
   excludedMaterializations: string[];
@@ -47,18 +48,24 @@ export const DEFAULT_SCOPE: LineageScope = {
  * since a test is always a leaf.
  */
 export function isInScope(node: LineageEntity, scope: LineageScope): boolean {
-  if (!scope.includeTests && node.resource_type === 'test') return false;
+  // A unit test is a test: a leaf hanging off the model, hidden with the others until asked for.
+  if (
+    !scope.includeTests &&
+    (node.resource_type === 'test' || node.resource_type === 'unit_test')
+  ) {
+    return false;
+  }
   const materialized = materializationOf(node);
   return !(materialized !== undefined && scope.excludedMaterializations.includes(materialized));
 }
 
 /**
- * `config.materialized`, for the kinds that have one. Sources and exposures are not built by dbt,
- * so they carry no materialization and are never hidden by a materialization filter.
+ * `config.materialized`, for the kinds that have one. Sources, exposures and the semantic layer are
+ * not built by dbt, so they carry no materialization and are never hidden by a materialization
+ * filter.
  */
 export function materializationOf(node: LineageEntity): string | undefined {
-  if (node.resource_type === 'source' || node.resource_type === 'exposure') return undefined;
-  return (node as DbtNode).config?.materialized;
+  return isBuiltNode(node) ? node.config?.materialized : undefined;
 }
 
 /** Whether a walk that has already taken `depth` hops may take one more. */

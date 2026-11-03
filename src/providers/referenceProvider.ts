@@ -143,7 +143,9 @@ export class DbtReferenceProvider implements vscode.ReferenceProvider {
     const call = findCallAtPosition(lineText, position.character);
     if (call?.kind === 'ref') {
       // A version the scan can't read could be any of them, so it names no target at all.
-      const model = call.versionUnreadable ? undefined : index.resolveRef(call.name, call.version);
+      const model = call.versionUnreadable
+        ? undefined
+        : index.resolveRef(call.name, call.version, call.packageName);
       if (model) return modelTarget(index, model.node);
     }
     if (call?.kind === 'source') {

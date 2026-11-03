@@ -24,7 +24,13 @@ import type {
   LineageEntity,
 } from './manifestTypes';
 import type { ModelRef } from './refIndex';
-import { buildRefIndex, buildVersionedRefIndex, versionKey } from './refIndex';
+import {
+  buildPackageRefIndex,
+  buildRefIndex,
+  buildVersionedRefIndex,
+  packageKey,
+  versionKey,
+} from './refIndex';
 import type { NodeRunResult } from './runResults';
 import { parseRunResults } from './runResults';
 import type { StateChange } from './stateComparison';
@@ -65,6 +71,7 @@ export class DbtProjectIndex implements vscode.Disposable {
   // name -> node, for ref() resolution — models, seeds and snapshots alike. See refIndex.
   private refsByName = new Map<string, ModelRef>();
   private refsByVersion = new Map<string, ModelRef>();
+  private refsByPackage = new Map<string, ModelRef>();
   // "source_name.table_name" -> node, for source() resolution.
   private sourcesByKey = new Map<string, SourceRef>();
   // Macro names collide across packages, so this one needs real resolution rules — see macroIndex.
@@ -122,6 +129,7 @@ export class DbtProjectIndex implements vscode.Disposable {
       this.graph = undefined;
       this.refsByName.clear();
       this.refsByVersion.clear();
+      this.refsByPackage.clear();
       this.sourcesByKey.clear();
       this.macros = undefined;
       this.docs = undefined;
@@ -251,6 +259,7 @@ export class DbtProjectIndex implements vscode.Disposable {
     this.sourcesByKey.clear();
     this.refsByName = buildRefIndex(manifest);
     this.refsByVersion = buildVersionedRefIndex(manifest);
+    this.refsByPackage = buildPackageRefIndex(manifest);
     this.macros = buildMacroIndex(manifest);
     this.docs = buildDocIndex(manifest);
     this.uniqueIdByFilePath.clear();
@@ -348,10 +357,17 @@ export class DbtProjectIndex implements vscode.Disposable {
    * Resolves the argument of a `ref()` — a model, seed or snapshot name. Without a `version` a
    * versioned model resolves to its latest; with one, to exactly that version and no other.
    */
-  resolveRef(name: string, version?: string): ModelRef | undefined {
+  resolveRef(name: string, version?: string, packageName?: string): ModelRef | undefined {
+    if (packageName === undefined) {
+      return version === undefined
+        ? this.refsByName.get(name)
+        : this.refsByVersion.get(versionKey(name, version));
+    }
+    // A named package is looked up as that package or not at all: falling back to the bare name
+    // would answer with a same-named model from a different package.
     return version === undefined
-      ? this.refsByName.get(name)
-      : this.refsByVersion.get(versionKey(name, version));
+      ? this.refsByPackage.get(packageKey(packageName, name))
+      : this.refsByVersion.get(versionKey(name, version, packageName));
   }
 
   resolveSource(sourceName: string, tableName: string): SourceRef | undefined {
@@ -394,15 +410,20 @@ export class DbtProjectIndex implements vscode.Disposable {
   }
 
   /**
-   * Resolves an id from `parent_map`/`child_map` to whatever it names: a node, a source or an
-   * exposure. getNode() only knows `manifest.nodes`, which is why the lineage used to lose the
-   * sources and exposures its own graph edges pointed at.
+   * Resolves an id from `parent_map`/`child_map` to whatever it names: a node, a source, an
+   * exposure, or a unit test, semantic model, metric or saved query. getNode() only knows
+   * `manifest.nodes`, which is why the lineage used to lose the sources and exposures its own
+   * graph edges pointed at.
    */
   getLineageEntity(uniqueId: string): LineageEntity | undefined {
     return (
       this.manifest?.nodes[uniqueId] ??
       this.manifest?.sources?.[uniqueId] ??
-      this.manifest?.exposures?.[uniqueId]
+      this.manifest?.exposures?.[uniqueId] ??
+      this.manifest?.semantic_models?.[uniqueId] ??
+      this.manifest?.metrics?.[uniqueId] ??
+      this.manifest?.saved_queries?.[uniqueId] ??
+      this.manifest?.unit_tests?.[uniqueId]
     );
   }
 
