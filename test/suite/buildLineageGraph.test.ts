@@ -626,3 +626,131 @@ void test('buildSelectionSubgraph: past the ceiling it reports the count instead
 
   assert.equal(buildSelectionSubgraph(selectionIndex, ids, DEFAULT_SCOPE, 4).kind, 'ok');
 });
+
+// The semantic layer and a unit test hanging off a model:
+//   fct (model) -> sem (semantic_model) -> rev (metric) -> weekly (saved_query)
+//               -> ut (unit_test)
+const semanticEntities: Record<string, LineageEntity> = {
+  'model.pkg.fct': makeNode('model.pkg.fct', 'fct'),
+  'semantic_model.pkg.sem': {
+    unique_id: 'semantic_model.pkg.sem',
+    resource_type: 'semantic_model',
+    name: 'sem',
+    package_name: 'pkg',
+    path: 'semantic.yml',
+    original_file_path: 'models/semantic.yml',
+  },
+  'metric.pkg.rev': {
+    unique_id: 'metric.pkg.rev',
+    resource_type: 'metric',
+    name: 'rev',
+    package_name: 'pkg',
+    path: 'semantic.yml',
+    original_file_path: 'models/semantic.yml',
+    type: 'ratio',
+  },
+  'saved_query.pkg.weekly': {
+    unique_id: 'saved_query.pkg.weekly',
+    resource_type: 'saved_query',
+    name: 'weekly',
+    package_name: 'pkg',
+    path: 'saved.yml',
+    original_file_path: 'models/saved.yml',
+  },
+  'unit_test.pkg.fct.ut': {
+    unique_id: 'unit_test.pkg.fct.ut',
+    resource_type: 'unit_test',
+    name: 'ut',
+    package_name: 'pkg',
+    path: 'unit.yml',
+    original_file_path: 'models/unit.yml',
+  },
+};
+
+const semanticParents: Record<string, string[]> = {
+  'semantic_model.pkg.sem': ['model.pkg.fct'],
+  'metric.pkg.rev': ['semantic_model.pkg.sem'],
+  'saved_query.pkg.weekly': ['metric.pkg.rev'],
+  'unit_test.pkg.fct.ut': ['model.pkg.fct'],
+};
+const semanticChildren: Record<string, string[]> = {
+  'model.pkg.fct': ['semantic_model.pkg.sem', 'unit_test.pkg.fct.ut'],
+  'semantic_model.pkg.sem': ['metric.pkg.rev'],
+  'metric.pkg.rev': ['saved_query.pkg.weekly'],
+};
+
+const semanticIndex = {
+  getGraph: () => ({
+    getParents: (id: string) => semanticParents[id] ?? [],
+    getChildren: (id: string) => semanticChildren[id] ?? [],
+    getTests: () => [],
+    getMacroCallers: () => [],
+  }),
+  getLineageEntity: (id: string) => semanticEntities[id],
+  getCatalogColumns: () => undefined,
+  getStateChange: () => undefined,
+} as unknown as DbtProjectIndex;
+
+const wholeDownstream: LineageScope = { ...DEFAULT_SCOPE, downstreamDepth: UNLIMITED_DEPTH };
+
+void test('buildScopedSubgraph: draws the semantic layer behind a model, down to the saved query', () => {
+  const { nodes: result, edges } = buildScopedSubgraph(
+    semanticIndex,
+    'model.pkg.fct',
+    wholeDownstream,
+  );
+
+  assert.deepEqual(result.map((n) => n.id).sort(), [
+    'metric.pkg.rev',
+    'model.pkg.fct',
+    'saved_query.pkg.weekly',
+    'semantic_model.pkg.sem',
+  ]);
+  assert.deepEqual(edgeKeys(edges), [
+    'metric.pkg.rev->saved_query.pkg.weekly',
+    'model.pkg.fct->semantic_model.pkg.sem',
+    'semantic_model.pkg.sem->metric.pkg.rev',
+  ]);
+});
+
+void test('buildScopedSubgraph: a metric says what kind it is, the rest only what they are', () => {
+  const { nodes: result } = buildScopedSubgraph(semanticIndex, 'model.pkg.fct', wholeDownstream);
+  const label = (id: string) => result.find((n) => n.id === id)?.metaLabel;
+
+  assert.equal(label('metric.pkg.rev'), 'metric · ratio');
+  assert.equal(label('semantic_model.pkg.sem'), 'semantic_model');
+  assert.equal(label('saved_query.pkg.weekly'), 'saved_query');
+});
+
+void test('buildScopedSubgraph: a unit test is hidden with the tests, and shown with them', () => {
+  const hidden = buildScopedSubgraph(semanticIndex, 'model.pkg.fct', wholeDownstream).nodes;
+  assert.ok(!hidden.some((n) => n.id === 'unit_test.pkg.fct.ut'));
+
+  const shown = buildScopedSubgraph(semanticIndex, 'model.pkg.fct', {
+    ...wholeDownstream,
+    includeTests: true,
+  }).nodes;
+  assert.equal(shown.find((n) => n.id === 'unit_test.pkg.fct.ut')?.metaLabel, 'unit_test');
+});
+
+void test('buildScopedSubgraph: the expand count of a model leaves out its hidden unit test', () => {
+  const root = buildScopedSubgraph(semanticIndex, 'model.pkg.fct').nodes.find((n) => n.isRoot);
+  assert.equal(root?.childCount, 1);
+});
+
+void test('buildScopedSubgraph: a materialization filter never hides the semantic layer', () => {
+  const scope: LineageScope = { ...wholeDownstream, excludedMaterializations: ['view', 'table'] };
+  const ids = buildScopedSubgraph(semanticIndex, 'model.pkg.fct', scope).nodes.map((n) => n.id);
+
+  assert.ok(ids.includes('metric.pkg.rev'));
+});
+
+void test('buildScopedSubgraph: a metric can be the root, with a parent on each side', () => {
+  const nodes = buildScopedSubgraph(semanticIndex, 'metric.pkg.rev').nodes;
+
+  assert.deepEqual(nodes.map((n) => n.id).sort(), [
+    'metric.pkg.rev',
+    'saved_query.pkg.weekly',
+    'semantic_model.pkg.sem',
+  ]);
+});

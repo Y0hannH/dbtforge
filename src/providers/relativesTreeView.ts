@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DbtNode, LineageEntity } from '../index/manifestTypes';
+import { isBuiltNode } from '../index/manifestTypes';
 import { versionedName } from '../index/modelVersions';
 import type { RunOutcome } from '../index/runResults';
 import type { StateChange } from '../index/stateComparison';
@@ -27,7 +28,10 @@ class NodeItem extends vscode.TreeItem {
     run?: RunStatusView,
     change?: StateChange,
   ) {
-    super(isBuilt(node) ? versionedName(node) : node.name, vscode.TreeItemCollapsibleState.None);
+    super(
+      isBuiltNode(node) ? versionedName(node) : node.name,
+      vscode.TreeItemCollapsibleState.None,
+    );
     const kind = node.resource_type === 'model' ? node.package_name : node.resource_type;
     // The last run, when there is one, replaces the kind of node as the description: the icon
     // already says which kind it is, and the run is the news.
@@ -46,11 +50,6 @@ class NodeItem extends vscode.TreeItem {
   }
 }
 
-// A source or an exposure has no version; the rest are nodes dbt builds.
-function isBuilt(node: LineageEntity): node is DbtNode {
-  return node.resource_type !== 'source' && node.resource_type !== 'exposure';
-}
-
 // Theme colours the Testing view already uses for the same four states, so a failed test reads
 // the same here as it does there.
 function statusIcon(outcome: RunOutcome): vscode.ThemeIcon {
@@ -66,12 +65,19 @@ function statusIcon(outcome: RunOutcome): vscode.ThemeIcon {
   }
 }
 
-// Sources and exposures are the two kinds a model's neighbours can be besides other dbt nodes:
-// the table it reads from, and the dashboard or app that reads it.
+// Besides other dbt nodes, a model's neighbours can be the table it reads from, the dashboard or app
+// that reads it, and what the semantic layer and unit tests declare on top of it.
 function iconFor(node: LineageEntity): string {
   switch (node.resource_type) {
     case 'test':
+    case 'unit_test':
       return 'beaker';
+    case 'semantic_model':
+      return 'symbol-class';
+    case 'metric':
+      return 'graph';
+    case 'saved_query':
+      return 'bookmark';
     case 'source':
       return 'database';
     case 'exposure':

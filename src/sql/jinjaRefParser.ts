@@ -101,7 +101,7 @@ const REF_CALL = /\bref\(\s*(?:['"]([^'"]+)['"]\s*,\s*)?['"]([^'"]+)['"]\s*(?:,(
 const VERSION_LITERAL = /\b(?:v|version)\s*=\s*(?:['"]([^'"]+)['"]|(\d[\w.-]*))/;
 const VERSION_KEYWORD = /\b(?:v|version)\s*=/;
 
-function versionOf(keywordArguments: string | undefined): RefVersion {
+export function versionOf(keywordArguments: string | undefined): RefVersion {
   if (!keywordArguments) return {};
   const literal = VERSION_LITERAL.exec(keywordArguments);
   if (literal) return { version: literal[1] ?? literal[2] };

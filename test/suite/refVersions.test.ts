@@ -3,7 +3,13 @@ import { test } from 'node:test';
 import { strict as assert } from 'assert';
 
 import type { DbtManifest, DbtNode } from '../../src/index/manifestTypes';
-import { buildRefIndex, buildVersionedRefIndex, versionKey } from '../../src/index/refIndex';
+import {
+  buildPackageRefIndex,
+  buildRefIndex,
+  buildVersionedRefIndex,
+  packageKey,
+  versionKey,
+} from '../../src/index/refIndex';
 import {
   findAllRefCallLocations,
   findAllRefCalls,
@@ -144,4 +150,58 @@ void test('findAllRefCallLocations: a version it cannot read is kept rather than
   const older = { value: '1', isLatest: false };
 
   assert.equal(findAllRefCallLocations(line, 'dim_orders', undefined, older).length, 1);
+});
+
+// ref('package', 'model'): the one form that separates same-named models of different packages.
+
+function inPackage(node: DbtNode, packageName: string): DbtNode {
+  return {
+    ...node,
+    unique_id: node.unique_id.replace('example_project', packageName),
+    package_name: packageName,
+  };
+}
+
+void test('buildPackageRefIndex tells same-named models of two packages apart', () => {
+  const mine = { ...versioned(1), unique_id: 'model.example_project.dim', name: 'dim' } as DbtNode;
+  delete mine.version;
+  const theirs = inPackage(mine, 'shared');
+
+  const index = buildPackageRefIndex(manifestOf(mine, theirs));
+
+  assert.equal(index.get(packageKey('example_project', 'dim'))?.uniqueId, mine.unique_id);
+  assert.equal(index.get(packageKey('shared', 'dim'))?.uniqueId, theirs.unique_id);
+  assert.equal(index.get(packageKey('other', 'dim')), undefined);
+});
+
+void test('buildPackageRefIndex sends a versioned model to its latest_version per package', () => {
+  const index = buildPackageRefIndex(
+    manifestOf(versioned(1, 1), versioned(2, 1), inPackage(versioned(2, 2), 'shared')),
+  );
+
+  assert.equal(
+    index.get(packageKey('example_project', 'dim_orders'))?.uniqueId,
+    'model.example_project.dim_orders.v1',
+  );
+  assert.equal(
+    index.get(packageKey('shared', 'dim_orders'))?.uniqueId,
+    'model.shared.dim_orders.v2',
+  );
+});
+
+void test('buildVersionedRefIndex answers a version within one package', () => {
+  const byVersion = buildVersionedRefIndex(
+    manifestOf(versioned(1, 2), versioned(2, 2), inPackage(versioned(1, 1), 'shared')),
+  );
+
+  assert.equal(
+    byVersion.get(versionKey('dim_orders', '1', 'shared'))?.uniqueId,
+    'model.shared.dim_orders.v1',
+  );
+  assert.equal(
+    byVersion.get(versionKey('dim_orders', '1', 'example_project'))?.uniqueId,
+    'model.example_project.dim_orders.v1',
+  );
+  // The package that has no v2 does not borrow the other's.
+  assert.equal(byVersion.get(versionKey('dim_orders', '2', 'shared')), undefined);
 });

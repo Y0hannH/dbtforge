@@ -14,6 +14,12 @@ export interface DbtManifest {
   // Downstream consumers declared in a .yml (dashboards, notebooks, apps). Kept apart from `nodes`
   // by dbt, and optional here because older manifests do not have the section.
   exposures?: Record<string, DbtExposureNode>;
+  // The semantic layer and unit tests, each in a section of its own and each optional: older
+  // manifests have none of them. Their ids also sit in `parent_map`/`child_map`.
+  unit_tests?: Record<string, DbtSemanticNode>;
+  semantic_models?: Record<string, DbtSemanticNode>;
+  metrics?: Record<string, DbtSemanticNode>;
+  saved_queries?: Record<string, DbtSemanticNode>;
   macros?: Record<string, DbtMacroNode>;
   // `{% docs %}` blocks, keyed by unique_id. Present since the manifest schema versions dbt Forge
   // targets; optional here for the same reason macros are — a partial manifest may omit it.
@@ -41,6 +47,11 @@ export interface DbtNode {
   // `unrendered_config` is the config as written, before Jinja — see stateComparison.
   checksum?: { name?: string; checksum?: string } | null;
   unrendered_config?: Record<string, unknown> | null;
+  // Who may `ref()` a model: `group` names the team it belongs to, `access` is 'private' (that
+  // group only), 'protected' (the project, dbt's default) or 'public'. Both are null on a node
+  // that declares neither, and absent from older manifests.
+  group?: string | null;
+  access?: string | null;
   // Model versions share a `name` and differ by `version` (the unique_id ends in `.v<version>`).
   // `latest_version` is what a bare `ref('name')` resolves to; dbt writes it on every version.
   // Both are int, float or string in a yml, hence the union — and null on an unversioned model.
@@ -118,8 +129,49 @@ export interface DbtExposureNode {
   depends_on?: { nodes: string[] };
 }
 
-/** Anything the lineage graph can draw: `parent_map`/`child_map` carry all three kinds. */
-export type LineageEntity = DbtNode | DbtSourceNode | DbtExposureNode;
+export type SemanticResourceType = 'unit_test' | 'semantic_model' | 'metric' | 'saved_query';
+
+/** The resource types of `DbtSemanticNode`, for telling them from the rest by `resource_type`. */
+export const SEMANTIC_RESOURCE_TYPES: ReadonlySet<string> = new Set<SemanticResourceType>([
+  'unit_test',
+  'semantic_model',
+  'metric',
+  'saved_query',
+]);
+
+/**
+ * A unit test, semantic model, metric or saved query. They share one shape because the lineage
+ * reads the same few fields from each: where it is declared (always a .yml) and what it depends on.
+ * Like an exposure none of them is built, so there is no materialization to read.
+ */
+export interface DbtSemanticNode {
+  unique_id: string;
+  resource_type: SemanticResourceType;
+  name: string;
+  package_name: string;
+  path: string;
+  original_file_path: string; // the .yml that declares it
+  description?: string;
+  /** A metric's kind: 'simple' | 'ratio' | 'derived' | 'cumulative' | 'conversion'. */
+  type?: string;
+  depends_on?: { nodes: string[] };
+}
+
+/** Anything the lineage graph can draw: `parent_map`/`child_map` carry all of these kinds. */
+export type LineageEntity = DbtNode | DbtSourceNode | DbtExposureNode | DbtSemanticNode;
+
+/**
+ * Whether dbt builds it: a model, seed, snapshot, test or analysis does; a source, an exposure and
+ * the semantic layer are declarations. `DbtNode.resource_type` is an open string, so a plain
+ * `=== 'source'` check does not narrow the union and this guard does.
+ */
+export function isBuiltNode(entity: LineageEntity): entity is DbtNode {
+  return (
+    entity.resource_type !== 'source' &&
+    entity.resource_type !== 'exposure' &&
+    !SEMANTIC_RESOURCE_TYPES.has(entity.resource_type)
+  );
+}
 
 export interface DbtSourceNode {
   unique_id: string;

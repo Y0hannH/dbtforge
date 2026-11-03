@@ -6,7 +6,7 @@
 // so every function here reports "I could not tell" rather than returning a best guess.
 
 import type { SourceRef } from './aliasParser';
-import { parseTableReferences } from './aliasParser';
+import { parseTableReferences, withoutAlias } from './aliasParser';
 import { findAllRefCalls, findAllSourceCalls } from './jinjaRefParser';
 import {
   findMatchingParen,
@@ -307,9 +307,7 @@ function resolveExpansionSource(
     return undefined;
   }
 
-  return reference.kind === 'ref'
-    ? { kind: 'ref', modelName: reference.modelName }
-    : { kind: 'source', sourceName: reference.sourceName, tableName: reference.tableName };
+  return withoutAlias(reference);
 }
 
 /** Offset of the earliest top-level occurrence of any of `words` in [from, to), or `to`. */

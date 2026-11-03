@@ -1,4 +1,5 @@
-import type { DbtNode, LineageEntity } from '../index/manifestTypes';
+import type { LineageEntity } from '../index/manifestTypes';
+import { isBuiltNode } from '../index/manifestTypes';
 import { nodeSelector } from '../index/modelVersions';
 import { type LineageScope, UNLIMITED_DEPTH } from './lineageScope';
 import type { SelectorOutcome } from './messages';
@@ -17,11 +18,10 @@ import type { SelectorOutcome } from './messages';
 export const MAX_SELECTION_NODES = 300;
 
 /**
- * Kinds of node that `dbt ls` can return but that are not in the manifest's `nodes`, `sources` or
- * `exposures` and have no place in a lineage graph. They are counted apart so that a selection
- * which happens to include a metric doesn't tell the user to recompile.
+ * Kinds of node that `dbt ls` can return but that have no place in a lineage graph. They are counted
+ * apart so that a selection which happens to include a group doesn't tell the user to recompile.
  */
-const NOT_DRAWN_KINDS = new Set(['metric', 'semantic_model', 'saved_query', 'unit_test', 'group']);
+const NOT_DRAWN_KINDS = new Set(['group']);
 
 /**
  * The selector that picks exactly this node, as dbt would be asked for it: a name, or the
@@ -32,7 +32,12 @@ export function rootSelector(entity: LineageEntity): string {
     return `source:${(entity as { source_name: string }).source_name}.${entity.name}`;
   }
   if (entity.resource_type === 'exposure') return `exposure:${entity.name}`;
-  return nodeSelector(entity as DbtNode);
+  if (isBuiltNode(entity)) return nodeSelector(entity);
+  // Metrics, semantic models and saved queries each have a selector method of their own, named for
+  // the resource. A unit test has none worth relying on here, so it goes by name like a model.
+  return entity.resource_type === 'unit_test'
+    ? entity.name
+    : `${entity.resource_type}:${entity.name}`;
 }
 
 /**
@@ -124,8 +129,7 @@ export function describeSelectorOutcome(outcome: SelectorOutcome): SelectorStatu
           `${nodes(missing)} not in the manifest, so not drawn — run \`dbt compile\` to bring it up to date`,
         );
       }
-      if (notDrawn > 0)
-        parts.push(`${notDrawn} of a kind this graph doesn't draw (metrics and the like)`);
+      if (notDrawn > 0) parts.push(`${notDrawn} of a kind this graph doesn't draw (groups)`);
       return { tone: 'note', text: `${parts.join(' · ')}.` };
     }
   }

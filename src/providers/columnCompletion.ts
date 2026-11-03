@@ -68,9 +68,12 @@ export class ColumnCompletionProvider implements vscode.CompletionItemProvider {
 
   /** Columns of a model or source as catalog.json knows them, or nothing when it doesn't. */
   private catalogColumns(index: DbtProjectIndex, source: SourceRef): CteColumn[] | undefined {
+    // A version pinned by an expression is pinned to something this scan can't see, which is not
+    // the latest — so there is no table to read columns from.
+    if (source.kind === 'ref' && source.versionUnreadable) return undefined;
     const uniqueId =
       source.kind === 'ref'
-        ? index.resolveRef(source.modelName)?.uniqueId
+        ? index.resolveRef(source.modelName, source.version, source.packageName)?.uniqueId
         : index.resolveSource(source.sourceName, source.tableName)?.uniqueId;
     if (!uniqueId) return undefined;
 

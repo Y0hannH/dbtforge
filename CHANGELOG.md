@@ -2,6 +2,22 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Metrics, semantic models, saved queries and unit tests appear in the lineage.** They were in the manifest's `child_map` all along and were skipped; they are now drawn like exposures, as `metric · ratio`, `semantic_model`, `saved_query` and `unit_test`, and clicking one opens the `.yml` that declares it.
+  - **Unit tests count as tests.** They are hidden until the Tests filter is on, and the expand button doesn't count them while they are hidden.
+  - **They are never hidden by the materialization filter**, which only means something for what dbt builds, and any of them can be the root of a graph.
+  - **The Parents / Children / Tests panel lists them** under Children, with an icon each.
+  - **The larger view's Select now draws them** when `dbt ls` returns them. A node the manifest doesn't know is counted as *not in the manifest*, like any other; only groups are still reported as a kind the graph doesn't draw.
+  - A manifest from before these sections existed draws exactly what it did.
+- **A `ref()` to a private model from outside its group is flagged.** A model declared `access: private` can only be referenced from its own group, and dbt refuses the rest at parse time; the warning appears on the `ref()` in the Problems panel before that. It is only raised when the model the call is written in is in the manifest, and only for a model, so a file not yet compiled is never accused.
+
+### Fixed
+- **Column autocomplete after `ref('package', 'model')` and `ref('model', v=2)`.** The alias was only found after a single-argument `ref()`, so these gave nothing. They are now read, including `version=` and a package together, and the alias resolves to the right model: a pinned version to exactly that version, a package to that package's model rather than a same-named one from another.
+  - A version written as an expression (`v=var('v')`) still gives nothing, on purpose: it could be any version.
+- **`ref('package', 'model')` is checked against the package.** Go to Definition, hover, Find References and the broken-ref warning looked the model up by name alone, so a wrong package went unnoticed and a same-named model in another package could be the one opened. A package that doesn't have the model is now reported as `package.model` not found.
+
 ## [0.22.1] - 2026-10-30
 
 ### Fixed

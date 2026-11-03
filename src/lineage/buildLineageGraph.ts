@@ -2,10 +2,11 @@ import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import type { DependencyGraph } from '../index/graph';
 import type {
   DbtExposureNode,
-  DbtNode,
+  DbtSemanticNode,
   DbtSourceNode,
   LineageEntity,
 } from '../index/manifestTypes';
+import { isBuiltNode } from '../index/manifestTypes';
 import { isLatestVersion, versionedName } from '../index/modelVersions';
 import type { LineageScope } from './lineageScope';
 import { canDescend, DEFAULT_SCOPE, isInScope } from './lineageScope';
@@ -64,12 +65,13 @@ function isSource(entity: LineageEntity): entity is DbtSourceNode {
   return entity.resource_type === 'source';
 }
 
-function isExposure(entity: LineageEntity): entity is DbtExposureNode {
-  return entity.resource_type === 'exposure';
-}
-
-function isBuiltNode(entity: LineageEntity): entity is DbtNode {
-  return !isSource(entity) && !isExposure(entity);
+/**
+ * What an exposure or a metric says it is — 'dashboard', 'ratio' — which is all there is to put
+ * beside its resource type. The rest of the semantic layer declares no kind.
+ */
+function declaredKind(entity: LineageEntity): string | undefined {
+  if (entity.resource_type !== 'exposure' && entity.resource_type !== 'metric') return undefined;
+  return (entity as DbtExposureNode | DbtSemanticNode).type;
 }
 
 /**
@@ -93,10 +95,10 @@ function toLineageNode(
   const graph = index.getGraph();
   if (!entity || !graph) return undefined;
 
-  // Sources and exposures are not built by dbt: no materialization, no target lag, no colour to
-  // declare. Only the models, seeds and snapshots in `nodes` carry those.
+  // Sources, exposures and the semantic layer are not built by dbt: no materialization, no target
+  // lag, no colour to declare. Only the models, seeds and snapshots in `nodes` carry those.
   const node = isBuiltNode(entity) ? entity : undefined;
-  const materialization = isExposure(entity) ? entity.type : node?.config?.materialized;
+  const materialization = node ? node.config?.materialized : declaredKind(entity);
   const targetLag = node?.config?.target_lag;
   const inherited =
     materialization === 'dynamic_table' && isDownstreamLag(targetLag)
@@ -108,8 +110,8 @@ function toLineageNode(
     name: displayName(entity),
     resourceType: entity.resource_type,
     metaLabel: nodeMetaLabel(entity.resource_type, {
-      // For an exposure this is its kind ('dashboard'), which the row renders the same way:
-      // `exposure · dashboard`, as `model · view` says what a model is.
+      // For an exposure or a metric this is its kind ('dashboard', 'ratio'), which the row renders
+      // the same way: `exposure · dashboard`, as `model · view` says what a model is.
       materialization,
       targetLag,
       // Said only of the version a bare ref() goes to; the others carry no mark, so the one that

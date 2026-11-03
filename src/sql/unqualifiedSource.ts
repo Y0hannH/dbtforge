@@ -12,7 +12,7 @@
 // merely sits next to it.
 
 import type { SourceRef } from './aliasParser';
-import { parseTableReferences } from './aliasParser';
+import { parseTableReferences, withoutAlias } from './aliasParser';
 import type { CteDefinition } from './cteParser';
 import { parseCtes, parseModelSql, stripDelimiters } from './cteParser';
 import { findAllRefCalls, findAllSourceCalls, isInsideJinjaExpression } from './jinjaRefParser';
@@ -113,10 +113,7 @@ function singleOrigin(
     tableEnd = skipNonCode(statement, tableStart);
     const [reference] = parseTableReferences(`from ${statement.slice(tableStart, tableEnd)}`);
     if (!reference) return undefined;
-    origin =
-      reference.kind === 'ref'
-        ? { kind: 'ref', modelName: reference.modelName }
-        : { kind: 'source', sourceName: reference.sourceName, tableName: reference.tableName };
+    origin = withoutAlias(reference);
   } else {
     // A bare name is a CTE of this file or a table this extension knows nothing about.
     if (dbtCalls !== 0) return undefined;

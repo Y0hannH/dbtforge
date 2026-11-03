@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 
 import type { DbtProjectIndex } from '../index/dbtProjectIndex';
 import { catalogColumnNames } from '../index/entityColumns';
+import { privateRefWarning } from '../index/modelAccess';
 import { findAllDocCalls, findAllRefCalls, findAllSourceCalls } from '../sql/jinjaRefParser';
 import { reconcileColumns } from '../yaml/columnReconciliation';
 import { parseSchemaEntities } from '../yaml/schemaColumns';
@@ -52,6 +53,10 @@ export class DbtDiagnosticsController implements vscode.Disposable {
       return;
     }
 
+    // The model this file defines, for the access rule on its ref() calls. Only a .sql file can be
+    // one, and a model not yet in the manifest is simply not checked.
+    const caller = kind === 'sql' ? index.getNodeByFileUri(document.uri) : undefined;
+
     const diagnostics: vscode.Diagnostic[] = [];
     for (let line = 0; line < document.lineCount; line++) {
       const lineText = document.lineAt(line).text;
@@ -74,11 +79,18 @@ export class DbtDiagnosticsController implements vscode.Disposable {
         // A version given as an expression is resolved by dbt at compile time; saying the model
         // doesn't exist would be a claim this scan has no way to back.
         if (call.versionUnreadable) continue;
-        if (index.resolveRef(call.name, call.version)) continue;
+        const target = index.resolveRef(call.name, call.version, call.packageName);
+        if (target) {
+          const warning = privateRefWarning(target.node, caller);
+          if (warning) diagnostics.push(this.makeDiagnostic(line, call.start, call.end, warning));
+          continue;
+        }
+        // `package.model` for the two-argument form, so the message names what was looked up.
+        const label = call.packageName ? `${call.packageName}.${call.name}` : call.name;
         const message =
           call.version === undefined
-            ? `No model, seed or snapshot named "${call.name}" in the manifest. Run dbt compile if it was just added.`
-            : `No version "${call.version}" of "${call.name}" in the manifest. Run dbt compile if it was just added.`;
+            ? `No model, seed or snapshot named "${label}" in the manifest. Run dbt compile if it was just added.`
+            : `No version "${call.version}" of "${label}" in the manifest. Run dbt compile if it was just added.`;
         diagnostics.push(this.makeDiagnostic(line, call.start, call.end, message));
       }
 
