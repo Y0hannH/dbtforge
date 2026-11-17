@@ -47,6 +47,7 @@ import { ProfileStatusBar } from './providers/profileStatusBar';
 import { DbtReferenceProvider } from './providers/referenceProvider';
 import { RefSourceCompletionProvider } from './providers/refSourceCompletion';
 import { RelativesTreeProvider } from './providers/relativesTreeView';
+import { RuntimesTreeProvider } from './providers/runtimesTreeView';
 import { SchemaQuickFixProvider } from './providers/schemaQuickFixes';
 import type { TagItem } from './providers/tagsTreeView';
 import { TagsTreeProvider } from './providers/tagsTreeView';
@@ -99,6 +100,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 
   const relativesTree = new RelativesTreeProvider(getIndexForResource);
   const tagsTree = new TagsTreeProvider(getActiveIndex);
+  const runtimesTree = new RuntimesTreeProvider(getActiveIndex);
   const codeLensProvider = new BuildCodeLensProvider(getIndexForResource);
 
   // A manifest reload can turn an unknown file into a known model (typically right after
@@ -110,6 +112,7 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
     codeLensProvider.refresh();
     refreshActiveEditorViews(relativesTree);
     tagsTree.refresh();
+    runtimesTree.refresh();
     // Cheap when nothing failed, and the one place that hears of a finished run.
     for (const index of indexes.values()) void testResults.update(index);
   };
@@ -202,11 +205,13 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.window.registerTreeDataProvider('dbtForge.relatives', relativesTree),
     vscode.window.registerTreeDataProvider('dbtForge.tags', tagsTree),
+    vscode.window.registerTreeDataProvider('dbtForge.runtimes', runtimesTree),
     vscode.window.onDidChangeActiveTextEditor(() => {
       refreshActiveEditorViews(relativesTree);
       // Which project the tags view describes follows the active editor in a multi-root
       // workspace, so it has to re-read on editor change too, not just on manifest reload.
       tagsTree.refresh();
+      runtimesTree.refresh();
       followLineage(context, lineageView, runLineageSelection);
     }),
   );

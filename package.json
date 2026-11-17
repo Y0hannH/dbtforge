@@ -473,6 +473,10 @@
       {
         "view": "dbtForge.tags",
         "contents": "No tags found in the manifest.\nTag a model with `{{ config(tags=['nightly']) }}`, or a whole folder via `dbt_project.yml`, then compile the project to pick them up.\n[Compile Project](command:dbtForge.compileProject)"
+      },
+      {
+        "view": "dbtForge.runtimes",
+        "contents": "No build times yet.\nBuild times come from `target/run_results.json`, which dbt rewrites on every run. Build the whole project once and every model shows up here, slowest first.\n[Build Project](command:dbtForge.buildProject)"
       }
     ],
     "views": {
@@ -484,6 +488,10 @@
         {
           "id": "dbtForge.tags",
           "name": "Tags"
+        },
+        {
+          "id": "dbtForge.runtimes",
+          "name": "Model Runtimes"
         }
       ],
       "dbtForgePreview": [
