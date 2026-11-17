@@ -2,6 +2,15 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
+## [Unreleased]
+
+### Added
+- **Model Runtimes: every model's build time, slowest first.** A new panel in the dbt Forge sidebar lists the models, seeds and snapshots of the last runs by `execution_time`, so the slowest ones — the ones worth optimising first — are at the top.
+  - **Click a line to open the model.** Its tooltip gives the command and status, when it ran, and dbt's message if it failed or warned.
+  - **A failed model keeps its place**, marked `failed`: the time was spent all the same. Skipped models and tests are left out — a skipped model didn't run, and a test checks a build rather than being one.
+  - **Read from `run_results.json`**, like the run status in the lineage, so it costs no extra dbt run. dbt rewrites that file on every invocation; dbt Forge keeps each node's latest time while the window is open, so rebuilding one model updates its line without emptying the list. After a window reload only the last file is known, so a full `dbt build` is what fills it.
+  - Refs [#57](https://github.com/Y0hannH/dbtforge/issues/57).
+
 ## [0.23.0] - 2026-11-03
 
 ### Added
