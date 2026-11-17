@@ -2,7 +2,7 @@
 
 All notable changes to the dbt Forge extension are documented in this file.
 
-## [Unreleased]
+## [0.24.0] - 2026-11-17
 
 ### Added
 - **Model Runtimes: every model's build time, slowest first.** A new panel in the dbt Forge sidebar lists the models, seeds and snapshots of the last runs by `execution_time`, so the slowest ones — the ones worth optimising first — are at the top.
